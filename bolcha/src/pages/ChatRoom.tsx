@@ -24,6 +24,7 @@ type Message = {
   createdAt: Date;
   readBy?: string[]; // uids that have read this message
   likes?: string[]; // uids that liked this message
+  replyTo?: string; // id of message this replies to
 };
 
 type Props = {
@@ -82,8 +83,16 @@ function ChatRoom({ user }: Props) {
   }, [lang]);
   const [profiles, setProfiles] = useState<Record<string, { photoURL?: string }>>({});
   const [text, setText] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
+  const [replyTarget, setReplyTarget] = useState<Message | null>(null);
+  // focus input when reply target set
+  useEffect(() => {
+    if (replyTarget) {
+      inputRef.current?.focus();
+    }
+  }, [replyTarget]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   // track whether user is currently near the bottom (within 100px)
   const nearBottomRef = useRef(true);
@@ -113,6 +122,7 @@ function ChatRoom({ user }: Props) {
           createdAt: data.createdAt?.toDate?.() ?? new Date(),
           readBy: data.readBy ?? [],
           likes: data.likes ?? [],
+          replyTo: data.replyTo ?? null,
         };
       });
       setMessages(list);
@@ -191,6 +201,7 @@ function ChatRoom({ user }: Props) {
     if (!text.trim() || !roomId) return;
     const msgsRef = collection(db, "rooms", roomId, "messages");
     await addDoc(msgsRef, {
+    replyTo: replyTarget?.id ?? null,
       text: text.trim(),
       uid: user.uid,
       createdAt: serverTimestamp(),
@@ -201,6 +212,7 @@ function ChatRoom({ user }: Props) {
       lastActivityAt: serverTimestamp(),
     });
     setText("");
+    setReplyTarget(null);
   };
 
   return (
@@ -265,7 +277,27 @@ function ChatRoom({ user }: Props) {
                   maxWidth: "80%",
                 }}
               >
-                {translations[m.id] ?? m.text}
+                {m.replyTo && (
+                    <div style={{ borderLeft: "2px solid #999", paddingLeft: 4, marginBottom: 2, fontSize: "0.8em", color: "#555" }}>
+                      {messages.find((x) => x.id === m.replyTo)?.text.slice(0, 60) ?? "…"}
+                    </div>
+                  )}
+                  {translations[m.id] ?? m.text}
+                {/* reply button */}
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setReplyTarget(m);
+                  }}
+                  style={{
+                    cursor: "pointer",
+                    marginLeft: 4,
+                    fontSize: "0.9em",
+                    opacity: hovered === m.id ? 1 : 0.6,
+                  }}
+                >
+                  ↩︎
+                </span>
                 {/* like button */}
                 <span
                   onClick={(e) => {
@@ -314,12 +346,19 @@ function ChatRoom({ user }: Props) {
         })}
         <div ref={bottomRef} />
       </div>
+      {replyTarget && (
+        <div style={{ padding: "0.25rem 0.5rem", background: "#f1f1f1", borderLeft: "3px solid #999", fontSize: "0.8em" }}>
+          Replying to: {replyTarget.text.slice(0, 40)}{replyTarget.text.length > 40 ? "…" : ""}
+          <button style={{ marginLeft: 8 }} onClick={() => setReplyTarget(null)}>×</button>
+        </div>
+      )}
       <div style={{ display: "flex", gap: "0.5rem", padding: "0.5rem" }}>
         <input
-          style={{ flex: 1 }}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
+           ref={inputRef}
+           style={{ flex: 1 }}
+           value={text}
+           onChange={(e) => setText(e.target.value)}
+           onKeyDown={(e) => {
             if (e.key === "Enter") sendMessage();
           }}
           placeholder="Type a message"
