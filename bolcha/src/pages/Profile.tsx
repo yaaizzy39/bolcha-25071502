@@ -49,7 +49,8 @@ export default function Profile({ user, onSaved }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     const ext = file.name.split(".").pop() || "jpg";
-    const path = `avatars/${user.uid}_${Date.now()}.${ext}`;
+    // Save into per-user subfolder so rules match avatars/{userId}/**
+  const path = `avatars/${user.uid}/${user.uid}_${Date.now()}.${ext}`;
     const fileRef = ref(storage, path);
     await uploadBytes(fileRef, file);
     const url = await getDownloadURL(fileRef);
