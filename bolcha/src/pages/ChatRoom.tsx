@@ -13,6 +13,7 @@ import {
 import { db } from "../firebase";
 import { translateText } from "../translation";
 import type { User } from "firebase/auth";
+import { doc as fbDoc, getDoc } from "firebase/firestore";
 
 type Message = {
   id: string;
@@ -28,10 +29,23 @@ type Props = {
 function ChatRoom({ user }: Props) {
   const { roomId } = useParams<{ roomId: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [prefs, setPrefs] = useState<{ side: "left" | "right"; showOriginal: boolean }>({ side: "right", showOriginal: true });
   const [lang, setLang] = useState<string>("en");
   const [translations, setTranslations] = useState<Record<string, string>>({});
+  const [profiles, setProfiles] = useState<Record<string, { photoURL?: string }>>({});
   const [text, setText] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  // load user preferences once on mount
+  useEffect(() => {
+    (async () => {
+      const snap = await getDoc(fbDoc(db, "users", user.uid));
+      if (snap.exists()) {
+        const data = snap.data() as any;
+        setPrefs((p) => ({ ...p, ...data }));
+      }
+    })();
+  }, [user.uid]);
 
   useEffect(() => {
     if (!roomId) return;
@@ -87,6 +101,22 @@ function ChatRoom({ user }: Props) {
     };
   }, [messages, lang]);
 
+  // load / subscribe to user profiles referenced in messages
+  useEffect(() => {
+    const uids = Array.from(new Set(messages.map((m) => m.uid)));
+    const unsubscribes: (() => void)[] = [];
+    uids.forEach((uid) => {
+      if (profiles[uid]) return; // already have
+      const unsub = onSnapshot(fbDoc(db, "users", uid), (snap) => {
+        setProfiles((prev) => ({ ...prev, [uid]: { photoURL: snap.data()?.photoURL } }));
+      });
+      unsubscribes.push(unsub);
+    });
+    return () => {
+      unsubscribes.forEach((fn) => fn());
+    };
+  }, [messages, profiles]);
+
   const sendMessage = async () => {
     if (!text.trim() || !roomId) return;
     const msgsRef = collection(db, "rooms", roomId, "messages");
@@ -121,29 +151,46 @@ function ChatRoom({ user }: Props) {
         </select>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "0.5rem" }}>
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            style={{
-              textAlign: m.uid === user.uid ? "right" : "left",
-              margin: "0.25rem 0",
-            }}
-          >
-            <span
+        {messages.map((m) => {
+          const avatar = profiles[m.uid]?.photoURL ?? (m.uid === user.uid ? user.photoURL ?? undefined : undefined);
+          const isMe = m.uid === user.uid;
+          return (
+            <div
+              key={m.id}
               style={{
-                background: m.uid === user.uid ? "#dcf8c6" : "#fff",
-                padding: "0.4rem 0.6rem",
-                borderRadius: "4px",
-                display: "inline-block",
+                display: "flex",
+                flexDirection: isMe ? "row-reverse" : "row",
+                alignItems: "flex-end",
+                margin: "0.25rem 0",
               }}
             >
-              {translations[m.id] ?? m.text}
-              {translations[m.id] && translations[m.id] !== m.text && (
-                <div style={{ fontSize: "0.8em", color: "#666" }}>{m.text}</div>
+              {avatar && (
+                <img
+                  src={avatar}
+                  onError={(e) => (e.currentTarget.style.display = "none")}
+                  alt="avatar"
+                  width={32}
+                  height={32}
+                  style={{ borderRadius: "50%", margin: isMe ? "0 0 0 6px" : "0 6px 0 0" }}
+                />
               )}
-            </span>
-          </div>
-        ))}
+              <span
+                style={{
+                  background: isMe ? "#dcf8c6" : "#fff",
+                  padding: "0.4rem 0.6rem",
+                  borderRadius: "4px",
+                  display: "inline-block",
+                  maxWidth: "80%",
+                }}
+              >
+                {translations[m.id] ?? m.text}
+                {prefs.showOriginal && translations[m.id] && translations[m.id] !== m.text && (
+                  <div style={{ fontSize: "0.8em", color: "#666" }}>{m.text}</div>
+                )}
+              </span>
+            </div>
+          );
+        })}
         <div ref={bottomRef} />
       </div>
       <div style={{ display: "flex", gap: "0.5rem", padding: "0.5rem" }}>
