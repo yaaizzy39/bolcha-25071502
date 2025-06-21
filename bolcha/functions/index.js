@@ -1,6 +1,8 @@
 // Cloud Functions for Bolcha - translation proxy to GAS
 import fetch from 'node-fetch';
-import functions from 'firebase-functions';
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+admin.initializeApp();
 
 // Replace with your GAS deployment ID via env or constant
 const GAS_BASE_URL = process.env.GAS_BASE_URL || 'https://script.google.com/macros/s/AKfycbwD3O1N6IQWW_07H6cWiqx8FN-5u1CAOTHb2wmky1c1tgmOT7bO-if08gE49p3zenVO8A/exec';
@@ -37,6 +39,30 @@ export const translate = functions.https.onRequest(async (req, res) => {
     console.error('translate proxy error', err);
     res.set('Access-Control-Allow-Origin', '*');
     res.status(500).json({ error: 'translation failed' });
+  }
+});
+
+// ================= Admin callable =================
+exports.adminDeleteRoom = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+  }
+  const email = context.auth.token.email;
+  const adminEmails = (functions.config().admin?.emails || '').split(/[, ]+/).filter(Boolean);
+  if (!adminEmails.includes(email)) {
+    throw new functions.https.HttpsError('permission-denied', 'Admins only');
+  }
+  const roomId = data.roomId;
+  if (!roomId) {
+    throw new functions.https.HttpsError('invalid-argument', 'roomId required');
+  }
+  const ref = admin.firestore().doc(`rooms/${roomId}`);
+  try {
+    await admin.firestore().recursiveDelete(ref);
+    return { success: true };
+  } catch (err) {
+    console.error('Failed to delete room', roomId, err);
+    throw new functions.https.HttpsError('internal', 'Delete failed');
   }
 });
 

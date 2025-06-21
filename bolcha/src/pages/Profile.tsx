@@ -65,10 +65,7 @@ export default function Profile({ user, onSaved }: Props) {
 
   return (
     <div style={{ maxWidth: 400, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h3>Profile Settings</h3>
-        <button onClick={() => navigate(-1)}>Back</button>
-      </div>
+      <h3>Profile Settings</h3>
       <div style={{ marginBottom: "1rem" }}>
         <label>Avatar:</label>
         <br />

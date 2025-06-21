@@ -1,9 +1,16 @@
 // Utility to call custom GAS translation API endpoints in a round-robin fashion
 // GAS endpoint list is provided via `VITE_GAS_ENDPOINTS` (comma-separated URLs)
+// Additionally, admin can manage endpoints via Firestore doc `admin/config` field `gasEndpoints`.
 
-const endpoints = (import.meta.env.VITE_GAS_ENDPOINTS as string | undefined)
+
+const initialEndpoints = (import.meta.env.VITE_GAS_ENDPOINTS as string | undefined)
   ?.split(/[, ]+/)
-  .filter(Boolean) ?? [];
+  .filter(Boolean) || [];
+
+const endpoints: string[] = [...initialEndpoints];
+
+import { db } from "./firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 
 let primary = 0;           // index of the preferred endpoint
 let failStreak = 0;        // consecutive failures of the current primary
@@ -11,6 +18,29 @@ const FAIL_THRESHOLD = 2;  // switch primary after this many consecutive failure
 
 // simple promise queue to ensure only one request at a time
 let chain: Promise<any> = Promise.resolve();
+
+// Runtime load of endpoints from Firestore (admin-configurable)
+try {
+  const cfgRef = doc(db, "admin", "config");
+  onSnapshot(cfgRef, (snap) => {
+    const data = snap.data();
+    if (data && Array.isArray(data.gasEndpoints)) {
+      if (data.gasEndpoints.length) {
+        endpoints.splice(0, endpoints.length, ...data.gasEndpoints.filter(Boolean));
+        console.info("[translation] endpoints updated from Firestore", endpoints);
+      } else {
+        // empty list ⇒ revert to initial .env endpoints
+        endpoints.splice(0, endpoints.length, ...initialEndpoints);
+        console.info("[translation] endpoints reset to .env list", endpoints);
+      }
+      primary = 0;
+      failStreak = 0;
+    }
+  });
+} catch {
+  // ignore if Firestore not ready
+}
+
 
 // Try translating via one endpoint: POST first, then GET fallback
 async function attemptTranslate(

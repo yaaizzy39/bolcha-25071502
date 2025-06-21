@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 
 // Firebase configuration is supplied via Vite environment variables.
@@ -20,5 +21,6 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const functions = getFunctions(app);
 
 export default app;
