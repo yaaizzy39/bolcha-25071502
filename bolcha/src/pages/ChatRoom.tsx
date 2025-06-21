@@ -171,7 +171,7 @@ function ChatRoom({ user }: Props) {
       for (const m of untranslated) {
         const translated = await translateText(m.text, lang);
         if (cancelled) break;
-        if (translated) {
+        if (translated && translated !== m.text) {
           setTranslations((prev) => ({ ...prev, [m.id]: translated }));
         }
       }
