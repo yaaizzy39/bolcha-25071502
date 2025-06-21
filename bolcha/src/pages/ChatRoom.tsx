@@ -83,7 +83,7 @@ function ChatRoom({ user }: Props) {
   }, [lang]);
   const [profiles, setProfiles] = useState<Record<string, { photoURL?: string }>>({});
   const [text, setText] = useState("");
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
@@ -275,6 +275,7 @@ function ChatRoom({ user }: Props) {
                   borderRadius: "4px",
                   display: "inline-block",
                   maxWidth: "80%",
+                  whiteSpace: "pre-wrap",
                 }}
               >
                 {m.replyTo && (
@@ -323,7 +324,7 @@ function ChatRoom({ user }: Props) {
                   <span style={{ marginLeft: 4, fontSize: "0.8em", color: "#555" }}>{m.likes.length}</span>
                 )}
                 {prefs.showOriginal && translations[m.id] && translations[m.id] !== m.text && (
-                  <div style={{ fontSize: "0.8em", color: "#666" }}>{m.text}</div>
+                  <div style={{ fontSize: "0.8em", color: "#666", whiteSpace: "pre-wrap" }}>{m.text}</div>
                 )}
                 <div
                   style={{
@@ -353,15 +354,18 @@ function ChatRoom({ user }: Props) {
         </div>
       )}
       <div style={{ display: "flex", gap: "0.5rem", padding: "0.5rem" }}>
-        <input
-           ref={inputRef}
-           style={{ flex: 1 }}
-           value={text}
-           onChange={(e) => setText(e.target.value)}
-           onKeyDown={(e) => {
-            if (e.key === "Enter") sendMessage();
+        <textarea
+          ref={inputRef}
+          style={{ flex: 1, minHeight: 40 }}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              sendMessage();
+            }
           }}
-          placeholder="Type a message"
+          placeholder="Type a message (Shift+Enterで改行)"
         />
         <button onClick={sendMessage}>Send</button>
       </div>

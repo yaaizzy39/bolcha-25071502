@@ -25,7 +25,7 @@ export async function translateText(text: string, targetLang: string): Promise<s
     });
     if (postRes.ok) {
       const maybeJson = await safeParse(postRes);
-      return maybeJson;
+      return handleResult(maybeJson, text);
     }
   } catch {}
 
@@ -35,11 +35,18 @@ export async function translateText(text: string, targetLang: string): Promise<s
     const getRes = await fetch(`${url}?${params.toString()}`);
     if (!getRes.ok) throw new Error("Non-200 response");
     const maybeJson = await safeParse(getRes);
-    return maybeJson;
+    return handleResult(maybeJson, text);
   } catch (err) {
     console.error("Translate error", err);
     return null;
   }
+}
+
+function handleResult(maybeJson: string | null, text: string): string | null {
+  if (typeof maybeJson === "string") {
+    return preserveBlankLines(text, maybeJson);
+  }
+  return maybeJson;
 }
 
 async function safeParse(res: Response): Promise<string | null> {
@@ -49,16 +56,35 @@ async function safeParse(res: Response): Promise<string | null> {
     try {
       const obj = JSON.parse(txt);
       // tolerate different property names
-      return (
-        obj.translatedText ||
-        obj.text ||
-        obj.translation ||
-        null
-      );
+      const raw = obj.translatedText || obj.text || obj.translation || null;
+      if (typeof raw === "string") {
+        const normalized = raw.replace(/\\n/g, "\n").replace(/<br\s*\/?>/gi, "\n");
+        return normalized;
+      }
+      return raw;
     } catch {
-      return txt; // plain text
+      return txt.replace(/\\n/g, "\n").replace(/<br\s*\/?>/gi, "\n"); // plain text with normalized breaks
     }
   } catch {
     return null;
   }
+}
+
+// keep blank-line count same as source
+function preserveBlankLines(src: string, dest: string): string {
+  const s = src.split("\n");
+  const d = dest.split("\n");
+  const out: string[] = [];
+  let j = 0;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i].trim() === "") {
+      out.push("");
+      if (d[j]?.trim() === "") j++;
+    } else {
+      out.push(d[j] ?? "");
+      j++;
+    }
+  }
+  while (j < d.length) out.push(d[j++]);
+  return out.join("\n");
 }
