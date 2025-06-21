@@ -213,6 +213,12 @@ function ChatRoom({ user }: Props) {
     });
     setText("");
     setReplyTarget(null);
+    // auto-scroll to the latest message after sending
+    nearBottomRef.current = true;
+    // wait for DOM update then scroll
+    setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 0);
   };
 
   return (
