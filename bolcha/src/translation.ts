@@ -5,22 +5,20 @@ const endpoints = (import.meta.env.VITE_GAS_ENDPOINTS as string | undefined)
   ?.split(/[, ]+/)
   .filter(Boolean) ?? [];
 
-let cursor = 0;
+let primary = 0;           // index of the preferred endpoint
+let failStreak = 0;        // consecutive failures of the current primary
+const FAIL_THRESHOLD = 2;  // switch primary after this many consecutive failures
 
 // simple promise queue to ensure only one request at a time
 let chain: Promise<any> = Promise.resolve();
 
-async function doTranslate(text: string, targetLang: string): Promise<string | null> {
-  if (!endpoints.length) {
-    console.warn("No GAS endpoints configured");
-    return null;
-  }
-  // Pick endpoint round-robin
-  const url = endpoints[cursor % endpoints.length];
-  cursor += 1;
-
+// Try translating via one endpoint: POST first, then GET fallback
+async function attemptTranslate(
+  url: string,
+  text: string,
+  targetLang: string
+): Promise<string | null> {
   try {
-    // attempt POST (preferred)
     const postRes = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -30,19 +28,49 @@ async function doTranslate(text: string, targetLang: string): Promise<string | n
       const maybeJson = await safeParse(postRes);
       return handleResult(maybeJson, text);
     }
-  } catch {}
+  } catch {
+    // network / CORS errors fall through to GET
+  }
 
-  // fallback: GET (no preflight)
   try {
     const params = new URLSearchParams({ text, target: targetLang });
     const getRes = await fetch(`${url}?${params.toString()}`);
-    if (!getRes.ok) throw new Error("Non-200 response");
-    const maybeJson = await safeParse(getRes);
-    return handleResult(maybeJson, text);
-  } catch (err) {
-    console.error("Translate error", err);
+    if (getRes.ok) {
+      const maybeJson = await safeParse(getRes);
+      return handleResult(maybeJson, text);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+async function doTranslate(text: string, targetLang: string): Promise<string | null> {
+  if (!endpoints.length) {
+    console.warn("No GAS endpoints configured");
     return null;
   }
+  // Iterate over endpoints, starting with the current primary, until one succeeds
+  for (let i = 0; i < endpoints.length; i++) {
+    const idx = (primary + i) % endpoints.length;
+    const url = endpoints[idx];
+
+    const maybe = await attemptTranslate(url, text, targetLang);
+    if (maybe !== null) {
+      // Success → promote this index to be the primary
+      primary = idx;
+      failStreak = 0;
+      return maybe;
+    }
+  }
+
+  // All endpoints failed this round
+  failStreak += 1;
+  if (failStreak >= FAIL_THRESHOLD) {
+    primary = (primary + 1) % endpoints.length; // shift to next endpoint
+    failStreak = 0;
+  }
+  return null;
 }
 
 
