@@ -168,6 +168,8 @@ const translatingRef = useRef<Set<string>>(new Set());
           translatingRef.current.add(id);
           const translated = await translateText(message.text, lang);
           translatingRef.current.delete(id);
+          // stop observing this element – translation done for current language
+          observerRef.current?.unobserve(entry.target);
           const finalText = translated && translated !== message.text ? translated : message.text;
           setTranslations((prev) => ({ ...prev, [id]: finalText }));
         }
@@ -198,10 +200,12 @@ const translatingRef = useRef<Set<string>>(new Set());
       if (!msg) return;
       const translated = await translateText(msg.text, lang);
       translatingRef.current.delete(id);
+      // stop observing; translation attempted once per language
+      observerRef.current?.unobserve(el);
       if (translated && translated !== msg.text) {
         setTranslations((prev) => ({ ...prev, [id]: translated }));
       } else {
-        setTranslations((prev) => ({ ...prev, [id]: undefined }));
+        setTranslations((prev) => ({ ...prev, [id]: msg.text }));
       }
     });
   }, [messages, lang, translations]);
