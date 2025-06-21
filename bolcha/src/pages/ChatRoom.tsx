@@ -142,9 +142,9 @@ const translatingRef = useRef<Set<string>>(new Set());
       }
       // clear translations of messages no longer present
       setTranslations((prev) => {
-        const next: Record<string, string> = {};
+        const next: Record<string, string | undefined> = {};
         list.forEach((m) => {
-          if (prev[m.id]) next[m.id] = prev[m.id];
+          if (prev[m.id] !== undefined) next[m.id] = prev[m.id];
         });
         return next;
       });
@@ -161,16 +161,15 @@ const translatingRef = useRef<Set<string>>(new Set());
       entries.forEach(async (entry) => {
         if (entry.isIntersecting) {
           const id = (entry.target as HTMLElement).dataset.msgId;
-          if (!id || translations[id]) return;
+          if (!id || id in translations) return;
           const message = messages.find((x) => x.id === id);
           if (!message) return;
           if (translatingRef.current.has(id)) return;
           translatingRef.current.add(id);
           const translated = await translateText(message.text, lang);
           translatingRef.current.delete(id);
-          if (translated && translated !== message.text) {
-            setTranslations((prev) => ({ ...prev, [id]: translated }));
-          }
+          const finalText = translated && translated !== message.text ? translated : message.text;
+          setTranslations((prev) => ({ ...prev, [id]: finalText }));
         }
       });
     }, { root: containerRef.current, threshold: 0.1 });
@@ -190,7 +189,7 @@ const translatingRef = useRef<Set<string>>(new Set());
     const els = containerRef.current.querySelectorAll('[data-msg-id]');
     els.forEach(async (el) => {
       const id = (el as HTMLElement).dataset.msgId;
-      if (!id || translations[id] || translatingRef.current.has(id)) return;
+      if (!id || id in translations || translatingRef.current.has(id)) return;
       const rect = (el as HTMLElement).getBoundingClientRect();
       const visible = rect.bottom >= rootRect.top && rect.top <= rootRect.bottom;
       if (!visible) return;
@@ -201,6 +200,8 @@ const translatingRef = useRef<Set<string>>(new Set());
       translatingRef.current.delete(id);
       if (translated && translated !== msg.text) {
         setTranslations((prev) => ({ ...prev, [id]: translated }));
+      } else {
+        setTranslations((prev) => ({ ...prev, [id]: undefined }));
       }
     });
   }, [messages, lang, translations]);
@@ -220,7 +221,7 @@ const translatingRef = useRef<Set<string>>(new Set());
     const untranslated = messages
       .slice(-MAX_TRANSLATE)
       .reverse() // newest first
-      .filter((m) => !translations[m.id] && lang);
+      .filter((m) => !(m.id in translations) && lang);
     if (!untranslated.length) return;
 
     (async () => {
@@ -229,9 +230,8 @@ const translatingRef = useRef<Set<string>>(new Set());
         translatingRef.current.add(m.id);
         const translated = await translateText(m.text, lang);
         translatingRef.current.delete(m.id);
-        if (translated && translated !== m.text) {
-          setTranslations((prev) => ({ ...prev, [m.id]: translated }));
-        }
+        const finalText = translated && translated !== m.text ? translated : m.text;
+        setTranslations((prev) => ({ ...prev, [m.id]: finalText }));
       }
     })();
   }, [messages, lang]);
@@ -345,7 +345,7 @@ const translatingRef = useRef<Set<string>>(new Set());
                       {messages.find((x) => x.id === m.replyTo)?.text.slice(0, 60) ?? "…"}
                     </div>
                   )}
-                  {translations[m.id] ?? m.text}
+                  {translations[m.id] !== undefined ? translations[m.id] : m.text}
                 {/* reply button */}
                 <span
                   onClick={(e) => {

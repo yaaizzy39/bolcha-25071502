@@ -7,7 +7,10 @@ const endpoints = (import.meta.env.VITE_GAS_ENDPOINTS as string | undefined)
 
 let cursor = 0;
 
-export async function translateText(text: string, targetLang: string): Promise<string | null> {
+// simple promise queue to ensure only one request at a time
+let chain: Promise<any> = Promise.resolve();
+
+async function doTranslate(text: string, targetLang: string): Promise<string | null> {
   if (!endpoints.length) {
     console.warn("No GAS endpoints configured");
     return null;
@@ -41,6 +44,23 @@ export async function translateText(text: string, targetLang: string): Promise<s
     return null;
   }
 }
+
+
+export function translateText(text: string, targetLang: string): Promise<string | null> {
+  const next = chain.then(async () => {
+    const res = await doTranslate(text, targetLang);
+    // small delay between requests to avoid hitting quota hard
+    await new Promise((r) => setTimeout(r, 300));
+    return res;
+  });
+  // update chain but swallow result so the queue never rejects
+  chain = next.then(
+    () => {},
+    () => {}
+  );
+  return next;
+}
+
 
 function handleResult(maybeJson: string | null, text: string): string | null {
   if (typeof maybeJson === "string") {
