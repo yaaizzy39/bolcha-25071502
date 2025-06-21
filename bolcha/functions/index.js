@@ -39,3 +39,38 @@ export const translate = functions.https.onRequest(async (req, res) => {
     res.status(500).json({ error: 'translation failed' });
   }
 });
+
+// ===== Additional translation proxy (translate2) =====
+// To set a distinct GAS endpoint run:
+//   firebase functions:config:set translate2.gas_url="https://script.google.com/.../exec"
+// If not set, falls back to GAS_BASE_URL or process.env.GAS_BASE_URL_2.
+const GAS_BASE_URL_2 = (functions.config().translate2?.gas_url ?? process.env.GAS_BASE_URL_2 ?? GAS_BASE_URL);
+
+export const translate2 = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+
+  const textParam = req.method === 'GET' ? (req.query.text || req.query.q) : (req.body.text || req.body.q);
+  const text = Array.isArray(textParam) ? textParam[0] : textParam;
+  if (!text) {
+    res.status(400).json({ error: 'text required' });
+    return;
+  }
+  const target = (req.method === 'GET' ? req.query.target : req.body.target) || 'en';
+
+  try {
+    const url = `${GAS_BASE_URL_2}?text=${encodeURIComponent(text)}&target=${encodeURIComponent(target)}`;
+    const r = await fetch(url);
+    const json = await r.json();
+    res.json(json);
+  } catch (err) {
+    console.error('translate2 proxy error', err);
+    res.status(500).json({ error: 'translation failed' });
+  }
+});
