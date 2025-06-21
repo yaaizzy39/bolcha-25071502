@@ -17,6 +17,9 @@ import { translateText } from "../translation";
 import type { User } from "firebase/auth";
 import { doc as fbDoc, getDoc } from "firebase/firestore";
 
+// Translate only the most recent messages during batch processing
+const MAX_TRANSLATE = 10;
+
 type Message = {
   id: string;
   text: string;
@@ -94,6 +97,8 @@ function ChatRoom({ user }: Props) {
     }
   }, [replyTarget]);
   const containerRef = useRef<HTMLDivElement | null>(null);
+const observerRef = useRef<IntersectionObserver | null>(null);
+const translatingRef = useRef<Set<string>>(new Set());
   // track whether user is currently near the bottom (within 100px)
   const nearBottomRef = useRef(true);
 
@@ -148,6 +153,58 @@ function ChatRoom({ user }: Props) {
     return unsub;
   }, [roomId]);
 
+  // observe visibility of messages and translate only when they come into view
+  // create IO once
+  useEffect(() => {
+    if (!containerRef.current || observerRef.current) return;
+    observerRef.current = new IntersectionObserver((entries) => {
+      entries.forEach(async (entry) => {
+        if (entry.isIntersecting) {
+          const id = (entry.target as HTMLElement).dataset.msgId;
+          if (!id || translations[id]) return;
+          const message = messages.find((x) => x.id === id);
+          if (!message) return;
+          if (translatingRef.current.has(id)) return;
+          translatingRef.current.add(id);
+          const translated = await translateText(message.text, lang);
+          translatingRef.current.delete(id);
+          if (translated && translated !== message.text) {
+            setTranslations((prev) => ({ ...prev, [id]: translated }));
+          }
+        }
+      });
+    }, { root: containerRef.current, threshold: 0.1 });
+  }, []);
+
+  // whenever messages render, observe new elements
+  useEffect(() => {
+    if (!observerRef.current || !containerRef.current) return;
+    const els = containerRef.current.querySelectorAll('[data-msg-id]');
+    els.forEach((el) => observerRef.current!.observe(el));
+  }, [messages]);
+
+  // fallback: immediately translate any visible, untranslated messages (in case IO misses)
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const rootRect = containerRef.current.getBoundingClientRect();
+    const els = containerRef.current.querySelectorAll('[data-msg-id]');
+    els.forEach(async (el) => {
+      const id = (el as HTMLElement).dataset.msgId;
+      if (!id || translations[id] || translatingRef.current.has(id)) return;
+      const rect = (el as HTMLElement).getBoundingClientRect();
+      const visible = rect.bottom >= rootRect.top && rect.top <= rootRect.bottom;
+      if (!visible) return;
+      translatingRef.current.add(id);
+      const msg = messages.find((x) => x.id === id);
+      if (!msg) return;
+      const translated = await translateText(msg.text, lang);
+      translatingRef.current.delete(id);
+      if (translated && translated !== msg.text) {
+        setTranslations((prev) => ({ ...prev, [id]: translated }));
+      }
+    });
+  }, [messages, lang, translations]);
+
   // translate messages when language changes or new messages arrive
   // auto-scroll when messages change if user is near bottom
   useEffect(() => {
@@ -161,24 +218,22 @@ function ChatRoom({ user }: Props) {
 
   useEffect(() => {
     const untranslated = messages
-      .slice()
+      .slice(-MAX_TRANSLATE)
       .reverse() // newest first
       .filter((m) => !translations[m.id] && lang);
     if (!untranslated.length) return;
 
-    let cancelled = false;
     (async () => {
       for (const m of untranslated) {
+        if (translatingRef.current.has(m.id)) continue;
+        translatingRef.current.add(m.id);
         const translated = await translateText(m.text, lang);
-        if (cancelled) break;
+        translatingRef.current.delete(m.id);
         if (translated && translated !== m.text) {
           setTranslations((prev) => ({ ...prev, [m.id]: translated }));
         }
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [messages, lang]);
 
   // load / subscribe to user profiles referenced in messages
@@ -255,6 +310,7 @@ function ChatRoom({ user }: Props) {
           return (
             <div
               key={m.id}
+              data-msg-id={m.id}
               onMouseEnter={() => setHovered(m.id)}
               onMouseLeave={() => setHovered(null)}
               style={{
