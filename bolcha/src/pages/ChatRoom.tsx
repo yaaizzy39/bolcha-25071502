@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { translateText } from "../translation";
+
 import type { User } from "firebase/auth";
 import { doc as fbDoc, getDoc } from "firebase/firestore";
 
@@ -25,9 +26,10 @@ type Message = {
   text: string;
   uid: string;
   createdAt: Date;
-  readBy?: string[]; // uids that have read this message
-  likes?: string[]; // uids that liked this message
-  replyTo?: string; // id of message this replies to
+  readBy?: string[];
+  likes?: string[];
+  replyTo?: string;
+  translations?: Record<string, string>; // cached translations per language
 };
 
 type Props = {
@@ -73,21 +75,15 @@ function ChatRoom({ user }: Props) {
   const [lang, setLang] = useState<string>(() => {
     return localStorage.getItem("chat_lang") || "en";
   });
-  const [translations, setTranslations] = useState<Record<string, string>>({});
-
-  // clear cached translations when language changes
-  useEffect(() => {
-    setTranslations({});
-  }, [lang]);
 
   // persist language selection both locally and to Firestore
   useEffect(() => {
     localStorage.setItem("chat_lang", lang);
-    // debounce writes by scheduling async but not awaiting
     import("firebase/firestore").then(({ doc, setDoc }) => {
       setDoc(doc(db, "users", user.uid), { lang }, { merge: true });
     });
   }, [lang, user.uid]);
+  const [translations, setTranslations] = useState<Record<string, string>>({});
   const [profiles, setProfiles] = useState<Record<string, { photoURL?: string }>>({});
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -136,6 +132,7 @@ const translatingRef = useRef<Set<string>>(new Set());
           readBy: data.readBy ?? [],
           likes: data.likes ?? [],
           replyTo: data.replyTo ?? null,
+          translations: data.translations ?? {},
         };
       });
       setMessages(list);
@@ -148,15 +145,16 @@ const translatingRef = useRef<Set<string>>(new Set());
           });
         });
       }
-      // clear translations of messages no longer present
+      // sync translations cache with Firestore and remove stale entries
       setTranslations((prev) => {
         const next: Record<string, string> = {};
         list.forEach((m) => {
-          if (prev[m.id] !== undefined) next[m.id] = prev[m.id];
+          if (m.translations?.[lang]) {
+            next[m.id] = m.translations[lang];
+          }
         });
         return next;
       });
-
     });
     return unsub;
   }, [roomId]);
@@ -176,10 +174,15 @@ const translatingRef = useRef<Set<string>>(new Set());
           translatingRef.current.add(id);
           const translated = await translateText(message.text, lang);
           translatingRef.current.delete(id);
-          // stop observing this element – translation done for current language
           observerRef.current?.unobserve(entry.target);
-          const finalText = translated && translated !== message.text ? translated : message.text;
-          setTranslations((prev) => ({ ...prev, [id]: finalText }));
+          if (translated && translated !== message.text) {
+            setTranslations((prev) => ({ ...prev, [id]: translated }));
+            await updateDoc(doc(db, "rooms", roomId!, "messages", id), {
+              [`translations.${lang}`]: translated,
+            });
+          } else if (translated === message.text) {
+            setTranslations((prev) => ({ ...prev, [id]: message.text }));
+          }
         }
       });
     }, { root: containerRef.current, threshold: 0.1 });
@@ -190,7 +193,7 @@ const translatingRef = useRef<Set<string>>(new Set());
     if (!observerRef.current || !containerRef.current) return;
     const els = containerRef.current.querySelectorAll('[data-msg-id]');
     els.forEach((el) => observerRef.current!.observe(el));
-  }, [messages]);
+  }, [messages, lang]);
 
   // fallback: immediately translate any visible, untranslated messages (in case IO misses)
   useEffect(() => {
@@ -208,15 +211,15 @@ const translatingRef = useRef<Set<string>>(new Set());
       if (!msg) return;
       const translated = await translateText(msg.text, lang);
       translatingRef.current.delete(id);
-      // stop observing; translation attempted once per language
       observerRef.current?.unobserve(el);
       if (translated && translated !== msg.text) {
         setTranslations((prev) => ({ ...prev, [id]: translated }));
-      } else {
-        setTranslations((prev) => ({ ...prev, [id]: msg.text }));
+        await updateDoc(doc(db, "rooms", roomId!, "messages", id), {
+          [`translations.${lang}`]: translated,
+        });
       }
     });
-  }, [messages, lang, translations]);
+  }, [messages, lang]);
 
   // translate messages when language changes or new messages arrive
   // auto-scroll when messages change if user is near bottom
@@ -242,8 +245,12 @@ const translatingRef = useRef<Set<string>>(new Set());
         translatingRef.current.add(m.id);
         const translated = await translateText(m.text, lang);
         translatingRef.current.delete(m.id);
-        const finalText = translated && translated !== m.text ? translated : m.text;
-        setTranslations((prev) => ({ ...prev, [m.id]: finalText }));
+        if (translated && translated !== m.text) {
+          setTranslations((prev) => ({ ...prev, [m.id]: translated }));
+          await updateDoc(doc(db, "rooms", roomId!, "messages", m.id), {
+            [`translations.${lang}`]: translated,
+          });
+        }
       }
     })();
   }, [messages, lang]);
@@ -268,11 +275,12 @@ const translatingRef = useRef<Set<string>>(new Set());
     if (!text.trim() || !roomId) return;
     const msgsRef = collection(db, "rooms", roomId, "messages");
     await addDoc(msgsRef, {
-    replyTo: replyTarget?.id ?? null,
+      replyTo: replyTarget?.id ?? null,
       text: text.trim(),
       uid: user.uid,
       createdAt: serverTimestamp(),
       readBy: [user.uid],
+      translations: {},
     });
     // update room lastActivityAt
     await updateDoc(doc(db, "rooms", roomId), {
@@ -291,6 +299,7 @@ const translatingRef = useRef<Set<string>>(new Set());
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "80vh" }}>
+
       <div style={{ padding: "0.5rem" }}>
         <select value={lang} onChange={(e) => setLang(e.target.value)}>
           {[
@@ -301,12 +310,13 @@ const translatingRef = useRef<Set<string>>(new Set());
             ["es", "Español"],
             ["fr", "Français"],
           ].map(([code, label]) => (
-            <option key={code} value={code}>
+            <option key={code} value={code as string}>
               {label}
             </option>
           ))}
         </select>
       </div>
+
       <div
         ref={containerRef}
          onScroll={() => {
