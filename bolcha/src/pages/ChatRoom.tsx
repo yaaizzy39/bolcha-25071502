@@ -76,6 +76,7 @@ function ChatRoom({ user }: Props) {
   const isAdmin = useIsAdmin(user);
   const { roomId } = useParams<{ roomId: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [roomName, setRoomName] = useState<string>("");
   const [userPrefs, setUserPrefs] = useState<Record<string, { photoURL?: string; bubbleColor?: string; textColor?: string }>>({});
   const [prefs, setPrefs] = useState<{ side: "left" | "right"; showOriginal: boolean; lang?: string; bubbleColor?: string; textColor?: string }>({ side: "right", showOriginal: true });
   const [lang, setLang] = useState<string>(() => {
@@ -190,6 +191,17 @@ const translatingRef = useRef<Set<string>>(new Set());
   }, [lang, messages]);
 
   // observe visibility of messages and translate only when they come into view
+  // subscribe room doc for name
+  useEffect(() => {
+    if (!roomId) return;
+    const unsub = onSnapshot(doc(db, "rooms", roomId), (snap) => {
+      if (snap.exists()) {
+        setRoomName(snap.data().name ?? "");
+      }
+    });
+    return unsub;
+  }, [roomId]);
+
   // load current user's prefs on mount
   useEffect(() => {
     (async () => {
@@ -378,6 +390,9 @@ const sendMessage = async () => {
       lastActivityAt: serverTimestamp(),
     });
     setText("");
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
     setReplyTarget(null);
     // auto-scroll to the latest message after sending
      nearBottomRef.current = true;
@@ -413,6 +428,7 @@ const sendMessage = async () => {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "80vh" }}>
+      <div style={{ padding: "0.5rem", fontWeight: 600, fontSize: "1.1rem" }}>{roomName}</div>
 
       <div style={{ padding: "0.5rem" }}>
         <select value={lang} onChange={(e) => setLang(e.target.value)}>
@@ -590,16 +606,33 @@ const sendMessage = async () => {
       <div style={{ display: "flex", gap: "0.5rem", padding: "0.5rem" }}>
         <textarea
           ref={inputRef}
-          style={{ flex: 1, minHeight: 40 }}
+          style={{
+            flex: 1,
+            minHeight: 24,
+            maxHeight: 200,
+            border: "1px solid #ccc",
+            borderRadius: "20px",
+            padding: "6px 10px 2px",
+            fontSize: "1rem",
+            outline: "none",
+            overflow: "hidden",
+            resize: "none"
+          }}
+          rows={1}
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onInput={(e) => {
+            const el = e.currentTarget;
+            el.style.height = "auto";
+            el.style.height = `${el.scrollHeight}px`;
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               sendMessage();
             }
           }}
-          placeholder="Type a message (Shift+Enterで改行)"
+          placeholder="Message"
         />
         <button
           onClick={sendMessage}

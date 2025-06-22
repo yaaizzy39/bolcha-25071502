@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { User } from "firebase/auth";
 
 type Room = {
@@ -17,6 +17,7 @@ type Props = {
 };
 
 function Rooms({ user }: Props) {
+  const navigate = useNavigate();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomName, setRoomName] = useState("");
 
@@ -40,13 +41,14 @@ function Rooms({ user }: Props) {
 
   const createRoom = async () => {
     if (!roomName.trim()) return;
-    await addDoc(collection(db, "rooms"), {
+    const docRef = await addDoc(collection(db, "rooms"), {
       name: roomName.trim(),
       createdBy: user.uid,
       createdAt: serverTimestamp(),
       lastActivityAt: serverTimestamp(),
     });
     setRoomName("");
+    navigate(`/rooms/${docRef.id}`);
   };
 
   return (
