@@ -134,6 +134,7 @@ const translatingRef = useRef<Set<string>>(new Set());
           readBy: data.readBy ?? [],
           likes: data.likes ?? [],
           replyTo: data.replyTo ?? null,
+          originalLang: data.originalLang ?? undefined,
           translations: data.translations ?? {},
         };
       });
@@ -236,6 +237,7 @@ const translatingRef = useRef<Set<string>>(new Set());
       translatingRef.current.add(id);
       const msg = messages.find((x) => x.id === id);
       if (!msg) return;
+      if (!msg.originalLang) return; // language not determined yet
       if (msg.originalLang === lang) {
         setTranslations((prev) => ({ ...prev, [id]: msg.text }));
         observerRef.current?.unobserve(el);
@@ -268,7 +270,7 @@ const translatingRef = useRef<Set<string>>(new Set());
     const untranslated = messages
       .slice(-MAX_TRANSLATE)
       .reverse() // newest first
-      .filter((m) => !(m.id in translations) && m.originalLang !== lang);
+      .filter((m) => m.originalLang && !(m.id in translations) && m.originalLang !== lang);
     if (!untranslated.length) return;
 
     (async () => {
@@ -303,22 +305,38 @@ const translatingRef = useRef<Set<string>>(new Set());
     };
   }, [messages, profiles]);
 
-  const sendMessage = async () => {
+  // helper: ensure 2-letter lowercase code
+const normalizeLang = (c: string | undefined | null) => (c || 'en').slice(0,2).toLowerCase();
+
+const sendMessage = async () => {
     if (!text.trim() || !roomId) return;
-    const origLang = await detectLanguage(text.trim());
-    if (!text.trim() || !roomId) return;
+    const origLangRaw = await detectLanguage(text.trim());
+    const origLang = normalizeLang(origLangRaw);
+    const trimmed = text.trim();
+
     const msgsRef = collection(db, "rooms", roomId, "messages");
-    await addDoc(msgsRef, {
-      replyTo: replyTarget?.id ?? null,
-      text: text.trim(),
-      uid: user.uid,
-      createdAt: serverTimestamp(),
-      readBy: [user.uid],
-      originalLang: origLang,
-      translations: {},
-    });
+    // prepare initial doc data
+  const docData: any = {
+    replyTo: replyTarget?.id ?? null,
+    text: trimmed,
+    uid: user.uid,
+    createdAt: serverTimestamp(),
+    readBy: [user.uid],
+    originalLang: origLang,
+    translations: {},
+  };
+  // if same language, store translation stub to Firestore
+  if (origLang === lang) {
+    docData.translations = { [lang]: trimmed };
+  }
+  const docRef = await addDoc(msgsRef, docData);
     // update room lastActivityAt
-    await updateDoc(doc(db, "rooms", roomId), {
+    // if same language, also update local cache to prevent API call
+  if (origLang === lang) {
+    setTranslations(prev => ({ ...prev, [docRef.id]: trimmed }));
+  }
+
+  await updateDoc(doc(db, "rooms", roomId), {
       lastActivityAt: serverTimestamp(),
     });
     setText("");
