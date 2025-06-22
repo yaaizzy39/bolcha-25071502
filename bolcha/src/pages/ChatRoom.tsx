@@ -105,6 +105,7 @@ const observerRef = useRef<IntersectionObserver | null>(null);
 const translatingRef = useRef<Set<string>>(new Set());
   // track whether user is currently near the bottom (within 100px)
   const nearBottomRef = useRef(true);
+  const [atBottom, setAtBottom] = useState(true);
 
   // load user preferences once on mount
   useEffect(() => {
@@ -280,7 +281,8 @@ const translatingRef = useRef<Set<string>>(new Set());
     setText("");
     setReplyTarget(null);
     // auto-scroll to the latest message after sending
-    nearBottomRef.current = true;
+     nearBottomRef.current = true;
+     setAtBottom(true);
     // wait for DOM update then scroll
     setTimeout(() => {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -307,12 +309,14 @@ const translatingRef = useRef<Set<string>>(new Set());
       </div>
       <div
         ref={containerRef}
-        onScroll={() => {
-          const el = containerRef.current;
-          if (!el) return;
-          const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-          nearBottomRef.current = distanceFromBottom < 100; // px threshold
-        }}
+         onScroll={() => {
+           const el = containerRef.current;
+           if (!el) return;
+           const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+           const nb = distanceFromBottom < 100; // px threshold
+           nearBottomRef.current = nb;
+           setAtBottom(nb);
+         }}
         style={{ flex: 1, overflowY: "auto", padding: "0.5rem" }}
       >
         {messages.map((m) => {
@@ -441,9 +445,37 @@ const translatingRef = useRef<Set<string>>(new Set());
           placeholder="Type a message (Shift+Enterで改行)"
         />
         <button onClick={sendMessage}>Send</button>
-      </div>
-    </div>
-  );
+       </div>
+       {!atBottom && (
+         <button
+           onClick={() => {
+             bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+           }}
+           style={{
+             position: "fixed",
+             right: "1rem",
+             bottom: "6rem",
+             width: "36px",
+             height: "36px",
+             display: "flex",
+             alignItems: "center",
+             justifyContent: "center",
+             borderRadius: "50%",
+             border: "1px solid #bbb",
+             background: "rgba(255,255,255,0.8)",
+             color: "#333",
+             boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+             cursor: "pointer",
+             fontSize: "1rem",
+             lineHeight: 1,
+           }}
+           aria-label="Scroll to latest"
+         >
+           ↓
+         </button>
+       )}
+     </div>
+   );
 }
 
 export default ChatRoom;
