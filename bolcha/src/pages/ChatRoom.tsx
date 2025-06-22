@@ -76,7 +76,8 @@ function ChatRoom({ user }: Props) {
   const isAdmin = useIsAdmin(user);
   const { roomId } = useParams<{ roomId: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [prefs, setPrefs] = useState<{ side: "left" | "right"; showOriginal: boolean; lang?: string }>({ side: "right", showOriginal: true });
+  const [userPrefs, setUserPrefs] = useState<Record<string, { photoURL?: string; bubbleColor?: string }>>({});
+  const [prefs, setPrefs] = useState<{ side: "left" | "right"; showOriginal: boolean; lang?: string; bubbleColor?: string }>({ side: "right", showOriginal: true });
   const [lang, setLang] = useState<string>(() => {
     return localStorage.getItem("chat_lang") || "en";
   });
@@ -189,6 +190,22 @@ const translatingRef = useRef<Set<string>>(new Set());
   }, [lang, messages]);
 
   // observe visibility of messages and translate only when they come into view
+  // fetch missing user prefs when messages change
+  useEffect(() => {
+    const missing = Array.from(new Set(messages.map(m => m.uid))).filter(uid => !(uid in userPrefs));
+    if (missing.length === 0) return;
+    missing.forEach(async (uid) => {
+      try {
+        const snap = await getDoc(fbDoc(db, "users", uid));
+        if (snap.exists()) {
+          setUserPrefs(prev => ({ ...prev, [uid]: snap.data() as any }));
+        } else {
+          setUserPrefs(prev => ({ ...prev, [uid]: {} }));
+        }
+      } catch {}
+    });
+  }, [messages]);
+
   // create IO once
   useEffect(() => {
     if (!containerRef.current || observerRef.current) return;
@@ -415,8 +432,9 @@ const sendMessage = async () => {
         style={{ flex: 1, overflowY: "auto", padding: "0.5rem" }}
       >
         {messages.map((m) => {
-          const avatar = profiles[m.uid]?.photoURL ?? (m.uid === user.uid ? user.photoURL ?? undefined : undefined);
-          const isMe = m.uid === user.uid;
+           const isMe = m.uid === user.uid;
+           const avatar = userPrefs[m.uid]?.photoURL ?? (isMe ? user.photoURL ?? undefined : undefined);
+           const bubbleBg = isMe ? (prefs.bubbleColor ?? "#dcf8c6") : (userPrefs[m.uid]?.bubbleColor ?? "#fff");
           return (
             <div
               key={m.id}
@@ -442,7 +460,7 @@ const sendMessage = async () => {
               )}
               <span
                 style={{
-                  background: isMe ? "#dcf8c6" : "#fff",
+                  background: bubbleBg,
                   padding: "0.4rem 0.6rem",
                   borderRadius: "4px",
                   display: "inline-block",
