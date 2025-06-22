@@ -428,12 +428,9 @@ const sendMessage = async () => {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "80vh" }}>
-      <div style={{ width: "100%", padding: "0 0 0 0.2rem", textAlign: "left" }}>
+      <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 0.5rem 0 0.2rem", minHeight: 36 }}>
         <span style={{ fontWeight: 700, fontSize: "1.2rem", letterSpacing: 1, margin: 0 }}>{roomName}</span>
-      </div>
-
-      <div style={{ padding: "0.5rem" }}>
-        <select value={lang} onChange={(e) => setLang(e.target.value)}>
+        <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ marginLeft: 8, height: 28, fontSize: "1rem", borderRadius: 6, border: "1px solid #ccc", padding: "0 8px" }}>
           {[
             ["en", "English"],
             ["ja", "日本語"],
@@ -448,6 +445,7 @@ const sendMessage = async () => {
           ))}
         </select>
       </div>
+
 
       <div
         ref={containerRef}
