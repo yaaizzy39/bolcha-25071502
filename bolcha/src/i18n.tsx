@@ -14,6 +14,8 @@ const translations: Record<UILang, Record<string, string>> = {
     saving: "Saving...",
     uiLanguage: "UI language:",
     english: "English",
+    bubbleColor: "Bubble color",
+    textColor: "Text color",
     japanese: "日本語",
   },
   ja: {
@@ -27,6 +29,8 @@ const translations: Record<UILang, Record<string, string>> = {
     saving: "保存中...",
     uiLanguage: "表示言語：",
     english: "英語",
+    bubbleColor: "吹き出し色",
+    textColor: "文字色",
     japanese: "日本語",
   },
 };

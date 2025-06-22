@@ -128,7 +128,7 @@ export default function Profile({ user, onSaved }: Props) {
       </div>
 
       <div style={{ marginBottom: "1rem" }}>
-        <label>{t("bubbleColor") ?? "Bubble Color"} (light only)</label>
+        <label>{t("bubbleColor") ?? "Bubble Color"}</label>
         <br />
         <input
           type="color"
