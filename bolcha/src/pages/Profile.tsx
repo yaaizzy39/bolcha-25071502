@@ -3,6 +3,33 @@ import { useI18n } from "../i18n";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+// utils --------------------------------------------------
+function hexToRgb(hex: string): [number, number, number] {
+  const m = hex.replace("#", "").match(/.{1,2}/g);
+  if (!m) return [255, 255, 255];
+  return m.map((x) => parseInt(x, 16)) as [number, number, number];
+}
+function rgbToHex(r: number, g: number, b: number) {
+  return "#" + [r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("");
+}
+function luminance(hex: string): number {
+  const [r, g, b] = hexToRgb(hex);
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+}
+function ensureBright(hex: string): string {
+  let lum = luminance(hex);
+  let [r, g, b] = hexToRgb(hex);
+  while (lum < 0.6) {
+    // mix with white by 20%
+    r = Math.round(r + (255 - r) * 0.2);
+    g = Math.round(g + (255 - g) * 0.2);
+    b = Math.round(b + (255 - b) * 0.2);
+    hex = rgbToHex(r, g, b);
+    lum = luminance(hex);
+  }
+  return hex;
+}
 import { db, storage } from "../firebase";
 import type { User } from "firebase/auth";
 
@@ -16,12 +43,14 @@ type Prefs = {
   showOriginal: boolean;
   photoURL?: string;
   bubbleColor?: string;
+  textColor?: string;
 };
 
 const defaultPrefs: Prefs = {
   side: "right",
   showOriginal: true,
   bubbleColor: "#ffffff",
+  textColor: "#000000",
 };
 
 export default function Profile({ user, onSaved }: Props) {
@@ -99,7 +128,7 @@ export default function Profile({ user, onSaved }: Props) {
       </div>
 
       <div style={{ marginBottom: "1rem" }}>
-        <label>Bubble Color</label>
+        <label>{t("bubbleColor") ?? "Bubble Color"} (light only)</label>
         <br />
         <input
           type="color"
@@ -111,6 +140,25 @@ export default function Profile({ user, onSaved }: Props) {
           type="text"
           value={prefs.bubbleColor ?? "#ffffff"}
           onChange={(e) => setPrefs((p) => ({ ...p, bubbleColor: e.target.value }))}
+          pattern="#?[0-9a-fA-F]{6}"
+          style={{ marginLeft: 8, width: 90 }}
+        />
+      </div>
+
+      {/* text color picker */}
+      <div style={{ marginBottom: "1rem" }}>
+        <label>{t("textColor") ?? "Text Color"}</label>
+        <br />
+        <input
+          type="color"
+          value={prefs.textColor ?? "#000000"}
+          onChange={(e) => setPrefs((p) => ({ ...p, textColor: e.target.value }))}
+          style={{ width: 50, height: 34, border: "none", background: "none", padding: 0 }}
+        />
+        <input
+          type="text"
+          value={prefs.textColor ?? "#000000"}
+          onChange={(e) => setPrefs((p) => ({ ...p, textColor: e.target.value }))}
           pattern="#?[0-9a-fA-F]{6}"
           style={{ marginLeft: 8, width: 90 }}
         />

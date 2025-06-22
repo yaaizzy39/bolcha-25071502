@@ -76,8 +76,8 @@ function ChatRoom({ user }: Props) {
   const isAdmin = useIsAdmin(user);
   const { roomId } = useParams<{ roomId: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [userPrefs, setUserPrefs] = useState<Record<string, { photoURL?: string; bubbleColor?: string }>>({});
-  const [prefs, setPrefs] = useState<{ side: "left" | "right"; showOriginal: boolean; lang?: string; bubbleColor?: string }>({ side: "right", showOriginal: true });
+  const [userPrefs, setUserPrefs] = useState<Record<string, { photoURL?: string; bubbleColor?: string; textColor?: string }>>({});
+  const [prefs, setPrefs] = useState<{ side: "left" | "right"; showOriginal: boolean; lang?: string; bubbleColor?: string; textColor?: string }>({ side: "right", showOriginal: true });
   const [lang, setLang] = useState<string>(() => {
     return localStorage.getItem("chat_lang") || "en";
   });
@@ -435,6 +435,7 @@ const sendMessage = async () => {
            const isMe = m.uid === user.uid;
            const avatar = userPrefs[m.uid]?.photoURL ?? (isMe ? user.photoURL ?? undefined : undefined);
            const bubbleBg = isMe ? (prefs.bubbleColor ?? "#dcf8c6") : (userPrefs[m.uid]?.bubbleColor ?? "#fff");
+            const textColor = isMe ? (prefs.textColor ?? "#000") : (userPrefs[m.uid]?.textColor ?? "#000");
           return (
             <div
               key={m.id}
@@ -461,6 +462,7 @@ const sendMessage = async () => {
               <span
                 style={{
                   background: bubbleBg,
+                  color: textColor,
                   padding: "0.4rem 0.6rem",
                   borderRadius: "4px",
                   display: "inline-block",
