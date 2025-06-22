@@ -461,7 +461,7 @@ const sendMessage = async () => {
       >
         {messages.map((m) => {
            const isMe = m.uid === user.uid;
-           const avatar = userPrefs[m.uid]?.photoURL ?? (isMe ? user.photoURL ?? undefined : undefined);
+           const avatar = userPrefs[m.uid]?.photoURL || (isMe ? user.photoURL : undefined) || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E";
             const myDir = isMe ? (prefs.side === "right" ? "row-reverse" : "row") : "row";
            const bubbleBg = isMe ? (prefs.bubbleColor ?? "#dcf8c6") : (userPrefs[m.uid]?.bubbleColor ?? "#fff");
             const textColor = isMe ? (prefs.textColor ?? "#000") : (userPrefs[m.uid]?.textColor ?? "#000");
