@@ -457,7 +457,7 @@ const sendMessage = async () => {
            nearBottomRef.current = nb;
            setAtBottom(nb);
          }}
-        style={{ flex: 1, overflowY: "auto", padding: "0.5rem" }}
+        style={{ flex: 1, overflowY: "auto", padding: "0.5rem", position: "relative" }}
       >
         {messages.map((m) => {
            const isMe = m.uid === user.uid;
@@ -626,7 +626,36 @@ const sendMessage = async () => {
           <button style={{ marginLeft: 8 }} onClick={() => setReplyTarget(null)}>×</button>
         </div>
       )}
-      <div style={{ display: "flex", gap: "0.5rem", padding: "0.5rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", padding: "0.5rem", position: "relative" }}>
+        {!atBottom && (
+          <button
+            onClick={() => {
+              bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+            }}
+            style={{
+              position: "absolute",
+              right: 56,
+              top: -40,
+              width: "36px",
+              height: "36px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              border: "1px solid #bbb",
+              background: "rgba(255,255,255,0.8)",
+              color: "#333",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+              cursor: "pointer",
+              fontSize: "1rem",
+              lineHeight: 1,
+              zIndex: 20
+            }}
+            aria-label="Scroll to latest"
+          >
+            ↓
+          </button>
+        )}
         <textarea
           ref={inputRef}
           style={{
@@ -673,34 +702,7 @@ const sendMessage = async () => {
           </svg>
         </button>
        </div>
-       {!atBottom && (
-         <button
-           onClick={() => {
-             bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-           }}
-           style={{
-             position: "fixed",
-             right: "3rem",
-             bottom: "7rem",
-             width: "36px",
-             height: "36px",
-             display: "flex",
-             alignItems: "center",
-             justifyContent: "center",
-             borderRadius: "50%",
-             border: "1px solid #bbb",
-             background: "rgba(255,255,255,0.8)",
-             color: "#333",
-             boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
-             cursor: "pointer",
-             fontSize: "1rem",
-             lineHeight: 1,
-           }}
-           aria-label="Scroll to latest"
-         >
-           ↓
-         </button>
-       )}
+
      </div>
    );
 }
