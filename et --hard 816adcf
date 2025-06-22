@@ -1,0 +1,30 @@
+[33m816adcf[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m left move wide narrow
+[33mb3d3fc1[m message input location adjust
+[33ma638436[m send icon change
+[33mb4ae011[m fukidashi left right setting
+[33m7745ef3[m color language setting
+[33m0104811[m fukiashi messasge color select
+[33m2127891[m fukidashi color
+[33m4a24d53[m message delete OK
+[33m1dcabfd[m icon change
+[33m1eed7b2[m language  change OK
+[33md83fa17[m jyuuhuku API fixed
+[33m8062075[m many language OK kana
+[33m5ec16e7[m before translate system
+[33m486c49a[m setting japanese and english
+[33mdaa2b1b[m scroll new message
+[33ma7705e0[m language remember
+[33meb8f70d[m admin setting
+[33m458dedc[m jyuufuku translate fix
+[33m233bf5d[m translate2 add
+[33m70b6ac7[m 2nd API add
+[33ma320838[m translate confuse modosukamo
+[33m90822ab[m new message
+[33mceeb995[m new message scroll
+[33m0e75f56[m translate fix
+[33mc24aa56[m several space
+[33m0d17afa[m reply
+[33m39c1067[m like button
+[33m1aa692c[m avatar
+[33m6bf0db2[m setting
+[33ma17fbde[m Initial commit

@@ -610,11 +610,12 @@ const sendMessage = async () => {
           ref={inputRef}
           style={{
             flex: 1,
-            minHeight: 24,
+            height: 40,
             maxHeight: 200,
             border: "1px solid #ccc",
             borderRadius: "20px",
-            padding: "6px 10px 2px",
+            padding: "0 10px",
+            lineHeight: "40px",
             fontSize: "1rem",
             outline: "none",
             overflow: "hidden",
