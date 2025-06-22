@@ -14,12 +14,13 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { translateText } from "../translation";
+import { detectLanguage } from "../langDetect";
 
 import type { User } from "firebase/auth";
 import { doc as fbDoc, getDoc } from "firebase/firestore";
 
 // Translate only the most recent messages during batch processing
-const MAX_TRANSLATE = 10;
+const MAX_TRANSLATE = 50;
 
 type Message = {
   id: string;
@@ -29,6 +30,7 @@ type Message = {
   readBy?: string[];
   likes?: string[];
   replyTo?: string;
+  originalLang?: string; // ISO-639-1 code of source language
   translations?: Record<string, string>; // cached translations per language
 };
 
@@ -146,18 +148,35 @@ const translatingRef = useRef<Set<string>>(new Set());
         });
       }
       // sync translations cache with Firestore and remove stale entries
-      setTranslations((prev) => {
+      setTranslations(() => {
         const next: Record<string, string> = {};
         list.forEach((m) => {
-          if (m.translations?.[lang]) {
-            next[m.id] = m.translations[lang];
-          }
+          if (lang === m.originalLang) {
+             next[m.id] = m.text;
+           } else if (m.translations?.[lang]) {
+             next[m.id] = m.translations[lang];
+           }
         });
         return next;
       });
     });
     return unsub;
-  }, [roomId]);
+   }, [roomId]);
+
+  // rebuild translation map when language changes or messages update
+  useEffect(() => {
+    setTranslations(() => {
+      const next: Record<string, string> = {};
+      messages.forEach((m) => {
+        if (lang === m.originalLang) {
+          next[m.id] = m.text;
+        } else if (m.translations?.[lang]) {
+          next[m.id] = m.translations[lang];
+        }
+      });
+      return next;
+    });
+  }, [lang, messages]);
 
   // observe visibility of messages and translate only when they come into view
   // create IO once
@@ -167,9 +186,17 @@ const translatingRef = useRef<Set<string>>(new Set());
       entries.forEach(async (entry) => {
         if (entry.isIntersecting) {
           const id = (entry.target as HTMLElement).dataset.msgId;
-          if (!id || id in translations) return;
+          if (!id) return;
           const message = messages.find((x) => x.id === id);
           if (!message) return;
+          // if already cached translation, skip
+          if (id in translations) return;
+          // if original language matches selected, no translation
+          if (message.originalLang === lang) {
+            setTranslations((prev) => ({ ...prev, [id]: message.text }));
+            observerRef.current?.unobserve(entry.target);
+            return;
+          }
           if (translatingRef.current.has(id)) return;
           translatingRef.current.add(id);
           const translated = await translateText(message.text, lang);
@@ -209,6 +236,11 @@ const translatingRef = useRef<Set<string>>(new Set());
       translatingRef.current.add(id);
       const msg = messages.find((x) => x.id === id);
       if (!msg) return;
+      if (msg.originalLang === lang) {
+        setTranslations((prev) => ({ ...prev, [id]: msg.text }));
+        observerRef.current?.unobserve(el);
+        return;
+      }
       const translated = await translateText(msg.text, lang);
       translatingRef.current.delete(id);
       observerRef.current?.unobserve(el);
@@ -230,13 +262,13 @@ const translatingRef = useRef<Set<string>>(new Set());
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 0);
     }
-  }, [messages]);
+  }, [messages, lang]);
 
   useEffect(() => {
     const untranslated = messages
       .slice(-MAX_TRANSLATE)
       .reverse() // newest first
-      .filter((m) => !(m.id in translations) && lang);
+      .filter((m) => !(m.id in translations) && m.originalLang !== lang);
     if (!untranslated.length) return;
 
     (async () => {
@@ -273,6 +305,8 @@ const translatingRef = useRef<Set<string>>(new Set());
 
   const sendMessage = async () => {
     if (!text.trim() || !roomId) return;
+    const origLang = await detectLanguage(text.trim());
+    if (!text.trim() || !roomId) return;
     const msgsRef = collection(db, "rooms", roomId, "messages");
     await addDoc(msgsRef, {
       replyTo: replyTarget?.id ?? null,
@@ -280,6 +314,7 @@ const translatingRef = useRef<Set<string>>(new Set());
       uid: user.uid,
       createdAt: serverTimestamp(),
       readBy: [user.uid],
+      originalLang: origLang,
       translations: {},
     });
     // update room lastActivityAt
