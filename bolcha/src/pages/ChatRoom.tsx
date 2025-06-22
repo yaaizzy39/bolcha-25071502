@@ -493,7 +493,7 @@ const sendMessage = async () => {
                   background: bubbleBg,
                   color: textColor,
                   padding: "0.4rem 0.6rem",
-                  borderRadius: "4px",
+                  borderRadius: "16px",
                   display: "inline-block",
                   maxWidth: 420,
                   width: "fit-content",
@@ -565,7 +565,7 @@ const sendMessage = async () => {
                     fontSize: "0.7em",
                     color: "#999",
                     marginTop: "2px",
-                    textAlign: isMe ? "right" : "left",
+                    textAlign: "right",
                   }}
                 >
                   {formatTime(m.createdAt)}
