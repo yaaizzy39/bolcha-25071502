@@ -350,6 +350,29 @@ const sendMessage = async () => {
     }, 0);
   };
 
+  // translate messages lacking current lang when dropdown changes
+  useEffect(() => {
+    if (!roomId) return;
+    const candidates = messages.filter(
+      (m) => m.originalLang && m.originalLang !== lang && !m.translations?.[lang]
+    );
+    if (!candidates.length) return;
+    (async () => {
+      for (const m of candidates.slice(0, MAX_TRANSLATE)) {
+        if (translatingRef.current.has(m.id)) continue;
+        translatingRef.current.add(m.id);
+        const translated = await translateText(m.text, lang);
+        translatingRef.current.delete(m.id);
+        if (translated && translated !== m.text) {
+          setTranslations((prev) => ({ ...prev, [m.id]: translated }));
+          await updateDoc(doc(db, "rooms", roomId!, "messages", m.id), {
+            [`translations.${lang}`]: translated,
+          });
+        }
+      }
+    })();
+  }, [lang, messages, roomId]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "80vh" }}>
 
