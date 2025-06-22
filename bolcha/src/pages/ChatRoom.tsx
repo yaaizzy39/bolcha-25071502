@@ -428,7 +428,30 @@ const sendMessage = async () => {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "80vh" }}>
-      <div style={{ padding: "0.5rem", fontWeight: 600, fontSize: "1.1rem" }}>{roomName}</div>
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "0.5rem",
+        gap: 12
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* 設定ボタンや他のボタンをここに配置（例: 歯車アイコン） */}
+          <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20 }} title="Settings">⚙️</button>
+          {/* 必要なら他のボタンも追加 */}
+          <span style={{ fontWeight: 600, fontSize: "1.1rem" }}>{roomName}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: "0.98rem", color: "#333" }}>{user.displayName || "Me"}</span>
+          <img
+            src={user.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E"}
+            alt="my avatar"
+            width={28}
+            height={28}
+            style={{ borderRadius: "50%", background: "#eee" }}
+          />
+        </div>
+      </div>
 
       <div style={{ padding: "0.5rem" }}>
         <select value={lang} onChange={(e) => setLang(e.target.value)}>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { auth } from "./firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 import type { User } from "firebase/auth";
 import Login from "./pages/Login";
 import Rooms from "./pages/Rooms";
@@ -69,7 +69,18 @@ function App() {
               <Link to="/profile" title="Settings"><IconCog /></Link>
             </>
           )}
-          <button onClick={() => signOut(auth)}>Logout</button>
+          {user && (
+            <>
+              <span style={{ fontSize: "0.98rem", color: "#333" }}>{user.displayName || "Me"}</span>
+              <img
+                src={user.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E"}
+                alt="my avatar"
+                width={28}
+                height={28}
+                style={{ borderRadius: "50%", background: "#eee", marginLeft: 4, marginRight: 4 }}
+              />
+            </>
+          )}
         </div>
       </header>
       <main style={{ padding: "1rem" }}>
