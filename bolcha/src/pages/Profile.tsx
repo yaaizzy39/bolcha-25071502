@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useI18n } from "../i18n";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -13,18 +14,17 @@ interface Props {
 type Prefs = {
   side: "left" | "right";
   showOriginal: boolean;
-  lang: string;
   photoURL?: string;
 };
 
 const defaultPrefs: Prefs = {
   side: "right",
   showOriginal: true,
-  lang: (localStorage.getItem("chat_lang") || navigator.language.slice(0,2) || "en"),
 };
 
 export default function Profile({ user, onSaved }: Props) {
   const navigate = useNavigate();
+  const { lang: uiLang, setLang: setUiLang, t } = useI18n();
   const [prefs, setPrefs] = useState<Prefs>(defaultPrefs);
   const [saving, setSaving] = useState(false);
 
@@ -41,7 +41,7 @@ export default function Profile({ user, onSaved }: Props) {
 
   const handleSave = async () => {
     setSaving(true);
-    await setDoc(doc(db, "users", user.uid), prefs, { merge: true });
+    await setDoc(doc(db, "users", user.uid), prefs, { merge: true }); // prefs no longer includes uiLang
     setSaving(false);
     onSaved?.();
     navigate(-1);
@@ -67,9 +67,9 @@ export default function Profile({ user, onSaved }: Props) {
 
   return (
     <div style={{ maxWidth: 400, margin: "0 auto" }}>
-      <h3>Profile Settings</h3>
+      <h3>{t("profileSettings")}</h3>
       <div style={{ marginBottom: "1rem" }}>
-        <label>Avatar:</label>
+        <label>{t("avatar")}</label>
         <br />
         {prefs.photoURL ? (
           <img src={prefs.photoURL} alt="avatar" width={80} height={80} style={{ borderRadius: "50%" }} />
@@ -81,20 +81,23 @@ export default function Profile({ user, onSaved }: Props) {
       </div>
 
       <div style={{ marginBottom: "1rem" }}>
-        <label>Preferred language:</label>
+        <label>{t("uiLanguage")}</label>
         <br />
         <select
-          value={prefs.lang}
-          onChange={(e) => setPrefs((p) => ({ ...p, lang: e.target.value }))}
+          value={uiLang}
+          onChange={async (e) => {
+            const val = e.target.value as "en" | "ja";
+            setUiLang(val);
+            await setDoc(doc(db, "users", user.uid), { uiLang: val }, { merge: true });
+          }}
         >
-          <option value="en">English</option>
-          <option value="ja">日本語</option>
-          <option value="ne">नेपाली</option>
+          <option value="en">{t("english")}</option>
+          <option value="ja">{t("japanese")}</option>
         </select>
       </div>
 
       <div style={{ marginBottom: "1rem" }}>
-        <label>My message position:</label>
+        <label>{t("myMessagePos")}</label>
         <br />
         <label>
           <input
@@ -103,7 +106,7 @@ export default function Profile({ user, onSaved }: Props) {
             checked={prefs.side === "right"}
             onChange={() => setPrefs((p) => ({ ...p, side: "right" }))}
           />
-          Right
+          {t("right")}
         </label>
         <label style={{ marginLeft: "1rem" }}>
           <input
@@ -112,7 +115,7 @@ export default function Profile({ user, onSaved }: Props) {
             checked={prefs.side === "left"}
             onChange={() => setPrefs((p) => ({ ...p, side: "left" }))}
           />
-          Left
+          {t("left")}
         </label>
       </div>
 
@@ -123,12 +126,12 @@ export default function Profile({ user, onSaved }: Props) {
             checked={prefs.showOriginal}
             onChange={() => setPrefs((p) => ({ ...p, showOriginal: !p.showOriginal }))}
           />
-          Show original text below translation
+          {t("showOriginal")}
         </label>
       </div>
 
       <button onClick={handleSave} disabled={saving}>
-        {saving ? "Saving..." : "Save"}
+        {saving ? t("saving") : t("save")}
       </button>
     </div>
   );

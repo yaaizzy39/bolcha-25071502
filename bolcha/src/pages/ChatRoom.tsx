@@ -453,8 +453,8 @@ const translatingRef = useRef<Set<string>>(new Set());
            }}
            style={{
              position: "fixed",
-             right: "1rem",
-             bottom: "6rem",
+             right: "3rem",
+             bottom: "7rem",
              width: "36px",
              height: "36px",
              display: "flex",
