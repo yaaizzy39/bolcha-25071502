@@ -77,7 +77,7 @@ function ChatRoom({ user }: Props) {
   const { roomId } = useParams<{ roomId: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [roomName, setRoomName] = useState<string>("");
-  const [userPrefs, setUserPrefs] = useState<Record<string, { photoURL?: string; bubbleColor?: string; textColor?: string }>>({});
+  const [userPrefs, setUserPrefs] = useState<Record<string, { photoURL?: string; bubbleColor?: string; textColor?: string; displayName?: string }>>({});
   const [prefs, setPrefs] = useState<{ side: "left" | "right"; showOriginal: boolean; lang?: string; bubbleColor?: string; textColor?: string }>({ side: "right", showOriginal: true });
   const [lang, setLang] = useState<string>(() => {
     return localStorage.getItem("chat_lang") || "en";
@@ -472,12 +472,14 @@ const sendMessage = async () => {
               onMouseEnter={() => setHovered(m.id)}
               onMouseLeave={() => setHovered(null)}
               style={{
+                position: "relative",
                 display: "flex",
                 flexDirection: myDir,
                 alignItems: "flex-end",
                 margin: "0.25rem 0",
               }}
             >
+
               {avatar && (
                 <img
                   src={avatar}
@@ -499,6 +501,7 @@ const sendMessage = async () => {
                   width: "fit-content",
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word",
+                  position: "relative"
                 }}
               >
                 {m.replyTo && (
@@ -507,6 +510,24 @@ const sendMessage = async () => {
                     </div>
                   )}
                   {translations[m.id] !== undefined ? translations[m.id] : m.text}
+                  {hovered === m.id && (
+                    <div style={{
+                      position: "absolute",
+                      left: 10,
+                      bottom: 8,
+                      background: "rgba(0,0,0,0.7)",
+                      color: "#fff",
+                      padding: "2px 8px",
+                      borderRadius: 8,
+                      fontSize: "0.85em",
+                      maxWidth: 180,
+                      textAlign: "left",
+                      pointerEvents: "none",
+                      zIndex: 2
+                    }}>
+                      {userPrefs[m.uid]?.displayName || (isMe ? user.displayName : "Unknown")}
+                    </div>
+                  )}
                 {/* reply button */}
                 <span
                   onClick={(e) => {
