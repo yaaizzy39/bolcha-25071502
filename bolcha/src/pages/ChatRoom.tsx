@@ -495,8 +495,10 @@ const sendMessage = async () => {
                   padding: "0.4rem 0.6rem",
                   borderRadius: "4px",
                   display: "inline-block",
-                  maxWidth: "80%",
+                  maxWidth: 420,
+                  width: "fit-content",
                   whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
                 }}
               >
                 {m.replyTo && (
