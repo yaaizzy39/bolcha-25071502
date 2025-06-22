@@ -59,8 +59,8 @@ function App() {
 
   return (
     <div>
-      <header style={{ display: "flex", justifyContent: "space-between", padding: "1rem" }}>
-        <h2 style={{ margin: 0 }}><Link to="/" style={{ textDecoration: "none", color: "inherit" }}>Bolcha</Link></h2>
+      <header style={{ display: "flex", justifyContent: "space-between", padding: "1rem 1rem 0 1rem" }}>
+        <h2 style={{ margin: 0, lineHeight: 1 }}><Link to="/" style={{ textDecoration: "none", color: "inherit" }}>Bolcha</Link></h2>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           {!hideNav && (
             <>
@@ -83,7 +83,7 @@ function App() {
           )}
         </div>
       </header>
-      <main style={{ padding: "1rem" }}>
+      <main style={{ padding: "0 1rem 1rem 1rem" }}>
         <Routes>
           <Route path="/" element={<Rooms user={user!} />} />
           <Route path="/rooms/:roomId" element={<ChatRoom user={user!} />} />
