@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import {
   collection,
+  deleteDoc,
   addDoc,
   query,
   orderBy,
@@ -14,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { translateText } from "../translation";
+import useIsAdmin from "../hooks/useIsAdmin";
 import { detectLanguage } from "../langDetect";
 
 import type { User } from "firebase/auth";
@@ -71,6 +73,7 @@ function formatTime(date: Date) {
 }
 
 function ChatRoom({ user }: Props) {
+  const isAdmin = useIsAdmin(user);
   const { roomId } = useParams<{ roomId: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [prefs, setPrefs] = useState<{ side: "left" | "right"; showOriginal: boolean; lang?: string }>({ side: "right", showOriginal: true });
@@ -92,6 +95,12 @@ function ChatRoom({ user }: Props) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Message | null>(null);
+  const l10n = {
+    confirm: lang.startsWith("ja") ? "このメッセージを削除しますか？" : "Delete this message?",
+    del: lang.startsWith("ja") ? "削除" : "Delete",
+    cancel: lang.startsWith("ja") ? "キャンセル" : "Cancel",
+  };
   // focus input when reply target set
   useEffect(() => {
     if (replyTarget) {
@@ -462,6 +471,17 @@ const sendMessage = async () => {
                 >
                   ↩︎
                 </span>
+                {/* delete button */}
+                {(isAdmin || isMe) && (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!roomId) return;
+                      setConfirmDelete(m);
+                    }}
+                    style={{ cursor: "pointer", marginLeft: 6, fontSize: "0.9em", opacity: hovered === m.id ? 1 : 0 }}
+                  >🗑️</span>
+                )}
                 {/* like button */}
                 <span
                   onClick={(e) => {
@@ -510,6 +530,24 @@ const sendMessage = async () => {
         })}
         <div ref={bottomRef} />
       </div>
+      {confirmDelete && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ background: "#fff", padding: "1rem 1.5rem", borderRadius: 8, maxWidth: 320, textAlign: "center" }}>
+            <p>{l10n.confirm}</p>
+            <p style={{ fontSize: "0.9em", color: "#555", whiteSpace: "pre-wrap" }}>
+              {confirmDelete.text.length > 60 ? confirmDelete.text.slice(0, 60) + "…" : confirmDelete.text}
+            </p>
+            <div style={{ marginTop: "1rem", display: "flex", justifyContent: "center", gap: "1rem" }}>
+              <button onClick={async () => {
+                if (!roomId || !confirmDelete) return;
+                await deleteDoc(doc(db, "rooms", roomId, "messages", confirmDelete.id));
+                setConfirmDelete(null);
+              }}>{l10n.del}</button>
+              <button onClick={() => setConfirmDelete(null)}>{l10n.cancel}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {replyTarget && (
         <div style={{ padding: "0.25rem 0.5rem", background: "#f1f1f1", borderLeft: "3px solid #999", fontSize: "0.8em" }}>
           Replying to: {replyTarget.text.slice(0, 40)}{replyTarget.text.length > 40 ? "…" : ""}
