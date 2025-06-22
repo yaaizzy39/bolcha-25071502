@@ -190,6 +190,18 @@ const translatingRef = useRef<Set<string>>(new Set());
   }, [lang, messages]);
 
   // observe visibility of messages and translate only when they come into view
+  // load current user's prefs on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const snap = await getDoc(fbDoc(db, "users", user.uid));
+        if (snap.exists()) {
+          setPrefs((p) => ({ ...p, ...(snap.data() as any) }));
+        }
+      } catch {}
+    })();
+  }, [user.uid]);
+
   // fetch missing user prefs when messages change
   useEffect(() => {
     const missing = Array.from(new Set(messages.map(m => m.uid))).filter(uid => !(uid in userPrefs));
@@ -434,6 +446,7 @@ const sendMessage = async () => {
         {messages.map((m) => {
            const isMe = m.uid === user.uid;
            const avatar = userPrefs[m.uid]?.photoURL ?? (isMe ? user.photoURL ?? undefined : undefined);
+            const myDir = isMe ? (prefs.side === "right" ? "row-reverse" : "row") : "row";
            const bubbleBg = isMe ? (prefs.bubbleColor ?? "#dcf8c6") : (userPrefs[m.uid]?.bubbleColor ?? "#fff");
             const textColor = isMe ? (prefs.textColor ?? "#000") : (userPrefs[m.uid]?.textColor ?? "#000");
           return (
@@ -444,7 +457,7 @@ const sendMessage = async () => {
               onMouseLeave={() => setHovered(null)}
               style={{
                 display: "flex",
-                flexDirection: isMe ? "row-reverse" : "row",
+                flexDirection: myDir,
                 alignItems: "flex-end",
                 margin: "0.25rem 0",
               }}
@@ -456,7 +469,7 @@ const sendMessage = async () => {
                   alt="avatar"
                   width={32}
                   height={32}
-                  style={{ borderRadius: "50%", margin: isMe ? "0 0 0 6px" : "0 6px 0 0" }}
+                  style={{ borderRadius: "50%", margin: myDir === "row-reverse" ? "0 0 0 6px" : "0 6px 0 0" }}
                 />
               )}
               <span

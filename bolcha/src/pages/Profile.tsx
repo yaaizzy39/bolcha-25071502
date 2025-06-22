@@ -170,20 +170,20 @@ export default function Profile({ user, onSaved }: Props) {
         <label>
           <input
             type="radio"
-            value="right"
-            checked={prefs.side === "right"}
-            onChange={() => setPrefs((p) => ({ ...p, side: "right" }))}
-          />
-          {t("right")}
-        </label>
-        <label style={{ marginLeft: "1rem" }}>
-          <input
-            type="radio"
             value="left"
             checked={prefs.side === "left"}
             onChange={() => setPrefs((p) => ({ ...p, side: "left" }))}
           />
           {t("left")}
+        </label>
+        <label style={{ marginLeft: "1rem" }}>
+          <input
+            type="radio"
+            value="right"
+            checked={prefs.side === "right"}
+            onChange={() => setPrefs((p) => ({ ...p, side: "right" }))}
+          />
+          {t("right")}
         </label>
       </div>
 
