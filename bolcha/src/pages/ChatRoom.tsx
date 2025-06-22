@@ -69,7 +69,7 @@ function formatTime(date: Date) {
 function ChatRoom({ user }: Props) {
   const { roomId } = useParams<{ roomId: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [prefs, setPrefs] = useState<{ side: "left" | "right"; showOriginal: boolean }>({ side: "right", showOriginal: true });
+  const [prefs, setPrefs] = useState<{ side: "left" | "right"; showOriginal: boolean; lang?: string }>({ side: "right", showOriginal: true });
   const [lang, setLang] = useState<string>(() => {
     return localStorage.getItem("chat_lang") || "en";
   });
@@ -80,10 +80,14 @@ function ChatRoom({ user }: Props) {
     setTranslations({});
   }, [lang]);
 
-  // persist language selection
+  // persist language selection both locally and to Firestore
   useEffect(() => {
     localStorage.setItem("chat_lang", lang);
-  }, [lang]);
+    // debounce writes by scheduling async but not awaiting
+    import("firebase/firestore").then(({ doc, setDoc }) => {
+      setDoc(doc(db, "users", user.uid), { lang }, { merge: true });
+    });
+  }, [lang, user.uid]);
   const [profiles, setProfiles] = useState<Record<string, { photoURL?: string }>>({});
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -109,6 +113,9 @@ const translatingRef = useRef<Set<string>>(new Set());
       if (snap.exists()) {
         const data = snap.data() as any;
         setPrefs((p) => ({ ...p, ...data }));
+        if (data.lang) {
+          setLang(data.lang);
+        }
       }
     })();
   }, [user.uid]);
@@ -142,7 +149,7 @@ const translatingRef = useRef<Set<string>>(new Set());
       }
       // clear translations of messages no longer present
       setTranslations((prev) => {
-        const next: Record<string, string | undefined> = {};
+        const next: Record<string, string> = {};
         list.forEach((m) => {
           if (prev[m.id] !== undefined) next[m.id] = prev[m.id];
         });

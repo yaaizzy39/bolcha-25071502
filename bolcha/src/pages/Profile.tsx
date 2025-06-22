@@ -13,12 +13,14 @@ interface Props {
 type Prefs = {
   side: "left" | "right";
   showOriginal: boolean;
+  lang: string;
   photoURL?: string;
 };
 
 const defaultPrefs: Prefs = {
   side: "right",
   showOriginal: true,
+  lang: (localStorage.getItem("chat_lang") || navigator.language.slice(0,2) || "en"),
 };
 
 export default function Profile({ user, onSaved }: Props) {
@@ -76,6 +78,19 @@ export default function Profile({ user, onSaved }: Props) {
         )}
         <br />
         <input type="file" accept="image/*" onChange={handleFile} />
+      </div>
+
+      <div style={{ marginBottom: "1rem" }}>
+        <label>Preferred language:</label>
+        <br />
+        <select
+          value={prefs.lang}
+          onChange={(e) => setPrefs((p) => ({ ...p, lang: e.target.value }))}
+        >
+          <option value="en">English</option>
+          <option value="ja">日本語</option>
+          <option value="ne">नेपाली</option>
+        </select>
       </div>
 
       <div style={{ marginBottom: "1rem" }}>
