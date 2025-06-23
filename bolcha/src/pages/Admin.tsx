@@ -101,20 +101,29 @@ export default function Admin({ user }: { user: User }) {
           <thead>
             <tr>
               <th>ID</th>
+              <th>Room Name</th>
               <th>Last Activity</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {rooms.map((room) => (
-              <tr key={room.id}>
-                <td>{room.id}</td>
-                <td>{room.lastActivityAt?.toDate?.()?.toLocaleString?.() || "-"}</td>
-                <td>
-                  <button onClick={() => deleteRoom(room.id)}>Delete</button>
-                </td>
-              </tr>
-            ))}
+            {rooms
+              .slice()
+              .sort((a, b) => {
+                const aTime = a.createdAt?.toDate?.()?.getTime?.() || 0;
+                const bTime = b.createdAt?.toDate?.()?.getTime?.() || 0;
+                return bTime - aTime;
+              })
+              .map((room) => (
+                <tr key={room.id}>
+                  <td>{room.id}</td>
+                  <td>{room.name || '-'}</td>
+                  <td>{room.lastActivityAt?.toDate?.()?.toLocaleString?.() || "-"}</td>
+                  <td>
+                    <button onClick={() => deleteRoom(room.id)}>Delete</button>
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </section>
