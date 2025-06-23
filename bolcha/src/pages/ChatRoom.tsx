@@ -730,7 +730,7 @@ const sendMessage = async () => {
             border: "1px solid #ccc",
             borderRadius: "20px",
             padding: "0 10px",
-            lineHeight: "40px",
+            lineHeight: 1.35,
             fontSize: "1rem",
             outline: "none",
             overflow: "hidden",
