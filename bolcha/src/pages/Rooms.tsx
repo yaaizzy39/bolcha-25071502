@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, doc } from "firebase/firestore";
 import { db } from "../firebase";
 import { Link, useNavigate } from "react-router-dom";
 import type { User } from "firebase/auth";
+import useIsAdmin from "../hooks/useIsAdmin";
 
 type Room = {
   id: string;
@@ -20,6 +21,7 @@ function Rooms({ user }: Props) {
   const navigate = useNavigate();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomName, setRoomName] = useState("");
+  const isAdmin = useIsAdmin(user);
 
   useEffect(() => {
     const q = query(collection(db, "rooms"), orderBy("lastActivityAt", "desc"));
@@ -51,6 +53,12 @@ function Rooms({ user }: Props) {
     navigate(`/rooms/${docRef.id}`);
   };
 
+  // 追加: ルーム削除処理
+  const handleDeleteRoom = async (roomId: string) => {
+    if (!window.confirm("本当にこのルームを削除しますか？")) return;
+    await deleteDoc(doc(db, "rooms", roomId));
+  };
+
   return (
     <div>
       <h3>Chat Rooms</h3>
@@ -66,11 +74,15 @@ function Rooms({ user }: Props) {
         {rooms.map((r) => (
           <li key={r.id}>
             <Link to={`/rooms/${r.id}`}>{r.name}</Link>
+            {(r.createdBy === user.uid || isAdmin) && (
+              <button style={{ marginLeft: 8 }} onClick={() => handleDeleteRoom(r.id)}>削除</button>
+            )}
           </li>
         ))}
       </ul>
     </div>
   );
 }
+
 
 export default Rooms;
