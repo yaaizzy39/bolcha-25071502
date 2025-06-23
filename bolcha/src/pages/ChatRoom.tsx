@@ -470,19 +470,20 @@ const sendMessage = async () => {
             const textColor = isMe ? (prefs.textColor ?? "#000") : (userPrefs[m.uid]?.textColor ?? "#000");
           return (
             <div
-              key={m.id}
-              data-msg-id={m.id}
-              
-              style={{
-                position: "relative",
-                display: "flex",
-                flexDirection: myDir,
-                alignItems: "flex-end",
-                margin: "0.25rem 0",
-              }}
-            >
+               key={m.id}
+               data-msg-id={m.id}
+               onMouseEnter={() => setHoveredUser(m.id)}
+               onMouseLeave={() => setHoveredUser(null)}
+               style={{
+                 position: "relative",
+                 display: "flex",
+                 flexDirection: myDir,
+                 alignItems: "flex-end",
+                 margin: "0.25rem 0",
+               }}
+             >
 
-              {avatar && (
+               {avatar && (
   <>
     <img
       src={avatar}
@@ -528,6 +529,29 @@ const sendMessage = async () => {
                   position: "relative"
                 }}
               >
+                {/* Reply/quote block inside bubble */}
+                {m.replyTo && (() => {
+                  const quoted = messages.find(msg => msg.id === m.replyTo);
+                  if (!quoted) return null;
+                  const quotedName = userPrefs[quoted.uid]?.displayName || (quoted.uid === user.uid ? user.displayName : "") || "(No name)";
+                  const quotedText = translations[quoted.id] !== undefined ? translations[quoted.id] : quoted.text;
+                  return (
+                    <div style={{
+                      background: 'transparent',
+                      borderLeft: '3px solid #bbb',
+                      padding: '0.18rem 0.6rem',
+                      marginBottom: 4,
+                      fontSize: '0.85em',
+                      color: '#555',
+                      borderRadius: 0,
+                      opacity: 1
+                    }}>
+                      <span style={{ fontWeight: 600, marginRight: 6 }}>{quotedName}:</span>
+                      <span style={{ color: '#444' }}>{quotedText.length > 60 ? quotedText.slice(0, 60) + "…" : quotedText}</span>
+                    </div>
+                  );
+                })()}
+
                 {/* Render message text with clickable URLs and warning dialog */}
                 {(() => {
   const text = translations[m.id] !== undefined ? translations[m.id] : m.text;
@@ -604,8 +628,8 @@ const sendMessage = async () => {
                     cursor: "pointer",
                     marginLeft: 6,
                     fontSize: "0.9em",
-                    color: (m.likes ?? []).includes(user.uid) ? "#0b5ed7" : "#888",
-                    opacity: ((m.likes ?? []).length > 0 || hoveredUser === m.id) ? 1 : 0,
+                    color: (m.likes ?? []).includes(user.uid) ? "#e0245e" : "#888",
+                    opacity: 1,
                     transition: "opacity 0.2s",
                   }}
                 >
