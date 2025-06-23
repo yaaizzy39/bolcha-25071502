@@ -58,18 +58,28 @@ function LikeIcon({ filled }: { filled: boolean }) {
   );
 }
 
-function formatTime(date: Date) {
+function formatTime(date: Date, lang: string) {
   const now = new Date();
   const sameDay =
     now.getFullYear() === date.getFullYear() &&
     now.getMonth() === date.getMonth() &&
     now.getDate() === date.getDate();
-  if (sameDay) {
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (lang === 'en') {
+    // Always use English locale
+    if (sameDay) {
+      return date.toLocaleTimeString('en-US', { hour: "2-digit", minute: "2-digit" });
+    }
+    return date.toLocaleDateString('en-US', { month: "short", day: "numeric", year: "numeric" }) +
+      ", " +
+      date.toLocaleTimeString('en-US', { hour: "2-digit", minute: "2-digit" });
+  } else {
+    if (sameDay) {
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+    return date.toLocaleDateString([], { month: "short", day: "numeric" }) +
+      " " +
+      date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
-  return date.toLocaleDateString([], { month: "short", day: "numeric" }) +
-    " " +
-    date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 function ChatRoom({ user }: Props) {
@@ -649,7 +659,7 @@ const sendMessage = async () => {
                     textAlign: "right",
                   }}
                 >
-                  {formatTime(m.createdAt)}
+                  {formatTime(m.createdAt, lang)}
                   {isMe && (
                     <span style={{ marginLeft: 4 }}>
                       {m.readBy && m.readBy.length > 1 ? "✔✔" : "✔"}
