@@ -98,7 +98,7 @@ function ChatRoom({ user }: Props) {
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const [hovered, setHovered] = useState<string | null>(null);
+  const [hoveredUser, setHoveredUser] = useState<string | null>(null);
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Message | null>(null);
   const l10n = {
@@ -472,8 +472,7 @@ const sendMessage = async () => {
             <div
               key={m.id}
               data-msg-id={m.id}
-              onMouseEnter={() => setHovered(m.id)}
-              onMouseLeave={() => setHovered(null)}
+              
               style={{
                 position: "relative",
                 display: "flex",
@@ -484,15 +483,37 @@ const sendMessage = async () => {
             >
 
               {avatar && (
-                <img
-                  src={avatar}
-                  onError={(e) => (e.currentTarget.style.display = "none")}
-                  alt="avatar"
-                  width={32}
-                  height={32}
-                  style={{ borderRadius: "50%", margin: myDir === "row-reverse" ? "0 0 0 6px" : "0 6px 0 0" }}
-                />
-              )}
+  <>
+    <img
+      src={avatar}
+      onError={(e) => (e.currentTarget.style.display = "none")}
+      alt="avatar"
+      width={32}
+      height={32}
+      style={{ borderRadius: "50%", margin: myDir === "row-reverse" ? "0 0 0 6px" : "0 6px 0 0", cursor: "pointer" }}
+      onMouseEnter={() => setHoveredUser(`avatar-${m.id}`)}
+      onMouseLeave={() => setHoveredUser(null)}
+    />
+    {hoveredUser === `avatar-${m.id}` && (
+      <div style={{
+        position: "absolute",
+        background: "#222",
+        color: "#fff",
+        padding: "4px 12px",
+        borderRadius: 8,
+        fontSize: "0.95em",
+        top: 36,
+        left: myDir === "row-reverse" ? undefined : 38,
+        right: myDir === "row-reverse" ? 38 : undefined,
+        zIndex: 100,
+        whiteSpace: "nowrap",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.18)"
+      }}>
+        {userPrefs[m.uid]?.displayName || (isMe ? user.displayName : "") || "(No name)"}
+      </div>
+    )}
+  </>
+)}
               <span
                 style={{
                   background: bubbleBg,
@@ -553,7 +574,7 @@ const sendMessage = async () => {
                     cursor: "pointer",
                     marginLeft: 4,
                     fontSize: "0.9em",
-                    opacity: hovered === m.id ? 1 : 0.6,
+                    opacity: hoveredUser === m.id ? 1 : 0.6,
                   }}
                 >
                   ↩︎
@@ -566,7 +587,7 @@ const sendMessage = async () => {
                       if (!roomId) return;
                       setConfirmDelete(m);
                     }}
-                    style={{ cursor: "pointer", marginLeft: 6, fontSize: "0.9em", opacity: hovered === m.id ? 1 : 0 }}
+                    style={{ cursor: "pointer", marginLeft: 6, fontSize: "0.9em", opacity: hoveredUser === m.id ? 1 : 0 }}
                   >🗑️</span>
                 )}
                 {/* like button */}
@@ -584,7 +605,7 @@ const sendMessage = async () => {
                     marginLeft: 6,
                     fontSize: "0.9em",
                     color: (m.likes ?? []).includes(user.uid) ? "#0b5ed7" : "#888",
-                    opacity: ((m.likes ?? []).length > 0 || hovered === m.id) ? 1 : 0,
+                    opacity: ((m.likes ?? []).length > 0 || hoveredUser === m.id) ? 1 : 0,
                     transition: "opacity 0.2s",
                   }}
                 >
