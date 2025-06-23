@@ -430,7 +430,7 @@ const sendMessage = async () => {
   }, [lang, messages, roomId]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "80vh" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "80vh", maxWidth: 1000, width: "100%", margin: "0 auto" }}>
       <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 0.5rem 0 0.2rem", minHeight: 36 }}>
         <span style={{ fontWeight: 700, fontSize: "1.2rem", letterSpacing: 1, margin: 0 }}>{roomName}</span>
         <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ marginLeft: 8, height: 28, fontSize: "1rem", borderRadius: 6, border: "1px solid #ccc", padding: "0 8px" }}>
@@ -500,7 +500,7 @@ const sendMessage = async () => {
                   padding: "0.4rem 0.6rem",
                   borderRadius: "16px",
                   display: "inline-block",
-                  maxWidth: 420,
+                  maxWidth: 1000,
                   width: "fit-content",
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word",
@@ -618,7 +618,7 @@ const sendMessage = async () => {
         <div ref={bottomRef} />
       </div>
       {confirmDelete && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, width: "fit-content", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
           <div style={{ background: "#fff", padding: "1rem 1.5rem", borderRadius: 8, maxWidth: 320, textAlign: "center" }}>
             <p>{l10n.confirm}</p>
             <p style={{ fontSize: "0.9em", color: "#555", whiteSpace: "pre-wrap" }}>
@@ -642,7 +642,7 @@ const sendMessage = async () => {
           position: "fixed",
           top: 0,
           left: 0,
-          width: "100%",
+          width: "fit-content",
           height: "100%",
           background: "rgba(0,0,0,0.35)",
           display: "flex",
