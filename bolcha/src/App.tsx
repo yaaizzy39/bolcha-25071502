@@ -60,7 +60,16 @@ function App() {
   return (
     <div>
       <header style={{ display: "flex", justifyContent: "space-between", padding: "1rem 1rem 0 1rem" }}>
-        <h2 style={{ margin: 0, lineHeight: 1 }}><Link to="/" style={{ textDecoration: "none", color: "inherit" }}>Bolcha</Link></h2>
+        <h2 style={{ margin: 0, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
+  <img
+    src="/Bolcha-icon-250614-01-128x128.png"
+    alt="Bolcha icon"
+    width={28}
+    height={28}
+    style={{ marginRight: 8, verticalAlign: 'middle', display: 'inline-block' }}
+  />
+  <Link to="/" style={{ textDecoration: "none", color: "inherit" }}>Bolcha</Link>
+</h2>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           {!hideNav && (
             <>
