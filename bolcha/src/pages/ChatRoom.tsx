@@ -767,36 +767,42 @@ const sendMessage = async () => {
           </button>
         )}
         <textarea
-          ref={inputRef}
-          style={{
-            flex: 1,
-            height: 40,
-            maxHeight: 200,
-            border: "1px solid #ccc",
-            borderRadius: "20px",
-            padding: "0 10px",
-            lineHeight: 1.35,
-            fontSize: "1rem",
-            outline: "none",
-            overflow: "hidden",
-            resize: "none"
-          }}
-          rows={1}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onInput={(e) => {
-            const el = e.currentTarget;
-            el.style.height = "auto";
-            el.style.height = `${el.scrollHeight}px`;
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              sendMessage();
-            }
-          }}
-          placeholder="Message"
-        />
+           ref={inputRef}
+           style={{
+             flex: 1,
+             minHeight: '1.5em',
+             height: '1.5em',
+             maxHeight: 200,
+             border: "1px solid #ccc",
+             borderRadius: "20px",
+             padding: "10px 10px",
+             lineHeight: 1.5,
+             fontSize: "1rem",
+             outline: "none",
+             overflow: "hidden",
+             resize: "none"
+           }}
+           rows={1}
+           placeholder="Message"
+           value={text}
+           onChange={e => setText(e.target.value)}
+           onInput={e => {
+             const el = e.currentTarget;
+             // Only auto-resize if there is a line break (multi-line input)
+             if (el.value.includes('\n')) {
+               el.style.height = '1.5em';
+               el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+             } else {
+               el.style.height = '1.5em';
+             }
+           }}
+           onKeyDown={e => {
+             if (e.key === "Enter" && !e.shiftKey) {
+               e.preventDefault();
+               sendMessage();
+             }
+           }}
+         />
         <button
           onClick={sendMessage}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
