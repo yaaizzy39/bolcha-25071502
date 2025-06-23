@@ -73,6 +73,9 @@ function formatTime(date: Date) {
 }
 
 function ChatRoom({ user }: Props) {
+  // ...既存のstate...
+  const [pendingLink, setPendingLink] = useState<{ url: string; label: string } | null>(null);
+
   const isAdmin = useIsAdmin(user);
   const { roomId } = useParams<{ roomId: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -504,30 +507,42 @@ const sendMessage = async () => {
                   position: "relative"
                 }}
               >
-                {m.replyTo && (
-                    <div style={{ borderLeft: "2px solid #999", paddingLeft: 4, marginBottom: 2, fontSize: "0.8em", color: "#555" }}>
-                      {messages.find((x) => x.id === m.replyTo)?.text.slice(0, 60) ?? "…"}
-                    </div>
-                  )}
-                  {translations[m.id] !== undefined ? translations[m.id] : m.text}
-                  {hovered === m.id && (
-                    <div style={{
-                      position: "absolute",
-                      left: 10,
-                      bottom: 8,
-                      background: "rgba(0,0,0,0.7)",
-                      color: "#fff",
-                      padding: "2px 8px",
-                      borderRadius: 8,
-                      fontSize: "0.85em",
-                      maxWidth: 180,
-                      textAlign: "left",
-                      pointerEvents: "none",
-                      zIndex: 2
-                    }}>
-                      {userPrefs[m.uid]?.displayName || (isMe ? user.displayName : "Unknown")}
-                    </div>
-                  )}
+                {/* Render message text with clickable URLs and warning dialog */}
+                {(() => {
+  const text = translations[m.id] !== undefined ? translations[m.id] : m.text;
+  const urlRegex = /(https?:\/\/[\w\-._~:/?#[\]@!$&'()*+,;=%]+)|(www\.[\w\-._~:/?#[\]@!$&'()*+,;=%]+)/gi;
+  const parts: (string | JSX.Element)[] = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+  while ((match = urlRegex.exec(text)) !== null) {
+    const url = match[0];
+    const start = match.index;
+    if (start > lastIndex) {
+      parts.push(text.slice(lastIndex, start));
+    }
+    const href = url.startsWith('http') ? url : `https://${url}`;
+    parts.push(
+      <a
+        key={key++}
+        href={href}
+        style={{ color: '#0b5ed7', textDecoration: 'underline', wordBreak: 'break-all' }}
+        onClick={e => {
+          e.preventDefault();
+          setPendingLink({ url: href, label: url });
+        }}
+      >
+        {url}
+      </a>
+    );
+    lastIndex = start + url.length;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts;
+})()}
+
                 {/* reply button */}
                 <span
                   onClick={(e) => {
@@ -616,6 +631,56 @@ const sendMessage = async () => {
                 setConfirmDelete(null);
               }}>{l10n.del}</button>
               <button onClick={() => setConfirmDelete(null)}>{l10n.cancel}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom link confirmation modal */}
+      {pendingLink && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          background: "rgba(0,0,0,0.35)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 2000
+        }}>
+          <div style={{
+            background: "#fff",
+            borderRadius: 12,
+            padding: "2rem 2.5rem 1.5rem 2.5rem",
+            boxShadow: "0 6px 32px rgba(0,0,0,0.22)",
+            maxWidth: 370,
+            minWidth: 260,
+            textAlign: "center",
+            fontSize: "1.05em"
+          }}>
+            <div style={{ fontWeight: 700, fontSize: "1.1em", marginBottom: 12, color: "#b50000" }}>
+              外部リンクを開こうとしています
+            </div>
+            <div style={{ background: "#f9f9f9", border: "1px solid #eee", borderRadius: 6, padding: "0.5rem", marginBottom: 18, wordBreak: "break-all", color: "#222" }}>
+              {pendingLink.label}
+            </div>
+            <div style={{ color: "#b50000", fontSize: "0.98em", marginBottom: 18 }}>
+              このリンクは外部サイトです。安全を確認してからアクセスしてください。
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", gap: "1.5rem" }}>
+              <button
+                style={{ background: "#0b5ed7", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1.3rem", fontSize: "1em", cursor: "pointer", fontWeight: 600 }}
+                onClick={() => {
+                  window.open(pendingLink.url, '_blank', 'noopener');
+                  setPendingLink(null);
+                }}
+              >OK</button>
+              <button
+                style={{ background: "#eee", color: "#444", border: "none", borderRadius: 6, padding: "0.5rem 1.3rem", fontSize: "1em", cursor: "pointer" }}
+                onClick={() => setPendingLink(null)}
+              >キャンセル</button>
             </div>
           </div>
         </div>
