@@ -12,10 +12,20 @@ export default function useIsAdmin(user: User | null): boolean {
       return;
     }
     const ref = doc(db, "admin", "config");
-    const unsub = onSnapshot(ref, (snap) => {
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
       const emails: string[] = snap.data()?.adminEmails ?? [];
       setIsAdmin(emails.includes(user.email ?? ""));
-    });
+      },
+      (err) => {
+        if (err.code === 'permission-denied') {
+          console.debug('[useIsAdmin] admin/config listener blocked: permission-denied');
+        } else {
+          console.error('[useIsAdmin] listener error', err);
+        }
+      }
+    );
     return unsub;
   }, [user]);
 
