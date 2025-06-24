@@ -92,6 +92,7 @@ function Rooms({ user }: Props) {
             <Link to={`/rooms/${r.id}`}>{r.name}</Link>
             {(r.createdBy === user.uid || isAdmin) ? (
               <button
+                className="trash-btn"
                 style={{ marginLeft: 8, background: 'none', border: 'none', cursor: 'pointer', verticalAlign: 'middle' }}
                 title="ルームを削除"
                 onClick={() => handleDeleteRoomClick(r.id)}
@@ -113,7 +114,11 @@ function Rooms({ user }: Props) {
       <ConfirmModal
         open={!!deleteTarget}
         title="ルーム削除の確認"
-        message="本当にこのルームを削除しますか？この操作は取り消せません。"
+        message={
+          deleteTarget
+            ? `本当にこのルーム「${rooms.find(r => r.id === deleteTarget)?.name ?? ''}」を削除しますか？この操作は取り消せません。`
+            : "本当にこのルームを削除しますか？この操作は取り消せません。"
+        }
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
       />

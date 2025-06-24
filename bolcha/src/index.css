@@ -51,6 +51,16 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
 }
+
+/* ゴミ箱ボタンを非表示 */
+button.trash-btn {
+  display: none;
+}
+
+/* li:hover の時だけ表示 */
+li:hover > button.trash-btn {
+  display: inline-block;
+}
 button:hover {
   border-color: #646cff;
 }
