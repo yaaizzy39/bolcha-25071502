@@ -52,6 +52,36 @@ button {
   transition: border-color 0.25s;
 }
 
+.room-input {
+  border-radius: 18px;
+  border: 1px solid #ccc;
+  padding: 0.4em 1em;
+  font-size: 1em;
+  outline: none;
+  transition: border-color 0.2s;
+  background: #fafbfc;
+  box-sizing: border-box;
+}
+.room-input:focus {
+  border-color: #a0a0ff;
+}
+
+.room-create-btn {
+  border-radius: 16px;
+  padding: 0.3em 0.9em;
+  font-size: 0.95em;
+  margin-left: 0.5em;
+  min-width: 64px;
+  background: #646cff;
+  color: #fff;
+  border: none;
+  box-shadow: 0 1px 4px rgba(100,108,255,0.07);
+  transition: background 0.2s;
+}
+.room-create-btn:hover {
+  background: #535bf2;
+}
+
 /* ゴミ箱ボタンを非表示 */
 button.trash-btn {
   display: none;

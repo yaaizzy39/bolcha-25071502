@@ -80,11 +80,12 @@ function Rooms({ user }: Props) {
       <h3>Chat Rooms</h3>
       <div style={{ marginBottom: "1rem" }}>
         <input
+          className="room-input"
           value={roomName}
           onChange={(e) => setRoomName(e.target.value)}
           placeholder="New room name"
         />
-        <button onClick={createRoom}>Create</button>
+        <button className="room-create-btn" onClick={createRoom}>Create</button>
       </div>
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
         {rooms.map((r) => (
