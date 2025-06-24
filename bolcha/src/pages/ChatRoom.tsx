@@ -167,10 +167,13 @@ const translatingRef = useRef<Set<string>>(new Set());
       const unread = list.filter((m) => m.uid !== user.uid && !(m.readBy ?? []).includes(user.uid));
       if (unread.length) {
         unread.forEach((m) => {
-          updateDoc(doc(db, "rooms", roomId, "messages", m.id), {
-            readBy: [...(m.readBy ?? []), user.uid],
-          });
-        });
+  // Only update if the user is the owner or admin
+  if (m.createdBy === user.uid || isAdmin) {
+    updateDoc(doc(db, "rooms", roomId, "messages", m.id), {
+      readBy: [...(m.readBy ?? []), user.uid],
+    });
+  }
+});
       }
       // sync translations cache with Firestore and remove stale entries
       setTranslations(() => {
@@ -383,6 +386,7 @@ const sendMessage = async () => {
     replyTo: replyTarget?.id ?? null,
     text: trimmed,
     uid: user.uid,
+    createdBy: user.uid, // Firestoreルール対応のため追加
     createdAt: serverTimestamp(),
     readBy: [user.uid],
     originalLang: origLang,
@@ -399,9 +403,18 @@ const sendMessage = async () => {
     setTranslations(prev => ({ ...prev, [docRef.id]: trimmed }));
   }
 
-  await updateDoc(doc(db, "rooms", roomId), {
+  try {
+    await updateDoc(doc(db, "rooms", roomId), {
       lastActivityAt: serverTimestamp(),
     });
+  } catch (err: any) {
+    if ((err as Error).message?.includes("permission")) {
+      // Not critical; ignore to prevent console noise
+      console.debug("lastActivityAt update skipped due to permissions");
+    } else {
+      throw err;
+    }
+  }
     setText("");
     if (inputRef.current) {
       inputRef.current.style.height = "auto";

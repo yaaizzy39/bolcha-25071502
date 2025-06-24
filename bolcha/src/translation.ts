@@ -9,8 +9,9 @@ const initialEndpoints = (import.meta.env.VITE_GAS_ENDPOINTS as string | undefin
 
 const endpoints: string[] = [...initialEndpoints];
 
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
 import { doc, onSnapshot } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 let primary = 0;           // index of the preferred endpoint
 let failStreak = 0;        // consecutive failures of the current primary
@@ -20,25 +21,41 @@ const FAIL_THRESHOLD = 2;  // switch primary after this many consecutive failure
 let chain: Promise<any> = Promise.resolve();
 
 // Runtime load of endpoints from Firestore (admin-configurable)
-try {
-  const cfgRef = doc(db, "admin", "config");
-  onSnapshot(cfgRef, (snap) => {
-    const data = snap.data();
-    if (data && Array.isArray(data.gasEndpoints)) {
-      if (data.gasEndpoints.length) {
-        endpoints.splice(0, endpoints.length, ...data.gasEndpoints.filter(Boolean));
-        console.info("[translation] endpoints updated from Firestore", endpoints);
-      } else {
-        // empty list ⇒ revert to initial .env endpoints
-        endpoints.splice(0, endpoints.length, ...initialEndpoints);
-        console.info("[translation] endpoints reset to .env list", endpoints);
+if (!(globalThis as any).__TRAN_CFG_LISTENER__) {
+  (globalThis as any).__TRAN_CFG_LISTENER__ = true;
+  try {
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user) return; // wait until sign-in
+    const cfgRef = doc(db, "admin", "config");
+    onSnapshot(
+      cfgRef,
+      (snap) => {
+      const data = snap.data();
+      if (data && Array.isArray(data.gasEndpoints)) {
+        if (data.gasEndpoints.length) {
+          endpoints.splice(0, endpoints.length, ...data.gasEndpoints.filter(Boolean));
+          console.info("[translation] endpoints updated from Firestore", endpoints);
+        } else {
+          endpoints.splice(0, endpoints.length, ...initialEndpoints);
+          console.info("[translation] endpoints reset to .env list", endpoints);
+        }
+        primary = 0;
+        failStreak = 0;
       }
-      primary = 0;
-      failStreak = 0;
-    }
+      },
+      (err) => {
+        if (err.code === 'permission-denied') {
+          console.debug('[translation] admin/config listener blocked: permission-denied');
+        } else {
+          console.error('[translation] admin/config listener error', err);
+        }
+      }
+    );
   });
 } catch {
-  // ignore if Firestore not ready
+  /* ignore if Firebase not ready */
+}
 }
 
 
