@@ -198,9 +198,18 @@ export default function Profile({ user, onSaved }: Props) {
         </label>
       </div>
 
-      <button onClick={handleSave} disabled={saving}>
-        {saving ? t("saving") : t("save")}
-      </button>
+      <div style={{ display: 'flex', gap: '1em', justifyContent: 'flex-start' }}>
+        <button className="profile-btn" onClick={handleSave} disabled={saving}>
+          {saving ? t("saving") : t("save")}
+        </button>
+        <button
+          className="profile-btn"
+          type="button"
+          onClick={() => navigate(-1)}
+        >
+          {(uiLang === 'ja' && (!t("cancel") || t("cancel").toLowerCase() === 'cancel')) ? 'キャンセル' : (t("cancel") || (uiLang === 'ja' ? 'キャンセル' : 'Cancel'))}
+        </button>
+      </div>
     </div>
   );
 }
