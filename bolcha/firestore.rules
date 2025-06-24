@@ -27,7 +27,10 @@ service cloud.firestore {
 
     /* ---------- users ---------- */
     match /users/{uid} {
-      allow read, write: if isAdmin() || request.auth.uid == uid;
+      // Any signed-in user can read basic user profile docs (photoURL, displayName, etc.)
+      allow read: if request.auth != null;
+      // Only the owner (or admin) may write their profile
+      allow write: if isAdmin() || request.auth.uid == uid;
     }
 
     /* ---------- rooms & messages ---------- */
