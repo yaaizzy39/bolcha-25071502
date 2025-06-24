@@ -5,12 +5,15 @@ import { db, functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
 import type { User } from "firebase/auth";
 import useIsAdmin from "../hooks/useIsAdmin";
+import ConfirmModal from "../components/ConfirmModal";
 
 export default function Admin({ user }: { user: User }) {
   const isAdmin = useIsAdmin(user);
   const [gasList, setGasList] = useState<string[]>([]);
   const [newUrl, setNewUrl] = useState("");
   const [rooms, setRooms] = useState<any[]>([]);
+  // room delete modal state
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     const cfgRef = doc(db, "admin", "config");
@@ -58,6 +61,25 @@ export default function Admin({ user }: { user: User }) {
       alert("Failed: " + (err as any).message);
     }
   };
+
+  // click trash icon → open modal
+  const handleDeleteClick = (roomId: string) => {
+    setDeleteTarget(roomId);
+  };
+  // modal confirm
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const callable = httpsCallable(functions, "adminDeleteRoom");
+      await callable({ roomId: deleteTarget });
+      setRooms((prev) => prev.filter((r) => r.id !== deleteTarget));
+    } catch (err) {
+      alert("Failed: " + (err as any).message);
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
+  const handleCancelDelete = () => setDeleteTarget(null);
 
   if (!isAdmin) {
     return (
@@ -120,13 +142,27 @@ export default function Admin({ user }: { user: User }) {
                   <td>{room.name || '-'}</td>
                   <td>{room.lastActivityAt?.toDate?.()?.toLocaleString?.() || "-"}</td>
                   <td>
-                    <button onClick={() => deleteRoom(room.id)}>Delete</button>
+                    <button onClick={() => handleDeleteClick(room.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e53e3e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                      </svg>
+                    </button>
                   </td>
                 </tr>
               ))}
           </tbody>
         </table>
       </section>
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="ルーム削除の確認"
+        message="本当にこのルームを削除しますか？この操作は取り消せません。"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </div>
   );
 }
