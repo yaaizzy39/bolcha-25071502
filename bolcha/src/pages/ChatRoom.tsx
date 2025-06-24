@@ -14,6 +14,7 @@ import {
   arrayRemove,
 } from "firebase/firestore";
 import { db } from "../firebase";
+import { setDoc } from "firebase/firestore";
 import { translateText } from "../translation";
 import useIsAdmin from "../hooks/useIsAdmin";
 import { detectLanguage } from "../langDetect";
@@ -83,11 +84,56 @@ function formatTime(date: Date, lang: string) {
 }
 
 function ChatRoom({ user }: Props) {
+  // presence管理用
+  const [presenceCount, setPresenceCount] = useState(0);
+  const presenceIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // ...既存のstate...
   const [pendingLink, setPendingLink] = useState<{ url: string; label: string } | null>(null);
 
   const isAdmin = useIsAdmin(user);
   const { roomId } = useParams<{ roomId: string }>();
+
+  // presence: ルーム入室時に自分を追加・定期更新、離脱時に削除
+  useEffect(() => {
+    if (!roomId || !user?.uid) return;
+    const presenceRef = doc(db, "rooms", roomId, "presence", user.uid);
+    const now = new Date();
+    const updatePresence = async () => {
+      await updateDoc(presenceRef, { lastActive: new Date() }).catch(async err => {
+        // ドキュメントがなければset
+        if (err.code === "not-found" || err.message?.includes("No document")) {
+          await setDoc(presenceRef, { lastActive: new Date(), uid: user.uid });
+        }
+      });
+    };
+    updatePresence();
+    presenceIntervalRef.current = setInterval(updatePresence, 30000); // 30秒ごと
+    // 離脱時にpresence削除
+    return () => {
+      clearInterval(presenceIntervalRef.current!);
+      deleteDoc(presenceRef).catch(() => {});
+    };
+  }, [roomId, user?.uid]);
+
+  // presence人数をリアルタイム取得
+  useEffect(() => {
+    if (!roomId) return;
+    const q = query(collection(db, "rooms", roomId, "presence"));
+    const unsub = onSnapshot(q, (snap) => {
+      // 3分以内のlastActiveのみカウント
+      const now = Date.now();
+      const count = snap.docs.filter(d => {
+        const last = d.data().lastActive;
+        if (!last) return false;
+        const t = last.toDate ? last.toDate().getTime() : new Date(last).getTime();
+        return now - t < 3 * 60 * 1000;
+      }).length;
+      setPresenceCount(count);
+    });
+    return unsub;
+  }, [roomId]);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [roomName, setRoomName] = useState<string>("");
   const [userPrefs, setUserPrefs] = useState<Record<string, { photoURL?: string; bubbleColor?: string; textColor?: string; displayName?: string }>>({});
@@ -455,7 +501,12 @@ const sendMessage = async () => {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "80vh", maxWidth: 1000, width: "100%", margin: "0 auto" }}>
       <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 0.5rem 0 0.2rem", minHeight: 36 }}>
-        <span style={{ fontWeight: 700, fontSize: "1.2rem", letterSpacing: 1, margin: 0 }}>{roomName}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+  <span title="現在アクセス中の人数" style={{ fontWeight: 500, fontSize: '1rem', color: '#1e90ff' }}>
+    👥 {presenceCount}
+  </span>
+  <span style={{ fontWeight: 700, fontSize: "1.2rem", letterSpacing: 1, margin: 0 }}>{roomName}</span>
+</div>
         <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ marginLeft: 8, height: 28, fontSize: "1rem", borderRadius: 6, border: "1px solid #ccc", padding: "0 8px" }}>
           {[
             ["en", "English"],
@@ -642,20 +693,19 @@ const sendMessage = async () => {
   onClick={(e) => {
     e.stopPropagation();
     if (!roomId) return;
-    // Only allow like if user is not the message owner, or is admin
-    if (m.uid === user.uid && !isAdmin) return;
+    
     const liked = (m.likes ?? []).includes(user.uid);
     updateDoc(doc(db, "rooms", roomId, "messages", m.id), {
       likes: liked ? arrayRemove(user.uid) : arrayUnion(user.uid),
     });
   }}
   style={{
-    cursor: (m.uid === user.uid && !isAdmin) ? "not-allowed" : "pointer",
+    cursor: "pointer",
     marginLeft: 6,
     fontSize: "0.9em",
     color: (m.likes ?? []).includes(user.uid) ? "#e0245e" : "#888",
-    opacity: (m.uid === user.uid && !isAdmin) ? 0.4 : 1,
-    pointerEvents: (m.uid === user.uid && !isAdmin) ? "none" : "auto",
+    opacity: 1,
+    pointerEvents: "auto",
     transition: "opacity 0.2s",
   }}
 >
