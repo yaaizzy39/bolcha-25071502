@@ -86,11 +86,11 @@ function Rooms({ user }: Props) {
         />
         <button onClick={createRoom}>Create</button>
       </div>
-      <ul>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
         {rooms.map((r) => (
-          <li key={r.id}>
+          <li key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, height: 30, lineHeight: '30px' }}>
             <Link to={`/rooms/${r.id}`}>{r.name}</Link>
-            {(r.createdBy === user.uid || isAdmin) && (
+            {(r.createdBy === user.uid || isAdmin) ? (
               <button
                 style={{ marginLeft: 8, background: 'none', border: 'none', cursor: 'pointer', verticalAlign: 'middle' }}
                 title="ルームを削除"
@@ -104,6 +104,8 @@ function Rooms({ user }: Props) {
                   <line x1="14" y1="11" x2="14" y2="17" />
                 </svg>
               </button>
+            ) : (
+              <span style={{ display: 'inline-block', width: 24, height: 20 }} />
             )}
           </li>
         ))}
