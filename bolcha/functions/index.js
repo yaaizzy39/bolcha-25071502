@@ -1,7 +1,7 @@
 // Cloud Functions for Bolcha - translation proxy to GAS
 import fetch from 'node-fetch';
-const functions = require("firebase-functions");
-const admin = require("firebase-admin");
+import functions from 'firebase-functions';
+import admin from 'firebase-admin';
 admin.initializeApp();
 
 // Replace with your GAS deployment ID via env or constant
@@ -43,13 +43,23 @@ export const translate = functions.https.onRequest(async (req, res) => {
 });
 
 // ================= Admin callable =================
-exports.adminDeleteRoom = functions.https.onCall(async (data, context) => {
+export const adminDeleteRoom = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
   }
   const email = context.auth.token.email;
-  const adminEmails = (functions.config().admin?.emails || '').split(/[, ]+/).filter(Boolean);
-  if (!adminEmails.includes(email)) {
+  const isClaimAdmin = !!context.auth.token.admin;
+  let adminEmails = (functions.config().admin?.emails || '').split(/[, ]+/).filter(Boolean);
+  try {
+    const cfgSnap = await admin.firestore().doc('admin/config').get();
+    if (cfgSnap.exists) {
+      const cfgEmails = cfgSnap.data().adminEmails || [];
+      adminEmails = Array.from(new Set([...adminEmails, ...cfgEmails]));
+    }
+  } catch (e) {
+    console.warn('Failed to load admin/config for adminDeleteRoom', e);
+  }
+  if (!isClaimAdmin && !adminEmails.includes(email)) {
     throw new functions.https.HttpsError('permission-denied', 'Admins only');
   }
   const roomId = data.roomId;
