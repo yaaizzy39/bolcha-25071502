@@ -639,25 +639,28 @@ const sendMessage = async () => {
                 )}
                 {/* like button */}
                 <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!roomId) return;
-                    const liked = (m.likes ?? []).includes(user.uid);
-                    updateDoc(doc(db, "rooms", roomId, "messages", m.id), {
-                      likes: liked ? arrayRemove(user.uid) : arrayUnion(user.uid),
-                    });
-                  }}
-                  style={{
-                    cursor: "pointer",
-                    marginLeft: 6,
-                    fontSize: "0.9em",
-                    color: (m.likes ?? []).includes(user.uid) ? "#e0245e" : "#888",
-                    opacity: 1,
-                    transition: "opacity 0.2s",
-                  }}
-                >
-                  <LikeIcon filled={(m.likes ?? []).includes(user.uid)} />
-                </span>
+  onClick={(e) => {
+    e.stopPropagation();
+    if (!roomId) return;
+    // Only allow like if user is not the message owner, or is admin
+    if (m.uid === user.uid && !isAdmin) return;
+    const liked = (m.likes ?? []).includes(user.uid);
+    updateDoc(doc(db, "rooms", roomId, "messages", m.id), {
+      likes: liked ? arrayRemove(user.uid) : arrayUnion(user.uid),
+    });
+  }}
+  style={{
+    cursor: (m.uid === user.uid && !isAdmin) ? "not-allowed" : "pointer",
+    marginLeft: 6,
+    fontSize: "0.9em",
+    color: (m.likes ?? []).includes(user.uid) ? "#e0245e" : "#888",
+    opacity: (m.uid === user.uid && !isAdmin) ? 0.4 : 1,
+    pointerEvents: (m.uid === user.uid && !isAdmin) ? "none" : "auto",
+    transition: "opacity 0.2s",
+  }}
+>
+  <LikeIcon filled={(m.likes ?? []).includes(user.uid)} />
+</span>
                 {m.likes && m.likes.length > 0 && (
                   <span style={{ marginLeft: 4, fontSize: "0.8em", color: "#555" }}>{m.likes.length}</span>
                 )}
