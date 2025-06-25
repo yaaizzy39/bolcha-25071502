@@ -23,13 +23,13 @@ function Rooms({ user }: Props) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomName, setRoomName] = useState("");
   const isAdmin = useIsAdmin(user);
-
+  const [presenceCounts, setPresenceCounts] = useState<Record<string, number | null>>({});
   // 削除確認モーダル用の状態
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, "rooms"), orderBy("lastActivityAt", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
+    const unsub = onSnapshot(q, async (snap) => {
       const list: Room[] = snap.docs.map((d) => {
         const data = d.data();
         return {
@@ -41,6 +41,28 @@ function Rooms({ user }: Props) {
         };
       });
       setRooms(list);
+      // presenceカウント取得
+      const now = Date.now();
+      const counts: Record<string, number | null> = {};
+      await Promise.all(list.map(async (room) => {
+        try {
+          const presSnap = await import("firebase/firestore").then(({ collection, getDocs }) =>
+            getDocs(collection(db, "rooms", room.id, "presence"))
+          );
+          let count = 0;
+          presSnap.forEach((doc) => {
+            const last = doc.data().lastActive;
+            let t = null;
+            if (!last) return;
+            t = last.toDate ? last.toDate().getTime() : new Date(last).getTime();
+            if (now - t < 3 * 60 * 1000) count++;
+          });
+          counts[room.id] = count;
+        } catch {
+          counts[room.id] = null;
+        }
+      }));
+      setPresenceCounts(counts);
     });
     return unsub;
   }, []);
@@ -91,6 +113,9 @@ function Rooms({ user }: Props) {
         {rooms.map((r) => (
           <li key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, height: 30, lineHeight: '30px' }}>
             <Link to={`/rooms/${r.id}`}>{r.name}</Link>
+            <span style={{ marginLeft: 8, color: '#1e90ff', fontWeight: 500, fontSize: '0.9em' }} title="参加者数">
+              👥 {presenceCounts[r.id] === undefined ? '...' : presenceCounts[r.id] ?? 0}
+            </span>
             {(r.createdBy === user.uid || isAdmin) ? (
               <button
                 className="trash-btn"
