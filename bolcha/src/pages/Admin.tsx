@@ -14,12 +14,17 @@ export default function Admin({ user }: { user: User }) {
   const [rooms, setRooms] = useState<any[]>([]);
   // room delete modal state
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [autoDeleteHours, setAutoDeleteHours] = useState<number>(24);
+  const [autoDeleteSaved, setAutoDeleteSaved] = useState(false);
 
   useEffect(() => {
     const cfgRef = doc(db, "admin", "config");
     const unsub = onSnapshot(cfgRef, (snap) => {
       const data = snap.data();
       setGasList(data?.gasEndpoints ?? []);
+      if (typeof data?.autoDeleteHours === 'number') {
+        setAutoDeleteHours(data.autoDeleteHours);
+      }
     });
     return unsub;
   }, []);
@@ -37,6 +42,13 @@ export default function Admin({ user }: { user: User }) {
   const saveGasList = async (list: string[]) => {
     const cfgRef = doc(db, "admin", "config");
     await setDoc(cfgRef, { gasEndpoints: list }, { merge: true });
+  };
+
+  const saveAutoDeleteHours = async () => {
+    const cfgRef = doc(db, "admin", "config");
+    await setDoc(cfgRef, { autoDeleteHours }, { merge: true });
+    setAutoDeleteSaved(true);
+    setTimeout(() => setAutoDeleteSaved(false), 1800);
   };
 
   const addEndpoint = async () => {
@@ -98,6 +110,22 @@ export default function Admin({ user }: { user: User }) {
         <Link to="/">← Rooms</Link> &nbsp; | &nbsp; <Link to="/profile">Settings</Link>
       </div>
       <h2>Admin Settings</h2>
+      <section style={{ marginBottom: 24 }}>
+        <h3>Room Auto-Delete</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <input
+            type="number"
+            min={1}
+            max={168}
+            value={autoDeleteHours}
+            onChange={e => setAutoDeleteHours(Number(e.target.value))}
+            style={{ width: 80 }}
+          />
+          <span>時間（最終投稿からこの時間経過で自動削除）</span>
+          <button onClick={saveAutoDeleteHours} style={{ marginLeft: 8 }}>保存</button>
+          {autoDeleteSaved && <span style={{ color: 'green', marginLeft: 8 }}>保存しました</span>}
+        </div>
+      </section>
       <section>
         <h3>GAS Endpoints</h3>
         <ul>

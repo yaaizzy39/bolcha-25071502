@@ -77,6 +77,31 @@ export const adminDeleteRoom = functions.https.onCall(async (data, context) => {
 });
 
 // ===== Additional translation proxy (translate2) =====
+
+// Scheduled function to auto-delete inactive rooms
+export const autoDeleteRooms = functions.pubsub.schedule('every 60 minutes').onRun(async (context) => {
+  const configSnap = await admin.firestore().doc('admin/config').get();
+  const config = configSnap.data() || {};
+  const hours = typeof config.autoDeleteHours === 'number' ? config.autoDeleteHours : 24;
+  if (!hours || hours <= 0) return null;
+  const cutoff = Date.now() - hours * 60 * 60 * 1000;
+  const roomsSnap = await admin.firestore().collection('rooms').get();
+  let deleted = 0;
+  for (const doc of roomsSnap.docs) {
+    const last = doc.data().lastActivityAt;
+    let t = null;
+    if (!last) continue;
+    t = last.toDate ? last.toDate().getTime() : new Date(last).getTime();
+    if (t < cutoff) {
+      await admin.firestore().recursiveDelete(doc.ref);
+      deleted++;
+      console.log('Auto-deleted room:', doc.id);
+    }
+  }
+  console.log(`Auto-delete done. Deleted ${deleted} rooms.`);
+  return null;
+});
+
 // To set a distinct GAS endpoint run:
 //   firebase functions:config:set translate2.gas_url="https://script.google.com/.../exec"
 // If not set, falls back to GAS_BASE_URL or process.env.GAS_BASE_URL_2.
