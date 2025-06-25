@@ -17,19 +17,6 @@ function luminance(hex: string): number {
   const [r, g, b] = hexToRgb(hex);
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 }
-function ensureBright(hex: string): string {
-  let lum = luminance(hex);
-  let [r, g, b] = hexToRgb(hex);
-  while (lum < 0.6) {
-    // mix with white by 20%
-    r = Math.round(r + (255 - r) * 0.2);
-    g = Math.round(g + (255 - g) * 0.2);
-    b = Math.round(b + (255 - b) * 0.2);
-    hex = rgbToHex(r, g, b);
-    lum = luminance(hex);
-  }
-  return hex;
-}
 import { db, storage } from "../firebase";
 import type { User } from "firebase/auth";
 

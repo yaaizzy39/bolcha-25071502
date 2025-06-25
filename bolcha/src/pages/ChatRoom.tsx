@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -87,7 +88,7 @@ function formatTime(date: Date, lang: string) {
 function ChatRoom({ user }: Props) {
   // --- Room Deletion and Auto-Delete Warning State ---
   const navigate = useNavigate();
-  const [roomDeleted, setRoomDeleted] = useState(false);
+
   const [autoDeleteWarning, setAutoDeleteWarning] = useState<string | null>(null);
   const [autoDeleteHours, setAutoDeleteHours] = useState<number>(24);
   const [lastActivityAt, setLastActivityAt] = useState<Date | null>(null);
@@ -108,7 +109,7 @@ function ChatRoom({ user }: Props) {
   useEffect(() => {
     if (!roomId || !user?.uid) return;
     const presenceRef = doc(db, "rooms", roomId, "presence", user.uid);
-    const now = new Date();
+    // const now = new Date(); // 未使用のためコメントアウト
     const updatePresence = async () => {
       await updateDoc(presenceRef, { lastActive: new Date() }).catch(async err => {
         // ドキュメントがなければset
@@ -269,9 +270,9 @@ function ChatRoom({ user }: Props) {
             }
           });
         });
-        setRoomDeleted(false);
+        
       } else {
-        setRoomDeleted(true);
+        
         setTimeout(() => {
           navigate("/rooms");
         }, 2200);
@@ -706,7 +707,7 @@ function ChatRoom({ user }: Props) {
                 {(() => {
                   const text = translations[m.id] !== undefined ? translations[m.id] : m.text;
                   const urlRegex = /(https?:\/\/[\w\-._~:/?#[\]@!$&'()*+,;=%]+)|(www\.[\w\-._~:/?#[\]@!$&'()*+,;=%]+)/gi;
-                  const parts: (string | JSX.Element)[] = [];
+                  const parts: (string | React.ReactElement)[] = [];
                   let lastIndex = 0;
                   let match;
                   let key = 0;

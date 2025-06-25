@@ -63,17 +63,6 @@ export default function Admin({ user }: { user: User }) {
     await saveGasList(list);
   };
 
-  const deleteRoom = async (roomId: string) => {
-    if (!window.confirm("Delete room " + roomId + " ?")) return;
-    try {
-      const callable = httpsCallable(functions, "adminDeleteRoom");
-      await callable({ roomId });
-      setRooms((prev) => prev.filter((r) => r.id !== roomId));
-    } catch (err) {
-      alert("Failed: " + (err as any).message);
-    }
-  };
-
   // click trash icon → open modal
   const handleDeleteClick = (roomId: string) => {
     setDeleteTarget(roomId);
