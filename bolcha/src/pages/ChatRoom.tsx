@@ -597,7 +597,7 @@ const sendMessage = async () => {
                  position: "relative",
                  display: "flex",
                  flexDirection: myDir,
-                 alignItems: "flex-end",
+                 alignItems: "flex-start",
                  margin: "0.25rem 0",
                }}
              >
@@ -610,7 +610,7 @@ const sendMessage = async () => {
       alt="avatar"
       width={32}
       height={32}
-      style={{ borderRadius: "50%", margin: myDir === "row-reverse" ? "0 0 0 6px" : "0 6px 0 0", cursor: "pointer" }}
+      style={{ borderRadius: "50%", margin: myDir === "row-reverse" ? "0 0.2em 0 6px" : "0 6px 0.2em 0", cursor: "pointer", verticalAlign: "top" }}
       onMouseEnter={() => setHoveredUser(`avatar-${m.id}`)}
       onMouseLeave={() => setHoveredUser(null)}
     />

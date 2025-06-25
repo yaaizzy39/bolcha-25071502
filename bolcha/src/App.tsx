@@ -61,8 +61,8 @@ function App() {
     <div>
       <header style={{ display: "flex", justifyContent: "space-between", padding: "1rem 1rem 0 1rem" }}>
         <h2 style={{ margin: 0, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
-  <img
-    src="/Bolcha-icon-250614-01-128x128.png"
+  <img    
+    src="/Bolcha-icon-250614-01.svg"
     alt="Bolcha icon"
     width={28}
     height={28}
