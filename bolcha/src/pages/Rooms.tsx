@@ -37,7 +37,7 @@ function Rooms({ user }: Props) {
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date().getTime()), 30000); // 30秒ごと
     return () => clearInterval(timer);
-  }, []);
+  }, [now]);
 
   useEffect(() => {
     const q = query(collection(db, "rooms"), orderBy("lastActivityAt", "desc"));
@@ -76,7 +76,7 @@ function Rooms({ user }: Props) {
       setPresenceCounts(counts);
     });
     return unsub;
-  }, []);
+  }, [now]);
 
   useEffect(() => {
     const fetchAutoDeleteHours = async () => {
@@ -89,7 +89,7 @@ function Rooms({ user }: Props) {
       } catch {}
     };
     fetchAutoDeleteHours();
-  }, []);
+  }, [now]);
 
   const createRoom = async () => {
     if (!roomName.trim()) return;
