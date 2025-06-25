@@ -197,6 +197,33 @@ function ChatRoom({ user }: Props) {
   const nearBottomRef = useRef(true);
   const [atBottom, setAtBottom] = useState(true);
 
+  // Firestore: subscribe to messages in real-time
+  useEffect(() => {
+    if (!roomId) return;
+    const q = query(
+      collection(db, "rooms", roomId, "messages"),
+      orderBy("createdAt", "asc")
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const msgs: Message[] = snap.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          text: data.text,
+          uid: data.uid,
+          createdAt: data.createdAt?.toDate?.() || new Date(),
+          readBy: data.readBy,
+          likes: data.likes,
+          replyTo: data.replyTo,
+          originalLang: data.originalLang,
+          translations: data.translations,
+        };
+      });
+      setMessages(msgs);
+    });
+    return unsub;
+  }, [roomId]);
+
   // load user preferences once on mount
   useEffect(() => {
     (async () => {
