@@ -18,6 +18,7 @@ import { setDoc } from "firebase/firestore";
 import { translateText } from "../translation";
 import useIsAdmin from "../hooks/useIsAdmin";
 import { detectLanguage } from "../langDetect";
+import { useI18n } from "../i18n";
 
 import type { User } from "firebase/auth";
 import { doc as fbDoc, getDoc } from "firebase/firestore";
@@ -100,6 +101,8 @@ function ChatRoom({ user }: Props) {
 
   const isAdmin = useIsAdmin(user);
   const { roomId } = useParams<{ roomId: string }>();
+  // UI language from global context
+  const { lang: uiLang } = useI18n();
 
   // presence: ルーム入室時に自分を追加・定期更新、離脱時に削除
   useEffect(() => {
@@ -250,36 +253,38 @@ function ChatRoom({ user }: Props) {
     return unsub;
   }, [roomId, navigate]);
 
-  // Show warning 1 minute before auto-delete
+  // Show warning 1 minute before auto-delete (always show if within 1 minute, even if room is deleted soon after)
   useEffect(() => {
     if (!lastActivityAt || !autoDeleteHours) {
       setAutoDeleteWarning(null);
       return;
     }
+    // Use the system's current local time for accurate calculation
+    const now = new Date().getTime();
     const expireAt = lastActivityAt.getTime() + autoDeleteHours * 60 * 60 * 1000;
-    const now = Date.now();
     const msLeft = expireAt - now;
     if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+    let warningMsg = '';
+    if (uiLang && uiLang.startsWith('ja')) {
+      warningMsg = '⚠️ まもなくルームが削除されます。1分以内に新しいメッセージが投稿されない場合、このルームは削除されます。';
+    } else {
+      warningMsg = '⚠️ If no new messages are posted within 1 minute, this room will be deleted.';
+    }
     if (msLeft > 60 * 1000) {
       setAutoDeleteWarning(null);
       // set timer to show warning at right time
       warningTimerRef.current = setTimeout(() => {
-        setAutoDeleteWarning("⚠️ If no new messages are posted within 1 minute, this room will be deleted.");
+        setAutoDeleteWarning(warningMsg);
       }, msLeft - 60 * 1000);
     } else if (msLeft > 0) {
-      setAutoDeleteWarning("⚠️ If no new messages are posted within 1 minute, this room will be deleted.");
+      setAutoDeleteWarning(warningMsg);
     } else {
       setAutoDeleteWarning(null);
     }
     return () => {
       if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
     };
-  }, [lastActivityAt, autoDeleteHours]);
-
-  // Clear warning if a new message is posted (lastActivityAt changes)
-  useEffect(() => {
-    setAutoDeleteWarning(null);
-  }, [messages.length > 0 ? messages[messages.length - 1]?.createdAt : null]);
+  }, [lastActivityAt, autoDeleteHours, lang]);
 
   // load current user's prefs on mount
   useEffect(() => {
@@ -526,8 +531,15 @@ function ChatRoom({ user }: Props) {
   }, [lang, messages, roomId]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "80vh", maxWidth: 1000, width: "100%", margin: "0 auto" }}>
-      <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 0.5rem 0 0.2rem", minHeight: 36 }}>
+    <>
+      {/* Show auto-delete warning bar at the very top if needed */}
+      {autoDeleteWarning && (
+        <div style={{ background: '#fff3cd', color: '#856404', fontWeight: 700, padding: '8px 18px', fontSize: '1.12em', borderBottom: '2px solid #ffeeba', letterSpacing: 0.5, zIndex: 9998, width: '100%', textAlign: 'center' }}>
+          {autoDeleteWarning}
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", height: "80vh", maxWidth: 1000, width: "100%", margin: "0 auto" }}>
+        <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 0.5rem 0 0.2rem", minHeight: 36 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span title="現在アクセス中の人数" style={{ fontWeight: 500, fontSize: '1rem', color: '#1e90ff' }}>
             👥 {presenceCount}
@@ -822,7 +834,7 @@ function ChatRoom({ user }: Props) {
               外部リンクを開こうとしています
             </div>
             <div style={{ background: "#f9f9f9", border: "1px solid #eee", borderRadius: 6, padding: "0.5rem", marginBottom: 18, wordBreak: "break-all", color: "#222" }}>
-              {pendingLink.label}
+              {pendingLink?.label}
             </div>
             <div style={{ color: "#b50000", fontSize: "0.98em", marginBottom: 18 }}>
               このリンクは外部サイトです。安全を確認してからアクセスしてください。
@@ -831,7 +843,7 @@ function ChatRoom({ user }: Props) {
               <button
                 style={{ background: "#0b5ed7", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1.3rem", fontSize: "1em", cursor: "pointer", fontWeight: 600 }}
                 onClick={() => {
-                  window.open(pendingLink.url, '_blank', 'noopener');
+                  if (pendingLink) window.open(pendingLink.url, '_blank', 'noopener');
                   setPendingLink(null);
                 }}
               >OK</button>
@@ -930,10 +942,10 @@ function ChatRoom({ user }: Props) {
             <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
           </svg>
         </button>
-       </div>
-
-     </div>
-   );
+      </div>
+      </div>
+    </>
+  );
 }
 
 export default ChatRoom;
