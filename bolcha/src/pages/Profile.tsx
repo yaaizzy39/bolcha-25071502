@@ -5,18 +5,18 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // utils --------------------------------------------------
-function hexToRgb(hex: string): [number, number, number] {
-  const m = hex.replace("#", "").match(/.{1,2}/g);
-  if (!m) return [255, 255, 255];
-  return m.map((x) => parseInt(x, 16)) as [number, number, number];
-}
-function rgbToHex(r: number, g: number, b: number) {
-  return "#" + [r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("");
-}
-function luminance(hex: string): number {
-  const [r, g, b] = hexToRgb(hex);
-  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-}
+// function hexToRgb(hex: string): [number, number, number] {
+//   const m = hex.replace("#", "").match(/.{1,2}/g);
+//   if (!m) return [255, 255, 255];
+//   return m.map((x) => parseInt(x, 16)) as [number, number, number];
+// }
+// function rgbToHex(r: number, g: number, b: number) {
+//   return "#" + [r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("");
+// }
+// function luminance(hex: string): number {
+//   const [r, g, b] = hexToRgb(hex);
+//   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+// }
 import { db, storage } from "../firebase";
 import type { User } from "firebase/auth";
 
