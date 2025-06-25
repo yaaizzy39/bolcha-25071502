@@ -137,7 +137,14 @@ function ChatRoom({ user }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [roomName, setRoomName] = useState<string>("");
   const [userPrefs, setUserPrefs] = useState<Record<string, { photoURL?: string; bubbleColor?: string; textColor?: string; displayName?: string }>>({});
-  const [prefs, setPrefs] = useState<{ side: "left" | "right"; showOriginal: boolean; lang?: string; bubbleColor?: string; textColor?: string }>({ side: "right", showOriginal: true });
+  const [prefs, setPrefs] = useState<{ side: "left" | "right"; showOriginal: boolean; lang?: string; bubbleColor?: string; textColor?: string }>(() => {
+    // Try to load from localStorage first for fast UI
+    try {
+      const stored = localStorage.getItem("chat_prefs");
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return { side: "right", showOriginal: true };
+  });
   const [lang, setLang] = useState<string>(() => {
     return localStorage.getItem("chat_lang") || "en";
   });
@@ -178,13 +185,25 @@ const translatingRef = useRef<Set<string>>(new Set());
   // load user preferences once on mount
   useEffect(() => {
     (async () => {
-      const snap = await getDoc(fbDoc(db, "users", user.uid));
-      if (snap.exists()) {
-        const data = snap.data() as any;
-        setPrefs((p) => ({ ...p, ...data }));
-        if (data.lang) {
-          setLang(data.lang);
+      // Try to load from Firestore
+      try {
+        const snap = await getDoc(fbDoc(db, "users", user.uid));
+        if (snap.exists()) {
+          const data = snap.data() as any;
+          setPrefs((p) => {
+            const merged = { ...p, ...data };
+            // Persist to localStorage for next reload
+            try {
+              localStorage.setItem("chat_prefs", JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
+          if (data.lang) {
+            setLang(data.lang);
+          }
         }
+      } catch {
+        // If Firestore fails, try to restore from localStorage (already done in initialState)
       }
     })();
   }, [user.uid]);
@@ -282,6 +301,16 @@ const translatingRef = useRef<Set<string>>(new Set());
     if (missing.length === 0) return;
     missing.forEach(async (uid) => {
       try {
+        // Try to load from localStorage for current user, else Firestore
+        if (uid === user.uid) {
+          try {
+            const stored = localStorage.getItem("chat_prefs");
+            if (stored) {
+              setUserPrefs(prev => ({ ...prev, [uid]: JSON.parse(stored) }));
+              return;
+            }
+          } catch {}
+        }
         const snap = await getDoc(fbDoc(db, "users", uid));
         if (snap.exists()) {
           setUserPrefs(prev => ({ ...prev, [uid]: snap.data() as any }));
@@ -542,6 +571,17 @@ const sendMessage = async () => {
             const myDir = isMe ? (prefs.side === "right" ? "row-reverse" : "row") : "row";
            const bubbleBg = isMe ? (prefs.bubbleColor ?? "#dcf8c6") : (userPrefs[m.uid]?.bubbleColor ?? "#fff");
             const textColor = isMe ? (prefs.textColor ?? "#000") : (userPrefs[m.uid]?.textColor ?? "#000");
+            // If the user changed their color in another tab, update from localStorage
+            if (isMe) {
+              try {
+                const stored = localStorage.getItem("chat_prefs");
+                if (stored) {
+                  const parsed = JSON.parse(stored);
+                  if (parsed.bubbleColor && parsed.bubbleColor !== prefs.bubbleColor) setPrefs(p => ({ ...p, bubbleColor: parsed.bubbleColor }));
+                  if (parsed.textColor && parsed.textColor !== prefs.textColor) setPrefs(p => ({ ...p, textColor: parsed.textColor }));
+                }
+              } catch {}
+            }
           return (
             <div
                key={m.id}
