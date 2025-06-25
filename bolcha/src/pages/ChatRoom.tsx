@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   collection,
   deleteDoc,
@@ -84,6 +84,13 @@ function formatTime(date: Date, lang: string) {
 }
 
 function ChatRoom({ user }: Props) {
+  // --- Room Deletion and Auto-Delete Warning State ---
+  const navigate = useNavigate();
+  const [roomDeleted, setRoomDeleted] = useState(false);
+  const [autoDeleteWarning, setAutoDeleteWarning] = useState<string | null>(null);
+  const [autoDeleteHours, setAutoDeleteHours] = useState<number>(24);
+  const [lastActivityAt, setLastActivityAt] = useState<Date | null>(null);
+  const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
   // presence管理用
   const [presenceCount, setPresenceCount] = useState(0);
   const presenceIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -181,8 +188,8 @@ function ChatRoom({ user }: Props) {
     }
   }, [replyTarget]);
   const containerRef = useRef<HTMLDivElement | null>(null);
-const observerRef = useRef<IntersectionObserver | null>(null);
-const translatingRef = useRef<Set<string>>(new Set());
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const translatingRef = useRef<Set<string>>(new Set());
   // track whether user is currently near the bottom (within 100px)
   const nearBottomRef = useRef(true);
   const [atBottom, setAtBottom] = useState(true);
@@ -215,78 +222,64 @@ const translatingRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!roomId) return;
-    const msgsRef = collection(db, "rooms", roomId, "messages");
-    const q = query(msgsRef, orderBy("createdAt", "asc"));
-    const unsub = onSnapshot(q, (snap) => {
-      const list: Message[] = snap.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          text: data.text,
-          uid: data.uid,
-          createdAt: data.createdAt?.toDate?.() ?? new Date(),
-          readBy: data.readBy ?? [],
-          likes: data.likes ?? [],
-          replyTo: data.replyTo ?? null,
-          originalLang: data.originalLang ?? undefined,
-          translations: data.translations ?? {},
-        };
-      });
-      setMessages(list);
-      // mark unread messages as read
-      const unread = list.filter((m) => m.uid !== user.uid && !(m.readBy ?? []).includes(user.uid));
-      if (unread.length) {
-        unread.forEach((m) => {
-  // Only update if the user is the owner or admin
-  if (m.createdBy === user.uid || isAdmin) {
-    updateDoc(doc(db, "rooms", roomId, "messages", m.id), {
-      readBy: [...(m.readBy ?? []), user.uid],
-    });
-  }
-});
-      }
-      // sync translations cache with Firestore and remove stale entries
-      setTranslations(() => {
-        const next: Record<string, string> = {};
-        list.forEach((m) => {
-          if (lang === m.originalLang) {
-             next[m.id] = m.text;
-           } else if (m.translations?.[lang]) {
-             next[m.id] = m.translations[lang];
-           }
-        });
-        return next;
-      });
-    });
-    return unsub;
-   }, [roomId]);
-
-  // rebuild translation map when language changes or messages update
-  useEffect(() => {
-    setTranslations(() => {
-      const next: Record<string, string> = {};
-      messages.forEach((m) => {
-        if (lang === m.originalLang) {
-          next[m.id] = m.text;
-        } else if (m.translations?.[lang]) {
-          next[m.id] = m.translations[lang];
-        }
-      });
-      return next;
-    });
-  }, [lang, messages]);
-
-  // observe visibility of messages and translate only when they come into view
-  // subscribe room doc for name
-  useEffect(() => {
-    if (!roomId) return;
     const unsub = onSnapshot(doc(db, "rooms", roomId), (snap) => {
       if (snap.exists()) {
         setRoomName(snap.data().name ?? "");
+        const data = snap.data();
+        // Track lastActivityAt for warning
+        if (data.lastActivityAt && typeof data.lastActivityAt.toDate === 'function') {
+          setLastActivityAt(data.lastActivityAt.toDate());
+        }
+        // Get autoDeleteHours from config (admin/config)
+        import("firebase/firestore").then(({ doc, getDoc }) => {
+          getDoc(doc(db, "admin", "config")).then(cfgSnap => {
+            if (cfgSnap.exists()) {
+              const d = cfgSnap.data();
+              if (typeof d.autoDeleteHours === 'number') setAutoDeleteHours(d.autoDeleteHours);
+            }
+          });
+        });
+        setRoomDeleted(false);
+      } else {
+        setRoomDeleted(true);
+        setTimeout(() => {
+          navigate("/rooms");
+        }, 2200);
       }
     });
     return unsub;
-  }, [roomId]);
+  }, [roomId, navigate]);
+
+  // Show warning 1 minute before auto-delete
+  useEffect(() => {
+    if (!lastActivityAt || !autoDeleteHours) {
+      setAutoDeleteWarning(null);
+      return;
+    }
+    const expireAt = lastActivityAt.getTime() + autoDeleteHours * 60 * 60 * 1000;
+    const now = Date.now();
+    const msLeft = expireAt - now;
+    if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+    if (msLeft > 60 * 1000) {
+      setAutoDeleteWarning(null);
+      // set timer to show warning at right time
+      warningTimerRef.current = setTimeout(() => {
+        setAutoDeleteWarning("⚠️ If no new messages are posted within 1 minute, this room will be deleted.");
+      }, msLeft - 60 * 1000);
+    } else if (msLeft > 0) {
+      setAutoDeleteWarning("⚠️ If no new messages are posted within 1 minute, this room will be deleted.");
+    } else {
+      setAutoDeleteWarning(null);
+    }
+    return () => {
+      if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+    };
+  }, [lastActivityAt, autoDeleteHours]);
+
+  // Clear warning if a new message is posted (lastActivityAt changes)
+  useEffect(() => {
+    setAutoDeleteWarning(null);
+  }, [messages.length > 0 ? messages[messages.length - 1]?.createdAt : null]);
 
   // load current user's prefs on mount
   useEffect(() => {
@@ -452,9 +445,9 @@ const translatingRef = useRef<Set<string>>(new Set());
   }, [messages, profiles]);
 
   // helper: ensure 2-letter lowercase code
-const normalizeLang = (c: string | undefined | null) => (c || 'en').slice(0,2).toLowerCase();
+  const normalizeLang = (c: string | undefined | null) => (c || 'en').slice(0, 2).toLowerCase();
 
-const sendMessage = async () => {
+  const sendMessage = async () => {
     if (!text.trim() || !roomId) return;
     const origLangRaw = await detectLanguage(text.trim());
     const origLang = normalizeLang(origLangRaw);
@@ -462,47 +455,47 @@ const sendMessage = async () => {
 
     const msgsRef = collection(db, "rooms", roomId, "messages");
     // prepare initial doc data
-  const docData: any = {
-    replyTo: replyTarget?.id ?? null,
-    text: trimmed,
-    uid: user.uid,
-    createdBy: user.uid, // Firestoreルール対応のため追加
-    createdAt: serverTimestamp(),
-    readBy: [user.uid],
-    originalLang: origLang,
-    translations: {},
-  };
-  // if same language, store translation stub to Firestore
-  if (origLang === lang) {
-    docData.translations = { [lang]: trimmed };
-  }
-  const docRef = await addDoc(msgsRef, docData);
+    const docData: any = {
+      replyTo: replyTarget?.id ?? null,
+      text: trimmed,
+      uid: user.uid,
+      createdBy: user.uid, // Firestoreルール対応のため追加
+      createdAt: serverTimestamp(),
+      readBy: [user.uid],
+      originalLang: origLang,
+      translations: {},
+    };
+    // if same language, store translation stub to Firestore
+    if (origLang === lang) {
+      docData.translations = { [lang]: trimmed };
+    }
+    const docRef = await addDoc(msgsRef, docData);
     // update room lastActivityAt
     // if same language, also update local cache to prevent API call
-  if (origLang === lang) {
-    setTranslations(prev => ({ ...prev, [docRef.id]: trimmed }));
-  }
-
-  try {
-    await updateDoc(doc(db, "rooms", roomId), {
-      lastActivityAt: serverTimestamp(),
-    });
-  } catch (err: any) {
-    if ((err as Error).message?.includes("permission")) {
-      // Not critical; ignore to prevent console noise
-      console.debug("lastActivityAt update skipped due to permissions");
-    } else {
-      throw err;
+    if (origLang === lang) {
+      setTranslations(prev => ({ ...prev, [docRef.id]: trimmed }));
     }
-  }
+
+    try {
+      await updateDoc(doc(db, "rooms", roomId), {
+        lastActivityAt: serverTimestamp(),
+      });
+    } catch (err: any) {
+      if ((err as Error).message?.includes("permission")) {
+        // Not critical; ignore to prevent console noise
+        console.debug("lastActivityAt update skipped due to permissions");
+      } else {
+        throw err;
+      }
+    }
     setText("");
     if (inputRef.current) {
       inputRef.current.style.height = "auto";
     }
     setReplyTarget(null);
     // auto-scroll to the latest message after sending
-     nearBottomRef.current = true;
-     setAtBottom(true);
+    nearBottomRef.current = true;
+    setAtBottom(true);
     // wait for DOM update then scroll
     setTimeout(() => {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -536,11 +529,11 @@ const sendMessage = async () => {
     <div style={{ display: "flex", flexDirection: "column", height: "80vh", maxWidth: 1000, width: "100%", margin: "0 auto" }}>
       <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 0.5rem 0 0.2rem", minHeight: 36 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-  <span title="現在アクセス中の人数" style={{ fontWeight: 500, fontSize: '1rem', color: '#1e90ff' }}>
-    👥 {presenceCount}
-  </span>
-  <span style={{ fontWeight: 700, fontSize: "1.2rem", letterSpacing: 1, margin: 0 }}>{roomName}</span>
-</div>
+          <span title="現在アクセス中の人数" style={{ fontWeight: 500, fontSize: '1rem', color: '#1e90ff' }}>
+            👥 {presenceCount}
+          </span>
+          <span style={{ fontWeight: 700, fontSize: "1.2rem", letterSpacing: 1, margin: 0 }}>{roomName}</span>
+        </div>
         <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ marginLeft: 8, height: 28, fontSize: "1rem", borderRadius: 6, border: "1px solid #ccc", padding: "0 8px" }}>
           {[
             ["en", "English"],
@@ -557,83 +550,82 @@ const sendMessage = async () => {
         </select>
       </div>
 
-
       <div
         ref={containerRef}
-         onScroll={() => {
-           const el = containerRef.current;
-           if (!el) return;
-           const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-           const nb = distanceFromBottom < 100; // px threshold
-           nearBottomRef.current = nb;
-           setAtBottom(nb);
-         }}
+        onScroll={() => {
+          const el = containerRef.current;
+          if (!el) return;
+          const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+          const nb = distanceFromBottom < 100; // px threshold
+          nearBottomRef.current = nb;
+          setAtBottom(nb);
+        }}
         style={{ flex: 1, overflowY: "auto", padding: "0.5rem", position: "relative" }}
       >
         {messages.map((m) => {
-           const isMe = m.uid === user.uid;
-           const avatar = userPrefs[m.uid]?.photoURL || (isMe ? user.photoURL : undefined) || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E";
-            const myDir = isMe ? (prefs.side === "right" ? "row-reverse" : "row") : "row";
-           const bubbleBg = isMe ? (prefs.bubbleColor ?? "#dcf8c6") : (userPrefs[m.uid]?.bubbleColor ?? "#fff");
-            const textColor = isMe ? (prefs.textColor ?? "#000") : (userPrefs[m.uid]?.textColor ?? "#000");
-            // If the user changed their color in another tab, update from localStorage
-            if (isMe) {
-              try {
-                const stored = localStorage.getItem("chat_prefs");
-                if (stored) {
-                  const parsed = JSON.parse(stored);
-                  if (parsed.bubbleColor && parsed.bubbleColor !== prefs.bubbleColor) setPrefs(p => ({ ...p, bubbleColor: parsed.bubbleColor }));
-                  if (parsed.textColor && parsed.textColor !== prefs.textColor) setPrefs(p => ({ ...p, textColor: parsed.textColor }));
-                }
-              } catch {}
-            }
+          const isMe = m.uid === user.uid;
+          const avatar = userPrefs[m.uid]?.photoURL || (isMe ? user.photoURL : undefined) || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E";
+          const myDir = isMe ? (prefs.side === "right" ? "row-reverse" : "row") : "row";
+          const bubbleBg = isMe ? (prefs.bubbleColor ?? "#dcf8c6") : (userPrefs[m.uid]?.bubbleColor ?? "#fff");
+          const textColor = isMe ? (prefs.textColor ?? "#000") : (userPrefs[m.uid]?.textColor ?? "#000");
+          // If the user changed their color in another tab, update from localStorage
+          if (isMe) {
+            try {
+              const stored = localStorage.getItem("chat_prefs");
+              if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed.bubbleColor && parsed.bubbleColor !== prefs.bubbleColor) setPrefs(p => ({ ...p, bubbleColor: parsed.bubbleColor }));
+                if (parsed.textColor && parsed.textColor !== prefs.textColor) setPrefs(p => ({ ...p, textColor: parsed.textColor }));
+              }
+            } catch {}
+          }
           return (
             <div
-               key={m.id}
-               data-msg-id={m.id}
-               onMouseEnter={() => setHoveredUser(m.id)}
-               onMouseLeave={() => setHoveredUser(null)}
-               style={{
-                 position: "relative",
-                 display: "flex",
-                 flexDirection: myDir,
-                 alignItems: "flex-start",
-                 margin: "0.25rem 0",
-               }}
-             >
+              key={m.id}
+              data-msg-id={m.id}
+              onMouseEnter={() => setHoveredUser(m.id)}
+              onMouseLeave={() => setHoveredUser(null)}
+              style={{
+                position: "relative",
+                display: "flex",
+                flexDirection: myDir,
+                alignItems: "flex-start",
+                margin: "0.25rem 0",
+              }}
+            >
 
-               {avatar && (
-  <>
-    <img
-      src={avatar}
-      onError={(e) => (e.currentTarget.style.display = "none")}
-      alt="avatar"
-      width={32}
-      height={32}
-      style={{ borderRadius: "50%", margin: myDir === "row-reverse" ? "0 0.2em 0 6px" : "0 6px 0.2em 0", cursor: "pointer", verticalAlign: "top" }}
-      onMouseEnter={() => setHoveredUser(`avatar-${m.id}`)}
-      onMouseLeave={() => setHoveredUser(null)}
-    />
-    {hoveredUser === `avatar-${m.id}` && (
-      <div style={{
-        position: "absolute",
-        background: "#222",
-        color: "#fff",
-        padding: "4px 12px",
-        borderRadius: 8,
-        fontSize: "0.95em",
-        top: 36,
-        left: myDir === "row-reverse" ? undefined : 38,
-        right: myDir === "row-reverse" ? 38 : undefined,
-        zIndex: 100,
-        whiteSpace: "nowrap",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.18)"
-      }}>
-        {userPrefs[m.uid]?.displayName || (isMe ? user.displayName : "") || "(No name)"}
-      </div>
-    )}
-  </>
-)}
+              {avatar && (
+                <>
+                  <img
+                    src={avatar}
+                    onError={(e) => (e.currentTarget.style.display = "none")}
+                    alt="avatar"
+                    width={32}
+                    height={32}
+                    style={{ borderRadius: "50%", margin: myDir === "row-reverse" ? "0 0.2em 0 6px" : "0 6px 0.2em 0", cursor: "pointer", verticalAlign: "top" }}
+                    onMouseEnter={() => setHoveredUser(`avatar-${m.id}`)}
+                    onMouseLeave={() => setHoveredUser(null)}
+                  />
+                  {hoveredUser === `avatar-${m.id}` && (
+                    <div style={{
+                      position: "absolute",
+                      background: "#222",
+                      color: "#fff",
+                      padding: "4px 12px",
+                      borderRadius: 8,
+                      fontSize: "0.95em",
+                      top: 36,
+                      left: myDir === "row-reverse" ? undefined : 38,
+                      right: myDir === "row-reverse" ? 38 : undefined,
+                      zIndex: 100,
+                      whiteSpace: "nowrap",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.18)"
+                    }}>
+                      {userPrefs[m.uid]?.displayName || (isMe ? user.displayName : "") || "(No name)"}
+                    </div>
+                  )}
+                </>
+              )}
               <span
                 style={{
                   background: bubbleBg,
@@ -673,39 +665,39 @@ const sendMessage = async () => {
 
                 {/* Render message text with clickable URLs and warning dialog */}
                 {(() => {
-  const text = translations[m.id] !== undefined ? translations[m.id] : m.text;
-  const urlRegex = /(https?:\/\/[\w\-._~:/?#[\]@!$&'()*+,;=%]+)|(www\.[\w\-._~:/?#[\]@!$&'()*+,;=%]+)/gi;
-  const parts: (string | JSX.Element)[] = [];
-  let lastIndex = 0;
-  let match;
-  let key = 0;
-  while ((match = urlRegex.exec(text)) !== null) {
-    const url = match[0];
-    const start = match.index;
-    if (start > lastIndex) {
-      parts.push(text.slice(lastIndex, start));
-    }
-    const href = url.startsWith('http') ? url : `https://${url}`;
-    parts.push(
-      <a
-        key={key++}
-        href={href}
-        style={{ color: '#0b5ed7', textDecoration: 'underline', wordBreak: 'break-all' }}
-        onClick={e => {
-          e.preventDefault();
-          setPendingLink({ url: href, label: url });
-        }}
-      >
-        {url}
-      </a>
-    );
-    lastIndex = start + url.length;
-  }
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-  return parts;
-})()}
+                  const text = translations[m.id] !== undefined ? translations[m.id] : m.text;
+                  const urlRegex = /(https?:\/\/[\w\-._~:/?#[\]@!$&'()*+,;=%]+)|(www\.[\w\-._~:/?#[\]@!$&'()*+,;=%]+)/gi;
+                  const parts: (string | JSX.Element)[] = [];
+                  let lastIndex = 0;
+                  let match;
+                  let key = 0;
+                  while ((match = urlRegex.exec(text)) !== null) {
+                    const url = match[0];
+                    const start = match.index;
+                    if (start > lastIndex) {
+                      parts.push(text.slice(lastIndex, start));
+                    }
+                    const href = url.startsWith('http') ? url : `https://${url}`;
+                    parts.push(
+                      <a
+                        key={key++}
+                        href={href}
+                        style={{ color: '#0b5ed7', textDecoration: 'underline', wordBreak: 'break-all' }}
+                        onClick={e => {
+                          e.preventDefault();
+                          setPendingLink({ url: href, label: url });
+                        }}
+                      >
+                        {url}
+                      </a>
+                    );
+                    lastIndex = start + url.length;
+                  }
+                  if (lastIndex < text.length) {
+                    parts.push(text.slice(lastIndex));
+                  }
+                  return parts;
+                })()}
 
                 {/* reply button */}
                 <span
@@ -735,27 +727,27 @@ const sendMessage = async () => {
                 )}
                 {/* like button */}
                 <span
-  onClick={(e) => {
-    e.stopPropagation();
-    if (!roomId) return;
-    
-    const liked = (m.likes ?? []).includes(user.uid);
-    updateDoc(doc(db, "rooms", roomId, "messages", m.id), {
-      likes: liked ? arrayRemove(user.uid) : arrayUnion(user.uid),
-    });
-  }}
-  style={{
-    cursor: "pointer",
-    marginLeft: 6,
-    fontSize: "0.9em",
-    color: (m.likes ?? []).includes(user.uid) ? "#e0245e" : "#888",
-    opacity: 1,
-    pointerEvents: "auto",
-    transition: "opacity 0.2s",
-  }}
->
-  <LikeIcon filled={(m.likes ?? []).includes(user.uid)} />
-</span>
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!roomId) return;
+
+                    const liked = (m.likes ?? []).includes(user.uid);
+                    updateDoc(doc(db, "rooms", roomId, "messages", m.id), {
+                      likes: liked ? arrayRemove(user.uid) : arrayUnion(user.uid),
+                    });
+                  }}
+                  style={{
+                    cursor: "pointer",
+                    marginLeft: 6,
+                    fontSize: "0.9em",
+                    color: (m.likes ?? []).includes(user.uid) ? "#e0245e" : "#888",
+                    opacity: 1,
+                    pointerEvents: "auto",
+                    transition: "opacity 0.2s",
+                  }}
+                >
+                  <LikeIcon filled={(m.likes ?? []).includes(user.uid)} />
+                </span>
                 {m.likes && m.likes.length > 0 && (
                   <span style={{ marginLeft: 4, fontSize: "0.8em", color: "#555" }}>{m.likes.length}</span>
                 )}
