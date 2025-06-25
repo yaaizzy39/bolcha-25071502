@@ -19,6 +19,7 @@ service cloud.firestore {
     match /admin/{document=**} {
       allow read: if request.auth != null;
     }
+
     // 個別ドキュメント
     match /admin/{docId} {
       allow read : if request.auth != null;
@@ -27,9 +28,7 @@ service cloud.firestore {
 
     /* ---------- users ---------- */
     match /users/{uid} {
-      // Any signed-in user can read basic user profile docs (photoURL, displayName, etc.)
       allow read: if request.auth != null;
-      // Only the owner (or admin) may write their profile
       allow write: if isAdmin() || request.auth.uid == uid;
     }
 
@@ -44,6 +43,11 @@ service cloud.firestore {
                            .affectedKeys()
                            .hasOnly(['lastActivityAt']);
 
+      // presence サブコレクション（参加者カウンター用）
+      match /presence/{uid} {
+        allow read, write: if request.auth != null;
+      }
+
       match /messages/{msgId} {
         allow read  : if request.auth != null;
         allow create: if request.auth.uid == request.resource.data.createdBy;
@@ -53,7 +57,7 @@ service cloud.firestore {
                               || (
                                    request.resource.data.diff(resource.data)
                                           .affectedKeys()
-                                          .hasOnly(['translations'])
+                                          .hasOnly(['translations', 'likes'])
                                  );
       }
     }

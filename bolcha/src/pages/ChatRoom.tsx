@@ -121,14 +121,19 @@ function ChatRoom({ user }: Props) {
     if (!roomId) return;
     const q = query(collection(db, "rooms", roomId, "presence"));
     const unsub = onSnapshot(q, (snap) => {
-      // 3分以内のlastActiveのみカウント
+      // DEBUG: Log snapshot docs
+      console.debug("[Presence] Snapshot size:", snap.size);
       const now = Date.now();
-      const count = snap.docs.filter(d => {
+      const debugList = snap.docs.map(d => {
         const last = d.data().lastActive;
-        if (!last) return false;
-        const t = last.toDate ? last.toDate().getTime() : new Date(last).getTime();
-        return now - t < 3 * 60 * 1000;
-      }).length;
+        let t = null;
+        if (!last) return { uid: d.id, lastActive: null };
+        t = last.toDate ? last.toDate().getTime() : new Date(last).getTime();
+        return { uid: d.id, lastActive: t, delta: now - t };
+      });
+      console.debug("[Presence] Raw:", debugList);
+      const count = debugList.filter(item => item.lastActive && (now - item.lastActive < 3 * 60 * 1000)).length;
+      console.debug("[Presence] Computed count:", count);
       setPresenceCount(count);
     });
     return unsub;
