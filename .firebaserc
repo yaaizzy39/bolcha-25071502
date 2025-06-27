@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "bolcha-250619"
-  }
+    "default": "bolcha-250619",
+    "dev": "bolcha-v02"
+  },
+  "targets": {},
+  "etags": {}
 }
