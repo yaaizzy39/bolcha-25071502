@@ -575,7 +575,7 @@ function ChatRoom({ user }: Props) {
           {autoDeleteWarning}
         </div>
       )}
-      <div style={{ display: "flex", flexDirection: "column", height: "80vh", maxWidth: 1000, width: "100%", margin: "0 auto" }}>
+      <div style={{ display: "flex", flexDirection: "column", height: "100vh", maxWidth: 1000, width: "100%", margin: "0 auto" }}>
         <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 0.5rem 0 0.2rem", minHeight: 36 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span title="現在アクセス中の人数" style={{ fontWeight: 500, fontSize: '1rem', color: '#1e90ff' }}>
