@@ -92,7 +92,7 @@ function App() {
           )}
         </div>
       </header>
-      <main style={{ padding: "0 1rem 1rem 1rem" }}>
+      <main style={{ padding: "0 1rem 1rem 1rem", flex: 1, display: "flex", flexDirection: "column" }}>
         <Routes>
           <Route path="/" element={<Rooms user={user!} />} />
           <Route path="/rooms/:roomId" element={<ChatRoom user={user!} />} />
