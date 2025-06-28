@@ -51,10 +51,8 @@ service cloud.firestore {
       match /messages/{msgId} {
         allow read  : if request.auth != null;
         allow create: if request.auth.uid == request.resource.data.createdBy;
-        allow update: if isAdmin()
-                              || resource.data.createdBy == request.auth.uid
-                               || (!('createdBy' in resource.data) && request.auth != null)
-                               || (request.auth != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']));
+        allow update: if request.auth != null &&
+                              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'translations']);
         allow delete: if isAdmin()
                               || resource.data.createdBy == request.auth.uid
                                || (!('createdBy' in resource.data) && request.auth != null);

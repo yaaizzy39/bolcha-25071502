@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   collection,
@@ -24,8 +24,7 @@ import { useI18n } from "../i18n";
 import type { User } from "firebase/auth";
 import { doc as fbDoc, getDoc } from "firebase/firestore";
 
-// Translate only the most recent messages during batch processing
-const MAX_TRANSLATE = 50;
+
 
 type Message = {
   id: string;
@@ -130,7 +129,9 @@ function ChatRoom({ user }: Props) {
   // presence人数をリアルタイム取得
   useEffect(() => {
     if (!roomId) return;
-    const q = query(collection(db, "rooms", roomId, "presence"));
+    const q = query(
+      collection(db, "rooms", roomId, "presence")
+    );
     const unsub = onSnapshot(q, (snap) => {
       // DEBUG: Log snapshot docs
       console.debug("[Presence] Snapshot size:", snap.size);
@@ -153,7 +154,13 @@ function ChatRoom({ user }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [roomName, setRoomName] = useState<string>("");
   const [userPrefs, setUserPrefs] = useState<Record<string, { photoURL?: string; bubbleColor?: string; textColor?: string; displayName?: string }>>({});
-  const [prefs, setPrefs] = useState<{ side: "left" | "right"; showOriginal: boolean; lang?: string; bubbleColor?: string; textColor?: string }>(() => {
+  const [prefs, setPrefs] = useState<{
+    side: "left" | "right";
+    showOriginal: boolean;
+    lang?: string;
+    bubbleColor?: string;
+    textColor?: string;
+  }>(() => {
     // Try to load from localStorage first for fast UI
     try {
       const stored = localStorage.getItem("chat_prefs");
@@ -172,8 +179,20 @@ function ChatRoom({ user }: Props) {
       setDoc(doc(db, "users", user.uid), { lang }, { merge: true });
     });
   }, [lang, user.uid]);
-  const [translations, setTranslations] = useState<Record<string, string>>({});
   const [profiles, setProfiles] = useState<Record<string, { photoURL?: string }>>({});
+
+  // Derived state for translations using useMemo
+  const translations = useMemo(() => {
+    const currentTranslations: Record<string, string> = {};
+    messages.forEach(m => {
+      if (m.translations && m.translations[lang]) {
+        currentTranslations[m.id] = m.translations[lang];
+      } else if (m.originalLang === lang) {
+        currentTranslations[m.id] = m.text;
+      }
+    });
+    return currentTranslations;
+  }, [messages, lang]);
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -320,7 +339,18 @@ function ChatRoom({ user }: Props) {
       try {
         const snap = await getDoc(fbDoc(db, "users", user.uid));
         if (snap.exists()) {
-          setPrefs((p) => ({ ...p, ...(snap.data() as any) }));
+          const data = snap.data() as any;
+          setPrefs((p) => {
+            const merged = { ...p, ...data };
+            // Persist to localStorage for next reload
+            try {
+              localStorage.setItem("chat_prefs", JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
+          if (data.lang) {
+            setLang(data.lang);
+          }
         }
       } catch {}
     })();
@@ -363,10 +393,11 @@ function ChatRoom({ user }: Props) {
           const message = messages.find((x) => x.id === id);
           if (!message) return;
           // if already cached translation, skip
-          if (id in translations) return;
+          // if already cached translation, skip
+          if (message.translations?.[lang]) return;
+          // if original language matches selected, no translation
           // if original language matches selected, no translation
           if (message.originalLang === lang) {
-            setTranslations((prev) => ({ ...prev, [id]: message.text }));
             observerRef.current?.unobserve(entry.target);
             return;
           }
@@ -375,18 +406,17 @@ function ChatRoom({ user }: Props) {
           const translated = await translateText(message.text, lang);
           translatingRef.current.delete(id);
           observerRef.current?.unobserve(entry.target);
-          if (translated && translated !== message.text) {
-            setTranslations((prev) => ({ ...prev, [id]: translated }));
-            await updateDoc(doc(db, "rooms", roomId!, "messages", id), {
-              [`translations.${lang}`]: translated,
-            });
-          } else if (translated === message.text) {
-            setTranslations((prev) => ({ ...prev, [id]: message.text }));
-          }
+      if (translated && translated !== message.text) {
+        if (user && user.uid) { // Add this check
+          await updateDoc(doc(db, "rooms", roomId!, "messages", id), {
+            [`translations.${lang}`]: translated,
+          });
+        }
+      }
         }
       });
     }, { root: containerRef.current, threshold: 0.1 });
-  }, []);
+  }, [messages, lang, user]);
 
   // whenever messages render, observe new elements
   useEffect(() => {
@@ -402,7 +432,7 @@ function ChatRoom({ user }: Props) {
     const els = containerRef.current.querySelectorAll('[data-msg-id]');
     els.forEach(async (el) => {
       const id = (el as HTMLElement).dataset.msgId;
-      if (!id || id in translations || translatingRef.current.has(id)) return;
+      if (!id || messages.find((x) => x.id === id)?.translations?.[lang] || translatingRef.current.has(id)) return;
       const rect = (el as HTMLElement).getBoundingClientRect();
       const visible = rect.bottom >= rootRect.top && rect.top <= rootRect.bottom;
       if (!visible) return;
@@ -411,7 +441,6 @@ function ChatRoom({ user }: Props) {
       if (!msg) return;
       if (!msg.originalLang) return; // language not determined yet
       if (msg.originalLang === lang) {
-        setTranslations((prev) => ({ ...prev, [id]: msg.text }));
         observerRef.current?.unobserve(el);
         return;
       }
@@ -419,53 +448,14 @@ function ChatRoom({ user }: Props) {
       translatingRef.current.delete(id);
       observerRef.current?.unobserve(el);
       if (translated && translated !== msg.text) {
-        setTranslations((prev) => ({ ...prev, [id]: translated }));
-        // Only write back to Firestore if admin or message owner
-        if (isAdmin || msg.uid === user.uid) {
+        if (user && user.uid) { // Add this check
           await updateDoc(doc(db, "rooms", roomId!, "messages", id), {
             [`translations.${lang}`]: translated,
           });
         }
       }
     });
-  }, [messages, lang]);
-
-  // translate messages when language changes or new messages arrive
-  // auto-scroll when messages change if user is near bottom
-  useEffect(() => {
-    if (nearBottomRef.current) {
-      // wait for DOM paint
-      setTimeout(() => {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 0);
-    }
-  }, [messages, lang]);
-
-  useEffect(() => {
-    const untranslated = messages
-      .slice(-MAX_TRANSLATE)
-      .reverse() // newest first
-      .filter((m) => m.originalLang && !(m.id in translations) && m.originalLang !== lang);
-    if (!untranslated.length) return;
-
-    (async () => {
-      for (const m of untranslated) {
-        if (translatingRef.current.has(m.id)) continue;
-        translatingRef.current.add(m.id);
-        const translated = await translateText(m.text, lang);
-        translatingRef.current.delete(m.id);
-        if (translated && translated !== m.text) {
-          setTranslations((prev) => ({ ...prev, [m.id]: translated }));
-          // Only write back to Firestore if admin or message owner
-          if (isAdmin || m.uid === user.uid) {
-            await updateDoc(doc(db, "rooms", roomId!, "messages", m.id), {
-              [`translations.${lang}`]: translated,
-            });
-          }
-        }
-      }
-    })();
-  }, [messages, lang]);
+  }, [messages, lang, user]);
 
   // load / subscribe to user profiles referenced in messages
   useEffect(() => {
@@ -508,12 +498,11 @@ function ChatRoom({ user }: Props) {
     if (origLang === lang) {
       docData.translations = { [lang]: trimmed };
     }
-    const docRef = await addDoc(msgsRef, docData);
+    await addDoc(msgsRef, docData);
     // update room lastActivityAt
     // if same language, also update local cache to prevent API call
-    if (origLang === lang) {
-      setTranslations(prev => ({ ...prev, [docRef.id]: trimmed }));
-    }
+    // No need to call setTranslations here as it's derived from messages
+    // The addDoc will trigger a messages update, which will re-derive translations
 
     try {
       await updateDoc(doc(db, "rooms", roomId), {
@@ -541,31 +530,7 @@ function ChatRoom({ user }: Props) {
     }, 0);
   };
 
-  // translate messages lacking current lang when dropdown changes
-  useEffect(() => {
-    if (!roomId) return;
-    const candidates = messages.filter(
-      (m) => m.originalLang && m.originalLang !== lang && !m.translations?.[lang]
-    );
-    if (!candidates.length) return;
-    (async () => {
-      for (const m of candidates.slice(0, MAX_TRANSLATE)) {
-        if (translatingRef.current.has(m.id)) continue;
-        translatingRef.current.add(m.id);
-        const translated = await translateText(m.text, lang);
-        translatingRef.current.delete(m.id);
-        if (translated && translated !== m.text) {
-          setTranslations((prev) => ({ ...prev, [m.id]: translated }));
-          // Only write back to Firestore if admin or message owner
-          if (isAdmin || m.uid === user.uid) {
-            await updateDoc(doc(db, "rooms", roomId!, "messages", m.id), {
-              [`translations.${lang}`]: translated,
-            });
-          }
-        }
-      }
-    })();
-  }, [lang, messages, roomId]);
+  
 
   return (
     <>
@@ -715,7 +680,7 @@ function ChatRoom({ user }: Props) {
                 {/* Render message text with clickable URLs and warning dialog */}
                 {(() => {
                   const text = translations[m.id] !== undefined ? translations[m.id] : m.text;
-                  const urlRegex = /(https?:\/\/[\w\-._~:/?#[\]@!$&'()*+,;=%]+)|(www\.[\w\-._~:/?#[\]@!$&'()*+,;=%]+)/gi;
+                  const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)/gi;
                   const parts: (string | React.ReactElement)[] = [];
                   let lastIndex = 0;
                   let match;
@@ -873,9 +838,6 @@ function ChatRoom({ user }: Props) {
             <div style={{ background: "#f9f9f9", border: "1px solid #eee", borderRadius: 6, padding: "0.5rem", marginBottom: 18, wordBreak: "break-all", color: "#222" }}>
               {pendingLink?.label}
             </div>
-            <div style={{ color: "#b50000", fontSize: "0.98em", marginBottom: 18 }}>
-              このリンクは外部サイトです。安全を確認してからアクセスしてください。
-            </div>
             <div style={{ display: "flex", justifyContent: "center", gap: "1.5rem" }}>
               <button
                 style={{ background: "#0b5ed7", color: "#fff", border: "none", borderRadius: 6, padding: "0.5rem 1.3rem", fontSize: "1em", cursor: "pointer", fontWeight: 600 }}
@@ -887,8 +849,7 @@ function ChatRoom({ user }: Props) {
               <button
                 style={{ background: "#eee", color: "#444", border: "none", borderRadius: 6, padding: "0.5rem 1.3rem", fontSize: "1em", cursor: "pointer" }}
                 onClick={() => setPendingLink(null)}
-              >キャンセル</button>
-            </div>
+              >キャンセル</button>            </div>
           </div>
         </div>
       )}
