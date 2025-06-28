@@ -45,6 +45,7 @@ export default function Profile({ user, onSaved }: Props) {
   const { lang: uiLang, setLang: setUiLang, t } = useI18n();
   const [prefs, setPrefs] = useState<Prefs>(defaultPrefs);
   const [saving, setSaving] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -59,27 +60,34 @@ export default function Profile({ user, onSaved }: Props) {
 
   const handleSave = async () => {
     setSaving(true);
-    await setDoc(doc(db, "users", user.uid), prefs, { merge: true }); // prefs no longer includes uiLang
+    let newPhotoURL = prefs.photoURL;
+
+    if (selectedImageFile) {
+      const ext = selectedImageFile.name.split(".").pop() || "jpg";
+      const path = `avatars/${user.uid}/${user.uid}_${Date.now()}.${ext}`;
+      const fileRef = ref(storage, path);
+      await uploadBytes(fileRef, selectedImageFile);
+      newPhotoURL = await getDownloadURL(fileRef);
+
+      // update firebase auth profile so header reflects change
+      if (user.photoURL !== newPhotoURL) {
+        const { updateProfile } = await import("firebase/auth");
+        await updateProfile(user, { photoURL: newPhotoURL });
+      }
+    }
+
+    await setDoc(doc(db, "users", user.uid), { ...prefs, photoURL: newPhotoURL }, { merge: true });
+    setSelectedImageFile(null); // Clear selected file after saving
     setSaving(false);
     onSaved?.();
     navigate(-1);
   };
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const ext = file.name.split(".").pop() || "jpg";
-    // Save into per-user subfolder so rules match avatars/{userId}/**
-  const path = `avatars/${user.uid}/${user.uid}_${Date.now()}.${ext}`;
-    const fileRef = ref(storage, path);
-    await uploadBytes(fileRef, file);
-    const url = await getDownloadURL(fileRef);
-    setPrefs((p) => ({ ...p, photoURL: url }));
-    await setDoc(doc(db, "users", user.uid), { photoURL: url }, { merge: true });
-    // update firebase auth profile so header reflects change
-    if (user.photoURL !== url) {
-      const { updateProfile } = await import("firebase/auth");
-      await updateProfile(user, { photoURL: url });
+    if (file) {
+      setSelectedImageFile(file);
+      setPrefs((p) => ({ ...p, photoURL: URL.createObjectURL(file) })); // For immediate preview
     }
   };
 
