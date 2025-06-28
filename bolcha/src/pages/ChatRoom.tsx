@@ -420,9 +420,12 @@ function ChatRoom({ user }: Props) {
       observerRef.current?.unobserve(el);
       if (translated && translated !== msg.text) {
         setTranslations((prev) => ({ ...prev, [id]: translated }));
-        await updateDoc(doc(db, "rooms", roomId!, "messages", id), {
-          [`translations.${lang}`]: translated,
-        });
+        // Only write back to Firestore if admin or message owner
+        if (isAdmin || msg.uid === user.uid) {
+          await updateDoc(doc(db, "rooms", roomId!, "messages", id), {
+            [`translations.${lang}`]: translated,
+          });
+        }
       }
     });
   }, [messages, lang]);
@@ -453,9 +456,12 @@ function ChatRoom({ user }: Props) {
         translatingRef.current.delete(m.id);
         if (translated && translated !== m.text) {
           setTranslations((prev) => ({ ...prev, [m.id]: translated }));
-          await updateDoc(doc(db, "rooms", roomId!, "messages", m.id), {
-            [`translations.${lang}`]: translated,
-          });
+          // Only write back to Firestore if admin or message owner
+          if (isAdmin || m.uid === user.uid) {
+            await updateDoc(doc(db, "rooms", roomId!, "messages", m.id), {
+              [`translations.${lang}`]: translated,
+            });
+          }
         }
       }
     })();
@@ -550,9 +556,12 @@ function ChatRoom({ user }: Props) {
         translatingRef.current.delete(m.id);
         if (translated && translated !== m.text) {
           setTranslations((prev) => ({ ...prev, [m.id]: translated }));
-          await updateDoc(doc(db, "rooms", roomId!, "messages", m.id), {
-            [`translations.${lang}`]: translated,
-          });
+          // Only write back to Firestore if admin or message owner
+          if (isAdmin || m.uid === user.uid) {
+            await updateDoc(doc(db, "rooms", roomId!, "messages", m.id), {
+              [`translations.${lang}`]: translated,
+            });
+          }
         }
       }
     })();

@@ -148,18 +148,49 @@ async function safeParse(res: Response): Promise<string | null> {
   try {
     const txt = await res.text();
     if (!txt) return null;
-    try {
-      const obj = JSON.parse(txt);
-      // tolerate different property names
-      const raw = obj.translatedText || obj.text || obj.translation || null;
-      if (typeof raw === "string") {
-        const normalized = raw.replace(/\\n/g, "\n").replace(/<br\s*\/?>/gi, "\n");
-        return normalized;
-      }
-      return raw;
-    } catch {
-      return txt.replace(/\\n/g, "\n").replace(/<br\s*\/?>/gi, "\n"); // plain text with normalized breaks
+
+    // Heuristic to detect if the response is HTML, which is unexpected.
+    // It might be a fallback page from a proxy or a misconfigured endpoint.
+    if (txt.trim().startsWith("<") && txt.includes("html")) {
+      console.warn("[translation] Received an unexpected HTML response. Check VITE_GAS_ENDPOINTS.");
+      return null; // Ignore HTML responses
     }
+
+    let raw: string | null = null;
+    try {
+      // Prefer JSON parsing
+      const obj = JSON.parse(txt);
+      const maybeText = obj.translatedText || obj.text || obj.translation || null;
+      if (typeof maybeText === "string") {
+        raw = maybeText;
+      } else {
+        return maybeText;
+      }
+    } catch {
+      // Fallback for non-JSON responses
+      raw = txt;
+    }
+
+    if (raw) {
+      // First, decode common HTML entities that might be in a plain text response
+      const decoded = raw
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, "&");
+
+      // Normalize newlines and <br> tags, then strip any remaining HTML tags.
+      const cleaned = decoded
+        .replace(/\\n/g, "\n") // unescape \n
+        .replace(/<br\s*\/?>/gi, "\n") // <br> to newline
+        .replace(/<\/p>\s*<p>/gi, "\n\n") // paragraph breaks
+        .replace(/<[^>]*>/g, "") // strip all other tags
+        .trim();
+
+      return cleaned;
+    }
+    return null;
   } catch {
     return null;
   }
