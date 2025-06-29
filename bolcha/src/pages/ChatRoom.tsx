@@ -313,9 +313,9 @@ function ChatRoom({ user }: Props) {
     if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
     let warningMsg = '';
     if (uiLang && uiLang.startsWith('ja')) {
-      warningMsg = '⚠️ まもなくルームが削除されます。およそ5分から10分後に新しいメッセージが投稿されない場合、このルームは削除されます。';
+      warningMsg = '⚠️ このまま新しい投稿が無い場合、このルームはおよそ５分後に削除されます。';
     } else {
-      warningMsg = '⚠️ If no new messages are posted in the next 5 to 10 minutes, this room will be deleted.';
+      warningMsg = '⚠️ If there are no new posts, this room will be deleted in about 5 minutes.';
     }
     if (msLeft > 60 * 1000) {
       setAutoDeleteWarning(null);
