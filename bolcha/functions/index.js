@@ -1,26 +1,17 @@
 // Cloud Functions for Bolcha - translation proxy to GAS
 import fetch from 'node-fetch';
-import functions from 'firebase-functions';
+import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { logger } from "firebase-functions";
 import admin from 'firebase-admin';
+
 admin.initializeApp();
 
 // Replace with your GAS deployment ID via env or constant
 const GAS_BASE_URL = process.env.GAS_BASE_URL || 'https://script.google.com/macros/s/AKfycbwD3O1N6IQWW_07H6cWiqx8FN-5u1CAOTHb2wmky1c1tgmOT7bO-if08gE49p3zenVO8A/exec';
 
-export const translate = functions.https.onRequest(async (req, res) => {
-  // universal CORS headers
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
-  // CORS preflight
-  if (req.method === 'OPTIONS') {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    res.status(204).send('');
-    return;
-  }
-
+// v2 onRequest provides built-in CORS support
+export const translate = onRequest({ cors: true }, async (req, res) => {
   const textParam = req.method === 'GET' ? (req.query.text || req.query.q) : (req.body.text || req.body.q);
   const text = Array.isArray(textParam) ? textParam[0] : textParam;
   if (!text) {
@@ -33,23 +24,22 @@ export const translate = functions.https.onRequest(async (req, res) => {
     const url = `${GAS_BASE_URL}?text=${encodeURIComponent(text)}&target=${encodeURIComponent(target)}`;
     const r = await fetch(url);
     const json = await r.json();
-    res.set('Access-Control-Allow-Origin', '*');
     res.json(json);
   } catch (err) {
-    console.error('translate proxy error', err);
-    res.set('Access-Control-Allow-Origin', '*');
+    logger.error('translate proxy error', err);
     res.status(500).json({ error: 'translation failed' });
   }
 });
 
 // ================= Admin callable =================
-export const adminDeleteRoom = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+export const adminDeleteRoom = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication required');
   }
-  const email = context.auth.token.email;
-  const isClaimAdmin = !!context.auth.token.admin;
-  let adminEmails = (functions.config().admin?.emails || '').split(/[, ]+/).filter(Boolean);
+  const email = request.auth.token.email;
+  const isClaimAdmin = !!request.auth.token.admin;
+  // v2 functions prefer environment variables over functions.config()
+  let adminEmails = (process.env.ADMIN_EMAILS || '').split(/[, ]+/).filter(Boolean);
   try {
     const cfgSnap = await admin.firestore().doc('admin/config').get();
     if (cfgSnap.exists) {
@@ -57,66 +47,91 @@ export const adminDeleteRoom = functions.https.onCall(async (data, context) => {
       adminEmails = Array.from(new Set([...adminEmails, ...cfgEmails]));
     }
   } catch (e) {
-    console.warn('Failed to load admin/config for adminDeleteRoom', e);
+    logger.warn('Failed to load admin/config for adminDeleteRoom', e);
   }
   if (!isClaimAdmin && !adminEmails.includes(email)) {
-    throw new functions.https.HttpsError('permission-denied', 'Admins only');
+    throw new HttpsError('permission-denied', 'Admins only');
   }
-  const roomId = data.roomId;
+  const roomId = request.data.roomId;
   if (!roomId) {
-    throw new functions.https.HttpsError('invalid-argument', 'roomId required');
+    throw new HttpsError('invalid-argument', 'roomId required');
   }
   const ref = admin.firestore().doc(`rooms/${roomId}`);
   try {
     await admin.firestore().recursiveDelete(ref);
     return { success: true };
   } catch (err) {
-    console.error('Failed to delete room', roomId, err);
-    throw new functions.https.HttpsError('internal', 'Delete failed');
+    logger.error('Failed to delete room', roomId, err);
+    throw new HttpsError('internal', 'Delete failed');
   }
 });
 
 // ===== Additional translation proxy (translate2) =====
 
-// Scheduled function to auto-delete inactive rooms
-export const autoDeleteRooms = functions.pubsub.schedule('every 60 minutes').onRun(async (context) => {
-  const configSnap = await admin.firestore().doc('admin/config').get();
-  const config = configSnap.data() || {};
-  const hours = typeof config.autoDeleteHours === 'number' ? config.autoDeleteHours : 24;
-  if (!hours || hours <= 0) return null;
+// Scheduled function to auto-delete inactive rooms (v2 syntax)
+export const autoDeleteRooms = onSchedule({ region: 'asia-northeast1', timeoutSeconds: 540, schedule: 'every 5 minutes' }, async (event) => {
+  logger.log('autoDeleteRooms function started.');
+  let hours = 24;
+  try {
+      const configSnap = await admin.firestore().doc('admin/config').get();
+      const config = configSnap.data() || {};
+      if (typeof config.autoDeleteHours === 'number') {
+          hours = config.autoDeleteHours;
+      }
+  } catch(e) {
+      logger.error("Could not fetch admin/config, falling back to default 24 hours", e);
+  }
+
+  logger.log(`Configured autoDeleteHours: ${hours}`);
+  if (!hours || hours <= 0) {
+    logger.log('Auto-delete is disabled or hours is invalid.');
+    return null;
+  }
   const cutoff = Date.now() - hours * 60 * 60 * 1000;
+  logger.log(`Cutoff timestamp: ${new Date(cutoff).toISOString()}`);
   const roomsSnap = await admin.firestore().collection('rooms').get();
+  logger.log(`Found ${roomsSnap.size} rooms to check.`);
   let deleted = 0;
   for (const doc of roomsSnap.docs) {
     const last = doc.data().lastActivityAt;
+    logger.log(`Room ${doc.id} raw lastActivityAt: ${JSON.stringify(last)}, type: ${typeof last}`);
     let t = null;
-    if (!last) continue;
-    t = last.toDate ? last.toDate().getTime() : new Date(last).getTime();
+    if (!last) {
+      try {
+        const timestampFromId = new Date(parseInt(doc.id.substring(0, 8), 16) * 1000);
+        t = timestampFromId.getTime();
+        logger.log(`Room ${doc.id} has no lastActivityAt. Falling back to create time: ${timestampFromId.toISOString()}`);
+      } catch (e) {
+        logger.log(`Room ${doc.id} has no lastActivityAt and failed to parse ID. Skipping.`);
+        continue;
+      }
+    } else if (typeof last.toDate === 'function') {
+      t = last.toDate().getTime();
+    } else if (typeof last === 'object' && last._seconds) {
+      t = last._seconds * 1000 + (last._nanoseconds || 0) / 1000000;
+    } else {
+      t = new Date(last).getTime();
+    }
+
+    if (isNaN(t)) {
+      logger.log(`Room ${doc.id} has an invalid lastActivityAt format. Skipping.`);
+      continue;
+    }
+    logger.log(`Checking room ${doc.id}: lastActivityAt=${new Date(t).toISOString()}, cutoff=${new Date(cutoff).toISOString()}`);
     if (t < cutoff) {
       await admin.firestore().recursiveDelete(doc.ref);
       deleted++;
-      console.log('Auto-deleted room:', doc.id);
+      logger.log('Auto-deleted room:', doc.id);
     }
   }
-  console.log(`Auto-delete done. Deleted ${deleted} rooms.`);
+  logger.log(`Auto-delete done. Deleted ${deleted} rooms.`);
   return null;
 });
 
-// To set a distinct GAS endpoint run:
-//   firebase functions:config:set translate2.gas_url="https://script.google.com/.../exec"
-// If not set, falls back to GAS_BASE_URL or process.env.GAS_BASE_URL_2.
-const GAS_BASE_URL_2 = (functions.config().translate2?.gas_url ?? process.env.GAS_BASE_URL_2 ?? GAS_BASE_URL);
+// To set a distinct GAS endpoint, use environment variables e.g. GAS_BASE_URL_2
+const GAS_BASE_URL_2 = process.env.GAS_BASE_URL_2 ?? GAS_BASE_URL;
 
-export const translate2 = functions.https.onRequest(async (req, res) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
-  }
-
+export const translate2 = onRequest({ cors: true }, async (req, res) => {
   const textParam = req.method === 'GET' ? (req.query.text || req.query.q) : (req.body.text || req.body.q);
   const text = Array.isArray(textParam) ? textParam[0] : textParam;
   if (!text) {
@@ -131,7 +146,7 @@ export const translate2 = functions.https.onRequest(async (req, res) => {
     const json = await r.json();
     res.json(json);
   } catch (err) {
-    console.error('translate2 proxy error', err);
+    logger.error('translate2 proxy error', err);
     res.status(500).json({ error: 'translation failed' });
   }
 });

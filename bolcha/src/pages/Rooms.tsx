@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, doc, getDocs, QueryDocumentSnapshot } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { db } from "../firebase";
 import { Link, useNavigate } from "react-router-dom";
 import type { User } from "firebase/auth";
@@ -76,7 +77,7 @@ function Rooms({ user }: Props) {
       setPresenceCounts(counts);
     });
     return unsub;
-  }, [now]);
+  }, []);
 
   useEffect(() => {
     const fetchAutoDeleteHours = async () => {
@@ -89,7 +90,7 @@ function Rooms({ user }: Props) {
       } catch {}
     };
     fetchAutoDeleteHours();
-  }, [now]);
+  }, []);
 
   const createRoom = async () => {
     if (!roomName.trim()) return;
@@ -142,8 +143,16 @@ function Rooms({ user }: Props) {
   // モーダルで「削除する」押下時の処理
   const handleConfirmDelete = async () => {
     if (deleteTarget) {
-      await deleteDoc(doc(db, "rooms", deleteTarget));
-      setDeleteTarget(null);
+      const functions = getFunctions();
+      const deleteRoom = httpsCallable(functions, 'adminDeleteRoom');
+      try {
+        await deleteRoom({ roomId: deleteTarget });
+      } catch (error) {
+        console.error("Error deleting room:", error);
+        // Handle error appropriately, e.g., show a notification to the user
+      } finally {
+        setDeleteTarget(null);
+      }
     }
   };
 
@@ -259,35 +268,27 @@ function Rooms({ user }: Props) {
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
         {rooms.map((r) => {
           let remain = '';
-          let expired = false;
+          let diff = 0; // diffをここで初期化
           if (r.lastActivityAt) {
             const last = r.lastActivityAt.getTime();
             const expire = last + autoDeleteHours * 60 * 60 * 1000;
-            const diff = expire - now;
+            diff = expire - now; // diffに値を代入
             if (diff <= 0) {
               remain = '削除対象';
-              expired = true;
             } else {
               const h = Math.floor(diff / (60 * 60 * 1000));
               const m = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
               remain = h > 0 ? `${h}時間${m}分` : `${m}分`;
             }
           }
-          // クライアント自動削除（管理者または作成者のみ）
-          if (expired && (r.createdBy === user.uid || isAdmin)) {
-            import("firebase/firestore").then(({ deleteDoc, doc }) => {
-              deleteDoc(doc(db, "rooms", r.id)).catch(() => {});
-            });
-            // 表示上は何も返さない（消す）
-            return null;
-          }
+          
           return (
             <li key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, height: 30, lineHeight: '30px' }}>
               <Link to={`/rooms/${r.id}`}>{r.name}</Link>
               <span style={{ marginLeft: 8, color: '#1e90ff', fontWeight: 500, fontSize: '0.9em' }} title="参加者数">
                 👥 {presenceCounts[r.id] === undefined ? '...' : presenceCounts[r.id] ?? 0}
               </span>
-              <span style={{ marginLeft: 8, color: remain === '削除対象' ? '#d00' : '#555', fontWeight: 400, fontSize: '0.85em' }} title="自動削除までの残り時間">
+              <span style={{ marginLeft: 8, color: diff <= 0 ? '#d00' : '#555', fontWeight: 400, fontSize: '0.85em' }} title="自動削除までの残り時間">
                 🕒 {remain}
               </span>
               {(r.createdBy === user.uid || isAdmin) ? (
