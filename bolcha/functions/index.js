@@ -131,7 +131,7 @@ export const autoDeleteRooms = onSchedule({ region: 'asia-northeast1', timeoutSe
 // To set a distinct GAS endpoint, use environment variables e.g. GAS_BASE_URL_2
 const GAS_BASE_URL_2 = process.env.GAS_BASE_URL_2 ?? GAS_BASE_URL;
 
-export const translate2 = onRequest({ cors: true }, async (req, res) => {
+export const translate2 = onRequest({ cors: true, timeoutSeconds: 300 }, async (req, res) => {
   const textParam = req.method === 'GET' ? (req.query.text || req.query.q) : (req.body.text || req.body.q);
   const text = Array.isArray(textParam) ? textParam[0] : textParam;
   if (!text) {

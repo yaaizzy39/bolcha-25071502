@@ -382,80 +382,70 @@ function ChatRoom({ user }: Props) {
     });
   }, [messages]);
 
-  // create IO once
+  // --- Centralized Translation Logic ---
   useEffect(() => {
-    if (!containerRef.current || observerRef.current) return;
-    observerRef.current = new IntersectionObserver((entries) => {
-      entries.forEach(async (entry) => {
-        if (entry.isIntersecting) {
-          const id = (entry.target as HTMLElement).dataset.msgId;
-          if (!id) return;
-          const message = messages.find((x) => x.id === id);
-          if (!message) return;
-          // if already cached translation, skip
-          // if already cached translation, skip
-          if (message.translations?.[lang]) return;
-          // if original language matches selected, no translation
-          // if original language matches selected, no translation
-          if (message.originalLang === lang) {
-            observerRef.current?.unobserve(entry.target);
-            return;
-          }
-          if (translatingRef.current.has(id)) return;
-          translatingRef.current.add(id);
-          const translated = await translateText(message.text, lang);
-          translatingRef.current.delete(id);
-          observerRef.current?.unobserve(entry.target);
-      if (translated && translated !== message.text) {
-        if (user && user.uid) { // Add this check
-          await updateDoc(doc(db, "rooms", roomId!, "messages", id), {
-            [`translations.${lang}`]: translated,
-          });
-        }
-      }
-        }
-      });
-    }, { root: containerRef.current, threshold: 0.1 });
-  }, [messages, lang, user]);
+    console.log("[Translation] Effect triggered. Processing messages.", {
+      count: messages.length,
+      lang,
+      roomId,
+    });
 
-  // whenever messages render, observe new elements
-  useEffect(() => {
-    if (!observerRef.current || !containerRef.current) return;
-    const els = containerRef.current.querySelectorAll('[data-msg-id]');
-    els.forEach((el) => observerRef.current!.observe(el));
-  }, [messages, lang]);
+    if (!roomId || !lang || !user) {
+      console.log("[Translation] Effect aborted: missing roomId, lang, or user.");
+      return;
+    }
 
-  // fallback: immediately translate any visible, untranslated messages (in case IO misses)
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const rootRect = containerRef.current.getBoundingClientRect();
-    const els = containerRef.current.querySelectorAll('[data-msg-id]');
-    els.forEach(async (el) => {
-      const id = (el as HTMLElement).dataset.msgId;
-      if (!id || messages.find((x) => x.id === id)?.translations?.[lang] || translatingRef.current.has(id)) return;
-      const rect = (el as HTMLElement).getBoundingClientRect();
-      const visible = rect.bottom >= rootRect.top && rect.top <= rootRect.bottom;
-      if (!visible) return;
-      translatingRef.current.add(id);
-      const msg = messages.find((x) => x.id === id);
-      if (!msg) return;
-      if (!msg.originalLang) return; // language not determined yet
-      if (msg.originalLang === lang) {
-        observerRef.current?.unobserve(el);
+    const processMessage = async (message: Message) => {
+      const { id, text, originalLang, translations } = message;
+
+      const logPayload = { id, text: text.slice(0, 20), originalLang, translations, currentLang: lang };
+
+      // 1. Skip if already being translated
+      if (translatingRef.current.has(id)) {
+        // console.log("[Translation] Skipping: already in progress.", logPayload);
         return;
       }
-      const translated = await translateText(msg.text, lang);
-      translatingRef.current.delete(id);
-      observerRef.current?.unobserve(el);
-      if (translated && translated !== msg.text) {
-        if (user && user.uid) { // Add this check
-          await updateDoc(doc(db, "rooms", roomId!, "messages", id), {
+
+      // 2. Skip if translation is not needed
+      if (translations?.[lang]) {
+        // console.log("[Translation] Skipping: already translated.", logPayload);
+        return;
+      }
+      if (originalLang === lang) {
+        // console.log("[Translation] Skipping: original language is target language.", logPayload);
+        return;
+      }
+      if (!originalLang) {
+        console.log("[Translation] Skipping: original language not set.", logPayload);
+        return;
+      }
+
+      // 3. Translate
+      try {
+        console.log("[Translation] Attempting to translate...", logPayload);
+        translatingRef.current.add(id);
+        const translated = await translateText(text, lang);
+        console.log(`[Translation] API Result for ${id}:`, translated ? translated.slice(0, 30) : translated);
+
+        // 4. Update Firestore if translation is successful and different
+        if (translated && translated !== text) {
+          console.log(`[Translation] Updating Firestore for ${id}.`);
+          await updateDoc(doc(db, "rooms", roomId, "messages", id), {
             [`translations.${lang}`]: translated,
           });
         }
+      } catch (error) {
+        console.error(`[Translation] Error translating message ${id}:`, error);
+      } finally {
+        // 5. Always remove from the "in-progress" set
+        translatingRef.current.delete(id);
       }
-    });
-  }, [messages, lang, user]);
+    };
+
+    // Iterate over all messages and process them
+    messages.forEach(processMessage);
+
+  }, [messages, lang, roomId, user]); // Re-run when messages, language, or room changes
 
   // load / subscribe to user profiles referenced in messages
   useEffect(() => {
