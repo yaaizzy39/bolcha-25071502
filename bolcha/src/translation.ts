@@ -75,8 +75,9 @@ async function attemptTranslate(
       const maybeJson = await safeParse(postRes);
       return handleResult(maybeJson, text);
     }
-  } catch {
-    // network / CORS errors fall through to GET
+    console.warn(`[translation debug] POST request to ${url} failed with status: ${postRes.status}`);
+  } catch (e) {
+    console.error(`[translation debug] Error during POST request to ${url}:`, e);
   }
 
   try {
@@ -86,8 +87,9 @@ async function attemptTranslate(
       const maybeJson = await safeParse(getRes);
       return handleResult(maybeJson, text);
     }
-  } catch {
-    // ignore
+    console.warn(`[translation debug] GET request to ${url} failed with status: ${getRes.status}`);
+  } catch (e) {
+    console.error(`[translation debug] Error during GET request to ${url}:`, e);
   }
   return null;
 }
@@ -147,6 +149,8 @@ function handleResult(maybeJson: string | null, text: string): string | null {
 async function safeParse(res: Response): Promise<string | null> {
   try {
     const txt = await res.text();
+    console.log("[translation debug] GAS Response Status:", res.status);
+    console.log("[translation debug] GAS Response Body:", txt);
     if (!txt) return null;
 
     // Heuristic to detect if the response is HTML, which is unexpected.
@@ -176,7 +180,7 @@ async function safeParse(res: Response): Promise<string | null> {
       const decoded = raw
         .replace(/&lt;/g, "<")
         .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
+        .replace(/&quot;/g, "\"")
         .replace(/&#39;/g, "'")
         .replace(/&amp;/g, "&");
 
@@ -191,7 +195,8 @@ async function safeParse(res: Response): Promise<string | null> {
       return cleaned;
     }
     return null;
-  } catch {
+  } catch (e) {
+    console.error("[translation debug] Error in safeParse:", e);
     return null;
   }
 }
