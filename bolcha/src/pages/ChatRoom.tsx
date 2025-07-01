@@ -217,14 +217,24 @@ function ChatRoom({ user }: Props) {
   const nearBottomRef = useRef(true);
   const [atBottom, setAtBottom] = useState(true);
 
-  // Firestore: subscribe to messages in real-time
+  // Firestore: subscribe to messages in real-time and handle auto-scroll
   useEffect(() => {
     if (!roomId) return;
     const q = query(
       collection(db, "rooms", roomId, "messages"),
       orderBy("createdAt", "asc")
     );
+
+    const isInitialLoad = { current: true };
+
     const unsub = onSnapshot(q, (snap) => {
+      const el = containerRef.current;
+      // Check if user is near the bottom *before* rendering new messages.
+      // Add a small tolerance pixel value to account for variations.
+      const isScrolledToBottom = el
+        ? el.scrollHeight - el.scrollTop <= el.clientHeight + 5
+        : true;
+
       const msgs: Message[] = snap.docs.map((doc) => {
         const data = doc.data();
         return {
@@ -239,7 +249,23 @@ function ChatRoom({ user }: Props) {
           translations: data.translations,
         };
       });
+
       setMessages(msgs);
+
+      // For the very first batch of messages, scroll to bottom instantly.
+      if (isInitialLoad.current) {
+        setTimeout(() => {
+          bottomRef.current?.scrollIntoView();
+        }, 0);
+        isInitialLoad.current = false;
+      }
+      // For subsequent messages, only scroll if user was already at the bottom.
+      // The onScroll handler will then correctly set the `atBottom` state.
+      else if (isScrolledToBottom) {
+        setTimeout(() => {
+          bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 0);
+      }
     });
     return unsub;
   }, [roomId]);
@@ -559,10 +585,10 @@ function ChatRoom({ user }: Props) {
         onScroll={() => {
           const el = containerRef.current;
           if (!el) return;
-          const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-          const nb = distanceFromBottom < 100; // px threshold
-          nearBottomRef.current = nb;
-          setAtBottom(nb);
+          // A small buffer is added to the comparison to account for fractional pixels
+          // and ensure that scrolling to the very end correctly registers as being "at the bottom".
+          const isAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 1;
+          setAtBottom(isAtBottom);
         }}
         style={{ flex: 1, overflowY: "auto", padding: "0.5rem", position: "relative" }}
       >
@@ -780,7 +806,7 @@ function ChatRoom({ user }: Props) {
         <div ref={bottomRef} />
       </div>
       {confirmDelete && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "fit-content", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
           <div style={{ background: "#fff", padding: "1rem 1.5rem", borderRadius: 8, maxWidth: 320, textAlign: "center" }}>
             <p>{l10n.confirm}</p>
             <p style={{ fontSize: "0.9em", color: "#555", whiteSpace: "pre-wrap" }}>
@@ -804,7 +830,7 @@ function ChatRoom({ user }: Props) {
           position: "fixed",
           top: 0,
           left: 0,
-          width: "fit-content",
+          width: "100%",
           height: "100%",
           background: "rgba(0,0,0,0.35)",
           display: "flex",
