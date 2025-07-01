@@ -195,7 +195,10 @@ function ChatRoom({ user }: Props) {
   }, [messages, lang]);
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  // Refs for scrolling container and sentinel element at bottom
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
   const [hoveredUser, setHoveredUser] = useState<string | null>(null);
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Message | null>(null);
@@ -210,8 +213,7 @@ function ChatRoom({ user }: Props) {
       inputRef.current?.focus();
     }
   }, [replyTarget]);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const observerRef = useRef<IntersectionObserver | null>(null);
+
   const translatingRef = useRef<Set<string>>(new Set());
   // Scroll-related state and refs have been temporarily removed for diagnostics.
 
@@ -300,8 +302,6 @@ function ChatRoom({ user }: Props) {
   }, [roomId, navigate]);
 
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false);
-const containerRef = useRef<HTMLDivElement | null>(null);
-const bottomRef = useRef<HTMLDivElement | null>(null);
 // スクロール位置の判定
 const isAtBottom = () => {
   const el = containerRef.current;
@@ -310,26 +310,14 @@ const isAtBottom = () => {
   return bottomDistance < 40;
 };
 const prevMessageCount = useRef(messages.length);
-const prevWasAtBottom = useRef(isAtBottom());
-  const el = containerRef.current;
-  if (!el) return true;
-  const bottomDistance = el.scrollHeight - el.scrollTop - el.clientHeight;
-  return bottomDistance < 40;
-};
 
-// 新着メッセージ時の自動スクロール判定（ズレ防止版）
+// 新着メッセージ時の自動スクロール判定
 useLayoutEffect(() => {
-  // 前回の値を参照して判定
-  if (
-    messages.length > prevMessageCount.current &&
-    prevWasAtBottom.current
-  ) {
+  if (messages.length > prevMessageCount.current && !userHasScrolledUp) {
     bottomRef.current?.scrollIntoView({ behavior: 'auto' });
   }
-  // effectの最後で現フレームの値を保存
   prevMessageCount.current = messages.length;
-  prevWasAtBottom.current = isAtBottom();
-}, [messages]);
+}, [messages, userHasScrolledUp]);
 
 
 
