@@ -213,9 +213,7 @@ function ChatRoom({ user }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const translatingRef = useRef<Set<string>>(new Set());
-  const [atBottom, setAtBottom] = useState(true);
-  const prevScrollHeightRef = useRef<number | null>(null);
-  const isInitialLoadRef = useRef(true);
+  // Scroll-related state and refs have been temporarily removed for diagnostics.
 
   // Firestore: subscribe to messages in real-time
   useEffect(() => {
@@ -301,31 +299,34 @@ function ChatRoom({ user }: Props) {
     return unsub;
   }, [roomId, navigate]);
 
-  // This effect handles the logic for auto-scrolling and the "scroll to bottom" button.
-  // It runs *after* the DOM has been updated, which is crucial for correct scroll calculations.
+  const [userHasScrolledUp, setUserHasScrolledUp] = useState(false);
+
+  // This effect handles auto-scrolling when new messages arrive.
   useLayoutEffect(() => {
+    // If the user has NOT manually scrolled up, we auto-scroll to the bottom.
+    if (!userHasScrolledUp) {
+      bottomRef.current?.scrollIntoView();
+    }
+  }, [messages]); // Run only when messages change.
+
+  // This effect handles the initial scroll when a user enters a room.
+  useEffect(() => {
+    // When the room ID changes, it means the user entered a new room.
+    // We scroll to the bottom and reset the flag.
+    bottomRef.current?.scrollIntoView();
+    setUserHasScrolledUp(false);
+  }, [roomId]);
+
+  // This handler detects when the user manually scrolls.
+  const handleScroll = () => {
     const el = containerRef.current;
     if (!el) return;
-
-    if (isInitialLoadRef.current) {
-      el.scrollTop = el.scrollHeight;
-      isInitialLoadRef.current = false;
-      setAtBottom(true);
-    } else {
-      // We need to check if the scroll height has changed.
-      // If it hasn't, it was a "like" or other modification, not a new message.
-      if (el.scrollHeight > (prevScrollHeightRef.current ?? 0)) {
-        const wasAtBottom = el.scrollTop + el.clientHeight >= (prevScrollHeightRef.current ?? 0) - 50;
-        if (wasAtBottom) {
-          el.scrollTop = el.scrollHeight;
-          setAtBottom(true);
-        } else {
-          setAtBottom(false);
-        }
-      }
-    }
-    prevScrollHeightRef.current = el.scrollHeight;
-  }, [messages]);
+    // Check the distance from the bottom.
+    const bottomDistance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    // If the user is more than 40px away from the bottom, we consider them "scrolled up".
+    // Otherwise, if they scroll back to the bottom, we consider them "at the bottom" again.
+    setUserHasScrolledUp(bottomDistance > 40);
+  };
 
   // Show warning 1 minute before auto-delete (always show if within 1 minute, even if room is deleted soon after)
   useEffect(() => {
@@ -538,13 +539,6 @@ function ChatRoom({ user }: Props) {
       inputRef.current.style.height = "auto";
     }
     setReplyTarget(null);
-    // auto-scroll to the latest message after sending
-    setTimeout(() => {
-      const el = containerRef.current;
-      if (el) {
-        el.scrollTop = el.scrollHeight;
-      }
-    }, 0);
   };
 
   
@@ -583,12 +577,7 @@ function ChatRoom({ user }: Props) {
 
       <div
         ref={containerRef}
-        onScroll={() => {
-          const el = containerRef.current;
-          if (!el) return;
-          const isAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 50;
-          setAtBottom(isAtBottom);
-        }}
+        onScroll={handleScroll}
         style={{ flex: 1, overflowY: "auto", padding: "0.5rem", position: "relative" }}
       >
         {messages.map((m) => {
@@ -875,10 +864,11 @@ function ChatRoom({ user }: Props) {
         </div>
       )}
       <div style={{ display: "flex", gap: "0.5rem", padding: "0.5rem", position: "relative" }}>
-        {!atBottom && (
+        {userHasScrolledUp && (
           <button
             onClick={() => {
               bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+              setUserHasScrolledUp(false); // Reset the flag after clicking
             }}
             style={{
               position: "absolute",
