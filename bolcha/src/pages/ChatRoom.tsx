@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useLayoutEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   collection,
@@ -213,11 +213,11 @@ function ChatRoom({ user }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const translatingRef = useRef<Set<string>>(new Set());
-  // track whether user is currently near the bottom (within 100px)
-  const nearBottomRef = useRef(true);
   const [atBottom, setAtBottom] = useState(true);
+  const prevScrollHeightRef = useRef<number | null>(null);
+  const isInitialLoadRef = useRef(true);
 
-  // Firestore: subscribe to messages in real-time and handle auto-scroll
+  // Firestore: subscribe to messages in real-time
   useEffect(() => {
     if (!roomId) return;
     const q = query(
@@ -225,16 +225,7 @@ function ChatRoom({ user }: Props) {
       orderBy("createdAt", "asc")
     );
 
-    const isInitialLoad = { current: true };
-
     const unsub = onSnapshot(q, (snap) => {
-      const el = containerRef.current;
-      // Check if user is near the bottom *before* rendering new messages.
-      // Add a small tolerance pixel value to account for variations.
-      const isScrolledToBottom = el
-        ? el.scrollHeight - el.scrollTop <= el.clientHeight + 5
-        : true;
-
       const msgs: Message[] = snap.docs.map((doc) => {
         const data = doc.data();
         return {
@@ -249,23 +240,7 @@ function ChatRoom({ user }: Props) {
           translations: data.translations,
         };
       });
-
       setMessages(msgs);
-
-      // For the very first batch of messages, scroll to bottom instantly.
-      if (isInitialLoad.current) {
-        setTimeout(() => {
-          bottomRef.current?.scrollIntoView();
-        }, 0);
-        isInitialLoad.current = false;
-      }
-      // For subsequent messages, only scroll if user was already at the bottom.
-      // The onScroll handler will then correctly set the `atBottom` state.
-      else if (isScrolledToBottom) {
-        setTimeout(() => {
-          bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 0);
-      }
     });
     return unsub;
   }, [roomId]);
@@ -325,6 +300,32 @@ function ChatRoom({ user }: Props) {
     });
     return unsub;
   }, [roomId, navigate]);
+
+  // This effect handles the logic for auto-scrolling and the "scroll to bottom" button.
+  // It runs *after* the DOM has been updated, which is crucial for correct scroll calculations.
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    if (isInitialLoadRef.current) {
+      el.scrollTop = el.scrollHeight;
+      isInitialLoadRef.current = false;
+      setAtBottom(true);
+    } else {
+      // We need to check if the scroll height has changed.
+      // If it hasn't, it was a "like" or other modification, not a new message.
+      if (el.scrollHeight > (prevScrollHeightRef.current ?? 0)) {
+        const wasAtBottom = el.scrollTop + el.clientHeight >= (prevScrollHeightRef.current ?? 0) - 50;
+        if (wasAtBottom) {
+          el.scrollTop = el.scrollHeight;
+          setAtBottom(true);
+        } else {
+          setAtBottom(false);
+        }
+      }
+    }
+    prevScrollHeightRef.current = el.scrollHeight;
+  }, [messages]);
 
   // Show warning 1 minute before auto-delete (always show if within 1 minute, even if room is deleted soon after)
   useEffect(() => {
@@ -538,11 +539,11 @@ function ChatRoom({ user }: Props) {
     }
     setReplyTarget(null);
     // auto-scroll to the latest message after sending
-    nearBottomRef.current = true;
-    setAtBottom(true);
-    // wait for DOM update then scroll
     setTimeout(() => {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      const el = containerRef.current;
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+      }
     }, 0);
   };
 
@@ -585,9 +586,7 @@ function ChatRoom({ user }: Props) {
         onScroll={() => {
           const el = containerRef.current;
           if (!el) return;
-          // A small buffer is added to the comparison to account for fractional pixels
-          // and ensure that scrolling to the very end correctly registers as being "at the bottom".
-          const isAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 1;
+          const isAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 50;
           setAtBottom(isAtBottom);
         }}
         style={{ flex: 1, overflowY: "auto", padding: "0.5rem", position: "relative" }}

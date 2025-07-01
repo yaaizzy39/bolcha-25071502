@@ -58,7 +58,7 @@ function App() {
   const hideNav = location.pathname.startsWith("/profile");
 
   return (
-    <div>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <header style={{ display: "flex", justifyContent: "space-between", padding: "1rem 1rem 0 1rem" }}>
         <h2 style={{ margin: 0, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
   <img    
