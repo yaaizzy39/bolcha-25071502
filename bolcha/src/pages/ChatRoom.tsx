@@ -300,33 +300,53 @@ function ChatRoom({ user }: Props) {
   }, [roomId, navigate]);
 
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false);
+const containerRef = useRef<HTMLDivElement | null>(null);
+const bottomRef = useRef<HTMLDivElement | null>(null);
+// スクロール位置の判定
+const isAtBottom = () => {
+  const el = containerRef.current;
+  if (!el) return true;
+  const bottomDistance = el.scrollHeight - el.scrollTop - el.clientHeight;
+  return bottomDistance < 40;
+};
+const prevMessageCount = useRef(messages.length);
+const prevWasAtBottom = useRef(isAtBottom());
+  const el = containerRef.current;
+  if (!el) return true;
+  const bottomDistance = el.scrollHeight - el.scrollTop - el.clientHeight;
+  return bottomDistance < 40;
+};
 
-  // This effect handles auto-scrolling when new messages arrive.
-  useLayoutEffect(() => {
-    // If the user has NOT manually scrolled up, we auto-scroll to the bottom.
-    if (!userHasScrolledUp) {
-      bottomRef.current?.scrollIntoView();
-    }
-  }, [messages]); // Run only when messages change.
+// 新着メッセージ時の自動スクロール判定（ズレ防止版）
+useLayoutEffect(() => {
+  // 前回の値を参照して判定
+  if (
+    messages.length > prevMessageCount.current &&
+    prevWasAtBottom.current
+  ) {
+    bottomRef.current?.scrollIntoView({ behavior: 'auto' });
+  }
+  // effectの最後で現フレームの値を保存
+  prevMessageCount.current = messages.length;
+  prevWasAtBottom.current = isAtBottom();
+}, [messages]);
 
-  // This effect handles the initial scroll when a user enters a room.
-  useEffect(() => {
-    // When the room ID changes, it means the user entered a new room.
-    // We scroll to the bottom and reset the flag.
-    bottomRef.current?.scrollIntoView();
-    setUserHasScrolledUp(false);
-  }, [roomId]);
 
-  // This handler detects when the user manually scrolls.
-  const handleScroll = () => {
-    const el = containerRef.current;
-    if (!el) return;
-    // Check the distance from the bottom.
-    const bottomDistance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    // If the user is more than 40px away from the bottom, we consider them "scrolled up".
-    // Otherwise, if they scroll back to the bottom, we consider them "at the bottom" again.
-    setUserHasScrolledUp(bottomDistance > 40);
-  };
+
+// 部屋切り替え時は必ず最下部へ
+useEffect(() => {
+  bottomRef.current?.scrollIntoView();
+  setUserHasScrolledUp(false);
+}, [roomId]);
+
+// スクロールイベントハンドラ
+const handleScroll = () => {
+  const el = containerRef.current;
+  if (!el) return;
+  const bottomDistance = el.scrollHeight - el.scrollTop - el.clientHeight;
+  const scrolledUp = bottomDistance > 40;
+  setUserHasScrolledUp(scrolledUp);
+};
 
   // Show warning 1 minute before auto-delete (always show if within 1 minute, even if room is deleted soon after)
   useEffect(() => {
