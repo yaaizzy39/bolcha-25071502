@@ -343,6 +343,7 @@ useEffect(() => {
 
 // スクロールイベントハンドラ (container)
 const handleContainerScroll = () => {
+  translateVisibleMessages();
   const bottomDistance = getBottomDistance();
   const scrolledUp = bottomDistance > 40;
    
@@ -351,6 +352,7 @@ const handleContainerScroll = () => {
 
 // window 用ハンドラ
 const handleWindowScroll = () => {
+  translateVisibleMessages();
   const bottomDistance = getBottomDistance();
   const scrolledUp = bottomDistance > 40;
    
@@ -447,6 +449,43 @@ useEffect(() => {
     });
   }, [messages]);
 
+
+  /* ---------- Translation helpers ---------- */
+  function translateVisibleMessages() {
+    if (!roomId || !lang) return;
+    const container = containerRef.current ?? document;
+    const elements = (container as any).querySelectorAll?.('[data-msg-id]') as NodeListOf<HTMLElement>;
+    elements.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      if (rect.bottom <= 0 || rect.top >= window.innerHeight) return; // element not visible
+      const id = el.getAttribute('data-msg-id');
+      if (!id) return;
+      const msg = messages.find((m) => m.id === id);
+      if (!msg) return;
+
+      const { translations, originalLang } = msg;
+      if (translatingRef.current.has(id)) return;
+      if (translations?.[lang]) return;
+      if (!originalLang || originalLang === lang) return;
+
+      (async () => {
+        try {
+          translatingRef.current.add(id);
+          const translated = await translateText(msg.text, lang);
+          if (translated && translated !== msg.text) {
+            await updateDoc(doc(db, 'rooms', roomId!, 'messages', id), {
+              [`translations.${lang}`]: translated,
+            });
+          }
+        } catch (err) {
+          console.error('[Translation] On-demand error', err);
+        } finally {
+          translatingRef.current.delete(id);
+        }
+      })();
+    });
+  }
+
   // --- Centralized Translation Logic ---
   useEffect(() => {
     console.log("[Translation] Effect triggered. Processing messages.", {
@@ -508,7 +547,12 @@ useEffect(() => {
     };
 
     // Iterate over all messages and process them
-    messages.forEach(processMessage);
+    const RECENT_TRANSLATION_LIMIT = 10;
+    const recentMessages = [...messages].slice(-RECENT_TRANSLATION_LIMIT).reverse();
+    recentMessages.forEach(processMessage);
+
+    // attempt to translate messages currently visible in viewport (in case user scrolled up)
+    translateVisibleMessages();
 
   }, [messages, lang, roomId, user]); // Re-run when messages, language, or room changes
 
