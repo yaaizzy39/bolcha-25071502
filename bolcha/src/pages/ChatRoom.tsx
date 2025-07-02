@@ -362,20 +362,10 @@ const handleContainerScroll = () => {
   setUserHasScrolledUp(scrolledUp);
 };
 
-// window 用ハンドラ
-const handleWindowScroll = () => {
-  translateVisibleMessages();
-  const bottomDistance = getBottomDistance();
-  const scrolledUp = bottomDistance > 40;
-   
-  setUserHasScrolledUp(scrolledUp);
-};
+// window 用ハンドラは不要になったため削除
 
 // window listener attach
-useEffect(() => {
-  window.addEventListener('scroll', handleWindowScroll, { passive: true });
-  return () => window.removeEventListener('scroll', handleWindowScroll);
-}, []);
+
 
 
 
@@ -466,17 +456,19 @@ useEffect(() => {
   function translateVisibleMessages() {
     if (!roomId || !lang) return;
     const container = containerRef.current;
-    const rootRect = container ? container.getBoundingClientRect() : undefined;
-    const elements = (container ?? document).querySelectorAll('[data-msg-id]') as NodeListOf<HTMLElement>;
+    if (!container) return; // require container
+    
+    const elements = Array.from(container.querySelectorAll('[data-msg-id]')) as HTMLElement[];
+    // iterate from newest (bottom) to oldest
+    elements.reverse();
     let processed = 0;
     const MAX_PER_CALL = 5;
+    const containerRect = container.getBoundingClientRect();
     
-  elements.forEach((el) => {
+    elements.forEach((el) => {
       if (processed >= MAX_PER_CALL) return;
       const rect = el.getBoundingClientRect();
-      const visible = rootRect
-        ? rect.bottom > rootRect.top && rect.top < rootRect.bottom
-        : rect.bottom > 0 && rect.top < window.innerHeight;
+      const visible = rect.bottom > containerRect.top && rect.top < containerRect.bottom;
       if (!visible) { return; }
       const id = el.getAttribute('data-msg-id');
       if (!id) return;
@@ -566,12 +558,12 @@ useEffect(() => {
       }
     };
 
-    // 初期ロード時: まず現在ビューポート内にあるメッセージのみ翻訳
-    translateVisibleMessages();
+    
 
     // attempt to translate messages currently visible in viewport (only if language
     // hasn't just changed; avoids mass-translation on lang switch)
-    if (prevLangRef.current === lang) {
+    // 初期ロード時 (prevLangRef 未設定) も含め、同じ言語のまま messages 変化したら可視部分を翻訳
+    if (prevLangRef.current === undefined || prevLangRef.current === lang) {
       translateVisibleMessages();
     }
     prevLangRef.current = lang;
@@ -621,21 +613,22 @@ useEffect(() => {
       {
         root: container,
         threshold: 0.1,
-        rootMargin: '0px 0px -1px 0px',
+        rootMargin: '0px',
       }
     );
 
     const timer = setTimeout(() => {
-      const els = container.querySelectorAll('[data-msg-id]');
-      const containerRect = container.getBoundingClientRect();
-      els.forEach((el) => {
-        const rect = (el as HTMLElement).getBoundingClientRect();
-        const visible = rect.bottom > containerRect.top && rect.top < containerRect.bottom;
+      const containerRectNow = container.getBoundingClientRect();
+      const els = Array.from(container.querySelectorAll('[data-msg-id]')) as HTMLElement[];
+      // newest first
+      els.reverse().forEach((el) => {
+        const rectEl = el.getBoundingClientRect();
+        const visible = rectEl.bottom > containerRectNow.top && rectEl.top < containerRectNow.bottom;
         if (visible) {
           observer.observe(el);
         }
       });
-    }, 500);
+    }, 300);
 
     return () => {
       clearTimeout(timer);
