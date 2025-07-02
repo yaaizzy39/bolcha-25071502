@@ -198,7 +198,6 @@ function ChatRoom({ user }: Props) {
   // Refs for scrolling container and sentinel element at bottom
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const prevLangRef = useRef<string | undefined>(undefined);
   const translatedIdsRef = useRef<Set<string>>(new Set());
   // Reset translated ID cache when language changes
   useEffect(() => {
@@ -469,6 +468,7 @@ const handleContainerScroll = () => {
       if (processed >= MAX_PER_CALL) return;
       const rect = el.getBoundingClientRect();
       const visible = rect.bottom > containerRect.top && rect.top < containerRect.bottom;
+      console.log('[Visibility-check]', {id: el.getAttribute('data-msg-id'), visible, top: rect.top, bottom: rect.bottom});
       if (!visible) { return; }
       const id = el.getAttribute('data-msg-id');
       if (!id) return;
@@ -484,13 +484,13 @@ const handleContainerScroll = () => {
       (async () => {
         try {
           translatingRef.current.add(id);
+          processed++; // count before awaiting to enforce per-call limit
           const translated = await translateText(msg.text, lang);
           if (translated && translated !== msg.text) {
             await updateDoc(doc(db, 'rooms', roomId!, 'messages', id), {
               [`translations.${lang}`]: translated,
             });
             saveTranslatedId(id);
-            processed++;
           }
         } catch (err) {
           console.error('[Translation] On-demand error', err);
@@ -501,74 +501,6 @@ const handleContainerScroll = () => {
     });
     
   }
-
-  // --- Centralized Translation Logic ---
-  useEffect(() => {
-    console.log("[Translation] Effect triggered. Processing messages.", {
-      count: messages.length,
-      lang,
-      roomId,
-    });
-
-    if (!roomId || !lang || !user) {
-      console.log("[Translation] Effect aborted: missing roomId, lang, or user.");
-      return;
-    }
-
-    const processMessage = async (message: Message) => {
-      const { id, text, originalLang, translations } = message;
-
-      const logPayload = { id, text: text.slice(0, 20), originalLang, translations, currentLang: lang };
-
-      // 1. Skip if already being translated
-      if (translatingRef.current.has(id)) {
-    console.log('[Translation][Skip] in-progress', {id});
-        // console.log("[Translation] Skipping: already in progress.", logPayload);
-        return;
-      }
-
-      // 2. Skip if translation is not needed
-      if (translations?.[lang] || translatedIdsRef.current.has(id)) {
-    console.log('[Translation][Skip] already-translated', {id});
-        return;
-      }
-      if (originalLang === lang) return;
-      if (!originalLang) { console.log('[Translation][Skip] unknown-src-lang', {id}); return; }
-
-      // 3. Translate
-      try {
-        console.log('[Translation][Call] processMessage', logPayload);
-        translatingRef.current.add(id);
-        const translated = await translateText(text, lang);
-        console.log(`[Translation] API Result for ${id}:`, translated ? translated.slice(0, 30) : translated);
-
-        // 4. Update Firestore if translation is successful and different
-        if (translated && translated !== text) {
-          console.log(`[Translation] Updating Firestore for ${id}.`);
-          await updateDoc(doc(db, "rooms", roomId, "messages", id), {
-            [`translations.${lang}`]: translated,
-          });
-          saveTranslatedId(id);
-        }
-      } catch (error) {
-        console.error(`[Translation] Error translating message ${id}:`, error);
-      } finally {
-        // 5. Always remove from the "in-progress" set
-        translatingRef.current.delete(id);
-      }
-    };
-
-    
-
-    // attempt to translate messages currently visible in viewport (only if language
-    // hasn't just changed; avoids mass-translation on lang switch)
-    // 初期ロード時 (prevLangRef 未設定) も含め、同じ言語のまま messages 変化したら可視部分を翻訳
-    if (prevLangRef.current === undefined || prevLangRef.current === lang) {
-      translateVisibleMessages();
-    }
-    prevLangRef.current = lang;
-
-  }, [messages, lang, roomId, user]);
 
   // ----- IntersectionObserver for on-demand translation (more reliable than scroll handler) -----
   useEffect(() => {
@@ -622,8 +554,10 @@ const handleContainerScroll = () => {
       const els = Array.from(container.querySelectorAll('[data-msg-id]')) as HTMLElement[];
       // newest first
       els.reverse().forEach((el) => {
+        const id = el.getAttribute('data-msg-id');
         const rectEl = el.getBoundingClientRect();
         const visible = rectEl.bottom > containerRectNow.top && rectEl.top < containerRectNow.bottom;
+        console.log('[IO-Visibility]', {id, visible});
         if (visible) {
           observer.observe(el);
         }
