@@ -20,6 +20,24 @@ const FAIL_THRESHOLD = 2;  // switch primary after this many consecutive failure
 // simple promise queue to ensure only one request at a time
 let chain: Promise<any> = Promise.resolve();
 
+// ---------- Simple client-side cache (sessionStorage + in-memory) ----------
+const CACHE_KEY = 'tranCache';
+const _initCache: Record<string, string> = (() => {
+  try {
+    return JSON.parse(sessionStorage.getItem(CACHE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+})();
+const cache = new Map<string, string>(Object.entries(_initCache));
+function saveCache() {
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(Object.fromEntries(cache)));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
 // Runtime load of endpoints from Firestore (admin-configurable)
 if (!(globalThis as any).__TRAN_CFG_LISTENER__) {
   (globalThis as any).__TRAN_CFG_LISTENER__ = true;
@@ -124,8 +142,16 @@ async function doTranslate(text: string, targetLang: string): Promise<string | n
 
 
 export function translateText(text: string, targetLang: string): Promise<string | null> {
+  const cacheKey = `${targetLang}:${text}`;
+  if (cache.has(cacheKey)) {
+    return Promise.resolve(cache.get(cacheKey)!);
+  }
   const next = chain.then(async () => {
     const res = await doTranslate(text, targetLang);
+    if (res !== null) {
+      cache.set(cacheKey, res);
+      saveCache();
+    }
     // small delay between requests to avoid hitting quota hard
     await new Promise((r) => setTimeout(r, 300));
     return res;

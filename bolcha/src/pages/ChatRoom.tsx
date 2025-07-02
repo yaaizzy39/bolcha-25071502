@@ -198,6 +198,12 @@ function ChatRoom({ user }: Props) {
   // Refs for scrolling container and sentinel element at bottom
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const prevLangRef = useRef<string | undefined>(undefined);
+  const translatedIdsRef = useRef<Set<string>>(new Set(JSON.parse(sessionStorage.getItem(`translated-${lang}`) || '[]')));
+  const saveTranslatedId = (id: string) => {
+    translatedIdsRef.current.add(id);
+    sessionStorage.setItem(`translated-${lang}`, JSON.stringify(Array.from(translatedIdsRef.current)));
+  };
 
   // NOTE: 以前は IntersectionObserver でスクロール位置を判定していましたが、
   // Sentinel 要素が高さ 0 のため誤検知が起こるケースがありました。
@@ -453,20 +459,28 @@ useEffect(() => {
   /* ---------- Translation helpers ---------- */
   function translateVisibleMessages() {
     if (!roomId || !lang) return;
-    const container = containerRef.current ?? document;
-    const elements = (container as any).querySelectorAll?.('[data-msg-id]') as NodeListOf<HTMLElement>;
+    const container = containerRef.current;
+    const rootRect = container ? container.getBoundingClientRect() : undefined;
+    const elements = (container ?? document).querySelectorAll('[data-msg-id]') as NodeListOf<HTMLElement>;
+    let processed = 0;
+    const MAX_PER_CALL = 5;
     elements.forEach((el) => {
+      if (processed >= MAX_PER_CALL) return;
       const rect = el.getBoundingClientRect();
-      if (rect.bottom <= 0 || rect.top >= window.innerHeight) return; // element not visible
+      const visible = rootRect
+        ? rect.bottom > rootRect.top && rect.top < rootRect.bottom
+        : rect.bottom > 0 && rect.top < window.innerHeight;
+      if (!visible) return;
       const id = el.getAttribute('data-msg-id');
       if (!id) return;
       const msg = messages.find((m) => m.id === id);
       if (!msg) return;
 
       const { translations, originalLang } = msg;
+      if (translatedIdsRef.current.has(id)) return;
       if (translatingRef.current.has(id)) return;
       if (translations?.[lang]) return;
-      if (!originalLang || originalLang === lang) return;
+      if (originalLang === lang) return;
 
       (async () => {
         try {
@@ -476,6 +490,8 @@ useEffect(() => {
             await updateDoc(doc(db, 'rooms', roomId!, 'messages', id), {
               [`translations.${lang}`]: translated,
             });
+            saveTranslatedId(id);
+            processed++;
           }
         } catch (err) {
           console.error('[Translation] On-demand error', err);
@@ -506,27 +522,22 @@ useEffect(() => {
 
       // 1. Skip if already being translated
       if (translatingRef.current.has(id)) {
+    console.log('[Translation][Skip] in-progress', {id});
         // console.log("[Translation] Skipping: already in progress.", logPayload);
         return;
       }
 
       // 2. Skip if translation is not needed
-      if (translations?.[lang]) {
-        // console.log("[Translation] Skipping: already translated.", logPayload);
+      if (translations?.[lang] || translatedIdsRef.current.has(id)) {
+    console.log('[Translation][Skip] already-translated', {id});
         return;
       }
-      if (originalLang === lang) {
-        // console.log("[Translation] Skipping: original language is target language.", logPayload);
-        return;
-      }
-      if (!originalLang) {
-        console.log("[Translation] Skipping: original language not set.", logPayload);
-        return;
-      }
+      if (originalLang === lang) return;
+      if (!originalLang) { console.log('[Translation][Skip] unknown-src-lang', {id}); return; }
 
       // 3. Translate
       try {
-        console.log("[Translation] Attempting to translate...", logPayload);
+        console.log('[Translation][Call] processMessage', logPayload);
         translatingRef.current.add(id);
         const translated = await translateText(text, lang);
         console.log(`[Translation] API Result for ${id}:`, translated ? translated.slice(0, 30) : translated);
@@ -537,6 +548,7 @@ useEffect(() => {
           await updateDoc(doc(db, "rooms", roomId, "messages", id), {
             [`translations.${lang}`]: translated,
           });
+          saveTranslatedId(id);
         }
       } catch (error) {
         console.error(`[Translation] Error translating message ${id}:`, error);
@@ -551,10 +563,79 @@ useEffect(() => {
     const recentMessages = [...messages].slice(-RECENT_TRANSLATION_LIMIT).reverse();
     recentMessages.forEach(processMessage);
 
-    // attempt to translate messages currently visible in viewport (in case user scrolled up)
-    translateVisibleMessages();
+    // attempt to translate messages currently visible in viewport (only if language
+    // hasn't just changed; avoids mass-translation on lang switch)
+    if (prevLangRef.current === lang) {
+      translateVisibleMessages();
+    }
+    prevLangRef.current = lang;
 
-  }, [messages, lang, roomId, user]); // Re-run when messages, language, or room changes
+  }, [messages, lang, roomId, user]);
+
+  // ----- IntersectionObserver for on-demand translation (more reliable than scroll handler) -----
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !roomId || !lang) return;
+
+    // Reuse same logic as translateVisibleMessages but driven by IO events
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const el = entry.target as HTMLElement;
+          const id = el.getAttribute('data-msg-id');
+          if (!id) return;
+          const msg = messages.find((m) => m.id === id);
+          if (!msg) return;
+          const { originalLang, translations } = msg;
+          if (translatedIdsRef.current.has(id)) return;
+          if (translatingRef.current.has(id)) return;
+          if (translations?.[lang]) return;
+          if (originalLang === lang) return;
+
+          (async () => {
+            try {
+              translatingRef.current.add(id);
+              const translated = await translateText(msg.text, lang);
+              if (translated && translated !== msg.text) {
+                await updateDoc(doc(db, 'rooms', roomId, 'messages', id), {
+                  [`translations.${lang}`]: translated,
+                });
+                saveTranslatedId(id);
+              }
+            } catch (err) {
+              console.error('[Translation] IO on-demand error', err);
+            } finally {
+              translatingRef.current.delete(id);
+              observer.unobserve(el); // translate once per lang
+            }
+          })();
+        });
+      },
+      {
+        root: container,
+        threshold: 0.1,
+        rootMargin: '0px 0px -1px 0px',
+      }
+    );
+
+    const timer = setTimeout(() => {
+      const els = container.querySelectorAll('[data-msg-id]');
+      const containerRect = container.getBoundingClientRect();
+      els.forEach((el) => {
+        const rect = (el as HTMLElement).getBoundingClientRect();
+        const visible = rect.bottom > containerRect.top && rect.top < containerRect.bottom;
+        if (visible) {
+          observer.observe(el);
+        }
+      });
+    }, 500);
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [messages, lang, roomId]);
 
   // load / subscribe to user profiles referenced in messages
   useEffect(() => {
