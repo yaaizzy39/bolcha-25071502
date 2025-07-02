@@ -134,7 +134,7 @@ function ChatRoom({ user }: Props) {
     );
     const unsub = onSnapshot(q, (snap) => {
       // DEBUG: Log snapshot docs
-      console.debug("[Presence] Snapshot size:", snap.size);
+       
       const now = Date.now();
       const debugList = snap.docs.map(d => {
         const last = d.data().lastActive;
@@ -143,9 +143,9 @@ function ChatRoom({ user }: Props) {
         t = last.toDate ? last.toDate().getTime() : new Date(last).getTime();
         return { uid: d.id, lastActive: t, delta: now - t };
       });
-      console.debug("[Presence] Raw:", debugList);
+       
       const count = debugList.filter(item => item.lastActive && (now - item.lastActive < 3 * 60 * 1000)).length;
-      console.debug("[Presence] Computed count:", count);
+       
       setPresenceCount(count);
     });
     return unsub;
@@ -198,6 +198,11 @@ function ChatRoom({ user }: Props) {
   // Refs for scrolling container and sentinel element at bottom
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  // NOTE: 以前は IntersectionObserver でスクロール位置を判定していましたが、
+  // Sentinel 要素が高さ 0 のため誤検知が起こるケースがありました。
+  // 現在は単純にスクロールイベントとリアルタイム計算（isAtBottom）に統一しています。
+  // userHasScrolledUp は handleScroll とメッセージ更新後の isAtBottom() の結果で更新します。
 
   const [hoveredUser, setHoveredUser] = useState<string | null>(null);
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
@@ -302,22 +307,31 @@ function ChatRoom({ user }: Props) {
   }, [roomId, navigate]);
 
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false);
-// スクロール位置の判定
-const isAtBottom = () => {
+// スクロール関連ヘルパー
+const getBottomDistance = () => {
   const el = containerRef.current;
-  if (!el) return true;
-  const bottomDistance = el.scrollHeight - el.scrollTop - el.clientHeight;
-  return bottomDistance < 40;
+  // container が存在しスクロールバーが出ている場合はこちらを使用
+  if (el && el.scrollHeight > el.clientHeight) {
+    return el.scrollHeight - el.scrollTop - el.clientHeight;
+  }
+  // そうでない場合は window スクロール量で判定
+  return document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
 };
+
+const isAtBottom = () => getBottomDistance() < 40;
 const prevMessageCount = useRef(messages.length);
 
 // 新着メッセージ時の自動スクロール判定
 useLayoutEffect(() => {
-  if (messages.length > prevMessageCount.current && !userHasScrolledUp) {
-    bottomRef.current?.scrollIntoView({ behavior: 'auto' });
+  if (messages.length > prevMessageCount.current) {
+    const firstLoad = prevMessageCount.current === 0;
+     
+    if (firstLoad || !userHasScrolledUp) {
+      bottomRef.current?.scrollIntoView({ behavior: 'auto' });
+    }
   }
   prevMessageCount.current = messages.length;
-}, [messages, userHasScrolledUp]);
+}, [messages]);
 
 
 
@@ -327,14 +341,29 @@ useEffect(() => {
   setUserHasScrolledUp(false);
 }, [roomId]);
 
-// スクロールイベントハンドラ
-const handleScroll = () => {
-  const el = containerRef.current;
-  if (!el) return;
-  const bottomDistance = el.scrollHeight - el.scrollTop - el.clientHeight;
+// スクロールイベントハンドラ (container)
+const handleContainerScroll = () => {
+  const bottomDistance = getBottomDistance();
   const scrolledUp = bottomDistance > 40;
+   
   setUserHasScrolledUp(scrolledUp);
 };
+
+// window 用ハンドラ
+const handleWindowScroll = () => {
+  const bottomDistance = getBottomDistance();
+  const scrolledUp = bottomDistance > 40;
+   
+  setUserHasScrolledUp(scrolledUp);
+};
+
+// window listener attach
+useEffect(() => {
+  window.addEventListener('scroll', handleWindowScroll, { passive: true });
+  return () => window.removeEventListener('scroll', handleWindowScroll);
+}, []);
+
+
 
   // Show warning 1 minute before auto-delete (always show if within 1 minute, even if room is deleted soon after)
   useEffect(() => {
@@ -537,7 +566,7 @@ const handleScroll = () => {
     } catch (err: any) {
       if ((err as Error).message?.includes("permission")) {
         // Not critical; ignore to prevent console noise
-        console.debug("lastActivityAt update skipped due to permissions");
+        
       } else {
         throw err;
       }
@@ -585,7 +614,7 @@ const handleScroll = () => {
 
       <div
         ref={containerRef}
-        onScroll={handleScroll}
+        onScroll={handleContainerScroll}
         style={{ flex: 1, overflowY: "auto", padding: "0.5rem", position: "relative" }}
       >
         {messages.map((m) => {
@@ -879,9 +908,9 @@ const handleScroll = () => {
               setUserHasScrolledUp(false); // Reset the flag after clicking
             }}
             style={{
-              position: "absolute",
-              right: 56,
-              top: -40,
+              position: "fixed",
+              right: 24,
+              bottom: 100,
               width: "36px",
               height: "36px",
               display: "flex",
