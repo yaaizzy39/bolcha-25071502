@@ -354,10 +354,9 @@ useEffect(() => {
 
 // スクロールイベントハンドラ (container)
 const handleContainerScroll = () => {
-  translateVisibleMessages();
+
   const bottomDistance = getBottomDistance();
   const scrolledUp = bottomDistance > 40;
-   
   setUserHasScrolledUp(scrolledUp);
 };
 
@@ -452,7 +451,7 @@ const handleContainerScroll = () => {
 
 
   /* ---------- Translation helpers ---------- */
-  function translateVisibleMessages() {
+  
     if (!roomId || !lang) return;
     const container = containerRef.current;
     if (!container) return; // require container
@@ -468,7 +467,7 @@ const handleContainerScroll = () => {
       if (processed >= MAX_PER_CALL) return;
       const rect = el.getBoundingClientRect();
       const visible = rect.bottom > containerRect.top && rect.top < containerRect.bottom;
-      console.log('[Visibility-check]', {id: el.getAttribute('data-msg-id'), visible, top: rect.top, bottom: rect.bottom});
+      
       if (!visible) { return; }
       const id = el.getAttribute('data-msg-id');
       if (!id) return;
@@ -500,67 +499,62 @@ const handleContainerScroll = () => {
       })();
     });
     
-  }
-
   // ----- IntersectionObserver for on-demand translation (more reliable than scroll handler) -----
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !roomId || !lang) return;
 
-    // Reuse same logic as translateVisibleMessages but driven by IO events
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          const el = entry.target as HTMLElement;
-          const id = el.getAttribute('data-msg-id');
-          if (!id) return;
-          const msg = messages.find((m) => m.id === id);
-          if (!msg) return;
-          const { originalLang, translations } = msg;
-          if (translatedIdsRef.current.has(id)) return;
-          if (translatingRef.current.has(id)) return;
-          if (translations?.[lang]) return;
-          if (originalLang === lang) return;
+    const MAX_IO_CALLS = 5;
 
-          (async () => {
-            try {
-              translatingRef.current.add(id);
-              const translated = await translateText(msg.text, lang);
-              if (translated && translated !== msg.text) {
-                await updateDoc(doc(db, 'rooms', roomId, 'messages', id), {
-                  [`translations.${lang}`]: translated,
-                });
-                saveTranslatedId(id);
-              }
-            } catch (err) {
-              console.error('[Translation] IO on-demand error', err);
-            } finally {
-              translatingRef.current.delete(id);
-              observer.unobserve(el); // translate once per lang
-            }
-          })();
-        });
-      },
-      {
-        root: container,
-        threshold: 0.1,
-        rootMargin: '0px',
-      }
-    );
-
-    const timer = setTimeout(() => {
-      const containerRectNow = container.getBoundingClientRect();
-      const els = Array.from(container.querySelectorAll('[data-msg-id]')) as HTMLElement[];
-      // newest first
-      els.reverse().forEach((el) => {
+    const observer = new IntersectionObserver((entries) => {
+      let ioProcessed = 0;
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting || ioProcessed >= MAX_IO_CALLS) return;
+        const el = entry.target as HTMLElement;
         const id = el.getAttribute('data-msg-id');
-        const rectEl = el.getBoundingClientRect();
-        const visible = rectEl.bottom > containerRectNow.top && rectEl.top < containerRectNow.bottom;
-        console.log('[IO-Visibility]', {id, visible});
-        if (visible) {
-          observer.observe(el);
-        }
+        if (!id) return;
+        const msg = messages.find((m) => m.id === id);
+        if (!msg) return;
+        const { originalLang, translations } = msg;
+        if (translatedIdsRef.current.has(id)) return;
+        if (translatingRef.current.has(id)) return;
+        if (translations?.[lang]) return;
+        if (originalLang === lang) return;
+
+        ioProcessed++;
+        (async () => {
+          try {
+            translatingRef.current.add(id);
+            const translated = await translateText(msg.text, lang);
+            if (translated && translated !== msg.text) {
+              await updateDoc(doc(db, 'rooms', roomId, 'messages', id), {
+                [`translations.${lang}`]: translated,
+              });
+              saveTranslatedId(id);
+            }
+          } catch (err) {
+            console.error('[Translation] IO on-demand error', err);
+          } finally {
+            translatingRef.current.delete(id);
+            observer.unobserve(el); // translate once per lang
+          }
+        })();
+      });
+    }, {
+      root: container,
+      threshold: 0.1,
+      rootMargin: '0px',
+    });
+
+    // Observe current visible elements after a short delay (allow DOM to paint)
+    const timer = setTimeout(() => {
+      const containerRect = container.getBoundingClientRect();
+      const els = Array.from(container.querySelectorAll('[data-msg-id]')) as HTMLElement[];
+      els.forEach((el) => {
+        const id = el.getAttribute('data-msg-id');
+        if (!id) return;
+        if (translatedIdsRef.current.has(id)) return;
+        observer.observe(el);
       });
     }, 300);
 
