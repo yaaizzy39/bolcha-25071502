@@ -199,7 +199,13 @@ function ChatRoom({ user }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const prevLangRef = useRef<string | undefined>(undefined);
-  const translatedIdsRef = useRef<Set<string>>(new Set(JSON.parse(sessionStorage.getItem(`translated-${lang}`) || '[]')));
+  const translatedIdsRef = useRef<Set<string>>(new Set());
+  // Reset translated ID cache when language changes
+  useEffect(() => {
+    translatedIdsRef.current = new Set(
+      JSON.parse(sessionStorage.getItem(`translated-${lang}`) || '[]')
+    );
+  }, [lang]);
   const saveTranslatedId = (id: string) => {
     translatedIdsRef.current.add(id);
     sessionStorage.setItem(`translated-${lang}`, JSON.stringify(Array.from(translatedIdsRef.current)));
@@ -464,13 +470,14 @@ useEffect(() => {
     const elements = (container ?? document).querySelectorAll('[data-msg-id]') as NodeListOf<HTMLElement>;
     let processed = 0;
     const MAX_PER_CALL = 5;
-    elements.forEach((el) => {
+    
+  elements.forEach((el) => {
       if (processed >= MAX_PER_CALL) return;
       const rect = el.getBoundingClientRect();
       const visible = rootRect
         ? rect.bottom > rootRect.top && rect.top < rootRect.bottom
         : rect.bottom > 0 && rect.top < window.innerHeight;
-      if (!visible) return;
+      if (!visible) { return; }
       const id = el.getAttribute('data-msg-id');
       if (!id) return;
       const msg = messages.find((m) => m.id === id);
@@ -500,6 +507,7 @@ useEffect(() => {
         }
       })();
     });
+    
   }
 
   // --- Centralized Translation Logic ---
@@ -558,10 +566,8 @@ useEffect(() => {
       }
     };
 
-    // Iterate over all messages and process them
-    const RECENT_TRANSLATION_LIMIT = 10;
-    const recentMessages = [...messages].slice(-RECENT_TRANSLATION_LIMIT).reverse();
-    recentMessages.forEach(processMessage);
+    // 初期ロード時: まず現在ビューポート内にあるメッセージのみ翻訳
+    translateVisibleMessages();
 
     // attempt to translate messages currently visible in viewport (only if language
     // hasn't just changed; avoids mass-translation on lang switch)
