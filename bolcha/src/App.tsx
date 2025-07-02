@@ -59,12 +59,25 @@ function App() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <header style={{ display: "flex", justifyContent: "space-between", padding: "1rem 1rem 0 1rem" }}>
+      <header style={{
+                        display: "flex",
+        justifyContent: "space-between",
+        
+        position: "fixed",
+        width: "100%",
+        left: 0,
+        right: 0,
+        top: 0,
+        background: "#fff",
+        zIndex: 100,
+        boxShadow: "0 1px 4px rgba(0,0,0,0.06)"
+      }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto', padding: '1rem 1rem 0 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
         <h2 style={{ margin: 0, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
   <img    
     src="/Bolcha-icon-250614-01.svg"
     alt="Bolcha icon"
-    width={28}
+    
     height={28}
     style={{ marginRight: 8, verticalAlign: 'middle', display: 'inline-block' }}
   />
@@ -84,15 +97,18 @@ function App() {
               <img
                 src={user.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E"}
                 alt="my avatar"
-                width={28}
+                
+
                 height={28}
-                style={{ borderRadius: "50%", background: "#eee", marginLeft: 4, marginRight: 4 }}
+                style={{ borderRadius: '50%', background: '#eee', marginLeft: 4, marginRight: 4 }}
               />
             </>
           )}
+
         </div>
+              </div>
       </header>
-      <main style={{ padding: "0 1rem 1rem 1rem", flex: 1, display: "flex", flexDirection: "column" }}>
+      <main style={{ padding: "60px 1rem 1rem 1rem", flex: 1, display: "flex", flexDirection: "column" }}>
         <Routes>
           <Route path="/" element={<Rooms user={user!} />} />
           <Route path="/rooms/:roomId" element={<ChatRoom user={user!} />} />
