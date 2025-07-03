@@ -73,7 +73,6 @@ function formatTime(date: Date, lang: string) {
 }
 
 function ChatRoom({ user }: Props) {
-  
   // --- Room Deletion and Auto-Delete Warning State ---
   const navigate = useNavigate();
 
@@ -490,19 +489,17 @@ const handleContainerScroll = () => {
 
   // ----- IntersectionObserver initialization (only when room changes) -----
   useEffect(() => {
+    if (!roomId) return;
+    
     const container = containerRef.current;
-    if (!container || !roomId) return;
-
+    if (!container) return;
     const MAX_IO_CALLS = 5;
 
     const observer = new IntersectionObserver((entries) => {
-      console.log(`[IntersectionObserver] Processing ${entries.length} entries`);
       let ioProcessed = 0;
       entries.forEach((entry) => {
         const el = entry.target as HTMLElement;
         const id = el.getAttribute('data-msg-id');
-        
-        console.log(`[IntersectionObserver] Entry: ${id}, isIntersecting: ${entry.isIntersecting}, processed: ${ioProcessed}/${MAX_IO_CALLS}`);
         
         if (!entry.isIntersecting || ioProcessed >= MAX_IO_CALLS) return;
         if (!id) return;
@@ -510,50 +507,43 @@ const handleContainerScroll = () => {
         // Use latest values to avoid stale closure
         const { messages: currentMessages, lang: currentLang } = latestValuesRef.current;
         const msg = currentMessages.find((m) => m.id === id);
-        if (!msg) {
-          console.log(`[IntersectionObserver] Message not found: ${id}`);
-          return;
-        }
+        if (!msg) return;
+        
         const { originalLang, translations } = msg;
         
-        console.log(`[IntersectionObserver] Checking ${id}: originalLang=${originalLang}, currentLang=${currentLang}, hasTranslation=${!!translations?.[currentLang]}, isTranslating=${translatingRef.current.has(id)}, isTranslated=${translatedIdsRef.current.has(id)}`);
-        
-        if (translatedIdsRef.current.has(id)) {
-          console.log(`[IntersectionObserver] Already translated: ${id}`);
-          return;
-        }
-        if (translatingRef.current.has(id)) {
-          console.log(`[IntersectionObserver] Currently translating: ${id}`);
-          return;
-        }
-        if (translations?.[currentLang]) {
-          console.log(`[IntersectionObserver] Translation already exists: ${id}`);
-          return;
-        }
-        if (!originalLang || originalLang === currentLang) {
-          console.log(`[IntersectionObserver] Same language: ${id} (${originalLang} === ${currentLang})`);
-          return;
-        }
+        if (translatedIdsRef.current.has(id)) return;
+        if (translatingRef.current.has(id)) return;
+        if (translations?.[currentLang]) return;
+        if (!originalLang || originalLang === currentLang) return;
 
-        console.log(`[IntersectionObserver] Starting translation: ${id} from ${originalLang} to ${currentLang}`);
         ioProcessed++;
         translateMessage(id, msg.text, currentLang);
       });
     }, {
-      root: container,
-      threshold: 0.1,
-      rootMargin: '0px',
+      root: null, // Use viewport instead of container
+      threshold: [0, 0.1, 0.5, 1.0], // Multiple thresholds for better detection
+      rootMargin: '50px', // Expand detection area
     });
 
     observerRef.current = observer;
 
-    // Observe all current message elements
-    const timer = setTimeout(() => {
+    // Observe all current message elements - retry until elements are found
+    const observeElements = () => {
       const els = Array.from(container.querySelectorAll('[data-msg-id]')) as HTMLElement[];
+      
+      if (els.length === 0) {
+        // Retry after a longer delay if no elements found
+        setTimeout(observeElements, 500);
+        return;
+      }
+      
       els.forEach((el) => {
         observer.observe(el);
       });
-    }, 300);
+    };
+    
+    // Start with initial delay, then retry if needed
+    const timer = setTimeout(observeElements, 300);
 
     return () => {
       clearTimeout(timer);
@@ -581,21 +571,14 @@ const handleContainerScroll = () => {
       // Get current messages from latest ref to avoid stale state
       const currentMessages = latestValuesRef.current.messages;
       
-      if (currentMessages.length === 0) {
-        console.log(`[Translation] No messages available yet, skipping language change translation`);
-        return;
-      }
+      if (currentMessages.length === 0) return;
       
       // Find currently visible message elements more precisely
       const containerRect = container.getBoundingClientRect();
       const containerTop = containerRect.top;
       const containerBottom = containerRect.bottom;
       
-      console.log(`[Translation] Language changed to ${lang}, checking visible messages in range ${containerTop} - ${containerBottom}`);
-      console.log(`[Translation] Available messages: ${currentMessages.length}`);
-      
       const allElements = Array.from(container.querySelectorAll('[data-msg-id]')) as HTMLElement[];
-      console.log(`[Translation] Found ${allElements.length} message elements in DOM`);
       
       const visibleElementsWithRect = allElements
         .map((el) => {
@@ -611,11 +594,6 @@ const handleContainerScroll = () => {
       // Sort visible elements by their position: bottom to top (newer messages first)
       visibleElementsWithRect.sort((a, b) => b.rect.top - a.rect.top);
 
-      console.log(`[Translation] Found ${visibleElementsWithRect.length} visible messages out of ${allElements.length} total`);
-      visibleElementsWithRect.forEach((item, index) => {
-        console.log(`[Translation] Visible element ${index}: ${item.el.getAttribute('data-msg-id')}, rect: ${item.rect.top} - ${item.rect.bottom}`);
-      });
-
       // Translate visible messages that need translation, with rate limiting
       let processed = 0;
       const MAX_LANG_CHANGE_TRANSLATIONS = 10;
@@ -628,10 +606,7 @@ const handleContainerScroll = () => {
         if (!id) return;
         
         const msg = currentMessages.find((m) => m.id === id);
-        if (!msg) {
-          console.log(`[Translation] Message not found in state: ${id}`);
-          return;
-        }
+        if (!msg) return;
         
         const { originalLang, translations } = msg;
         if (translatedIdsRef.current.has(id)) return;
@@ -639,12 +614,9 @@ const handleContainerScroll = () => {
         if (translations?.[lang]) return;
         if (!originalLang || originalLang === lang) return;
 
-        console.log(`[Translation] Translating visible message ${id} from ${originalLang} to ${lang}`);
         processed++;
         translateMessage(id, msg.text, lang);
       });
-      
-      console.log(`[Translation] Started translation for ${processed} visible messages`);
     }, 300); // Increase delay to ensure messages are rendered
 
     return () => clearTimeout(timer);
@@ -652,26 +624,20 @@ const handleContainerScroll = () => {
 
   // ----- Handle new messages: add them to observer -----
   useEffect(() => {
-    if (!observerRef.current) {
-      console.log(`[Observer] No observer ref available`);
-      return;
-    }
+    if (!observerRef.current) return;
     
     const container = containerRef.current;
-    if (!container) {
-      console.log(`[Observer] No container ref available`);
-      return;
-    }
+    if (!container) return;
 
-    console.log(`[Observer] Messages changed, updating observer targets. Message count: ${messages.length}`);
+    if (messages.length === 0) return;
 
-    // Find new message elements that aren't being observed yet
+    // Find message elements and add them to observer
     const timer = setTimeout(() => {
       const allElements = Array.from(container.querySelectorAll('[data-msg-id]')) as HTMLElement[];
-      console.log(`[Observer] Found ${allElements.length} message elements to observe`);
+      
+      if (allElements.length === 0) return;
+      
       allElements.forEach((el) => {
-        const id = el.getAttribute('data-msg-id');
-        console.log(`[Observer] Adding element to observer: ${id}`);
         // IntersectionObserver will automatically handle new elements
         // No need to check if already observing as observe() is idempotent
         observerRef.current?.observe(el);
