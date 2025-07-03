@@ -20,6 +20,7 @@ import useIsAdmin from "../hooks/useIsAdmin";
 import { detectLanguage } from "../langDetect";
 import { useI18n } from "../i18n";
 import { useUserPrefs } from "../hooks/useUserPrefs";
+import { translateText } from "../translation";
 
 import type { User } from "firebase/auth";
 import type { UserPreferences, Message } from "../types";
@@ -197,6 +198,13 @@ function ChatRoom({ user }: Props) {
       JSON.parse(sessionStorage.getItem(`translated-${lang}`) || '[]')
     );
   }, [lang]);
+  
+  const saveTranslatedId = (id: string) => {
+    translatedIdsRef.current.add(id);
+    sessionStorage.setItem(`translated-${lang}`, JSON.stringify(Array.from(translatedIdsRef.current)));
+  };
+
+  const translatingRef = useRef<Set<string>>(new Set());
 
   // NOTE: 以前は IntersectionObserver でスクロール位置を判定していましたが、
   // Sentinel 要素が高さ 0 のため誤検知が起こるケースがありました。
@@ -454,7 +462,7 @@ const handleContainerScroll = () => {
     });*/
     
   // ----- IntersectionObserver for on-demand translation (more reliable than scroll handler) -----
-  /*useEffect(() => {
+  useEffect(() => {
     const container = containerRef.current;
     if (!container || !roomId || !lang) return;
 
@@ -515,7 +523,7 @@ const handleContainerScroll = () => {
       clearTimeout(timer);
       observer.disconnect();
     };
-  }, [lang, roomId]); // Remove messages from deps - observer handles message changes dynamically*/
+  }, [lang, roomId, messages]); // messagesを依存関係に追加して新しいメッセージも観察対象にする
 
   // load / subscribe to user profiles referenced in messages
   /*useEffect(() => {
@@ -557,10 +565,23 @@ const handleContainerScroll = () => {
       originalLang: origLang,
       translations: {},
     };
+    
     // if same language, store translation stub to Firestore
     if (origLang === lang) {
       docData.translations = { [lang]: trimmed };
+    } else {
+      // 設定言語と異なる場合、設定言語に翻訳
+      try {
+        const translated = await translateText(trimmed, lang);
+        if (translated && translated !== trimmed) {
+          docData.translations = { [lang]: translated };
+        }
+      } catch (error) {
+        console.error('[Translation] Failed to translate message at post time:', error);
+        // 翻訳に失敗しても投稿は続行
+      }
     }
+    
     await addDoc(msgsRef, docData);
     // update room lastActivityAt
     // if same language, also update local cache to prevent API call
