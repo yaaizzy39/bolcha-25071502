@@ -549,9 +549,18 @@ const handleContainerScroll = () => {
 
   const sendMessage = async () => {
     if (!text.trim() || !roomId) return;
-    const origLangRaw = await detectLanguage(text.trim());
-    const origLang = normalizeLang(origLangRaw);
+    
     const trimmed = text.trim();
+    
+    // 先に入力欄をクリアしてUIの応答性を向上
+    setText("");
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
+    setReplyTarget(null);
+    
+    const origLangRaw = await detectLanguage(trimmed);
+    const origLang = normalizeLang(origLangRaw);
 
     const msgsRef = collection(db, "rooms", roomId, "messages");
     // prepare initial doc data
@@ -600,11 +609,6 @@ const handleContainerScroll = () => {
         throw err;
       }
     }
-    setText("");
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-    }
-    setReplyTarget(null);
   };
 
 
