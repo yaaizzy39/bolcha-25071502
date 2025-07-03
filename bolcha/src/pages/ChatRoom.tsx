@@ -461,46 +461,83 @@ const handleContainerScroll = () => {
       })();
     });*/
     
-  // ----- IntersectionObserver for on-demand translation (more reliable than scroll handler) -----
+  // IntersectionObserver instance (persistent across language changes)
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  
+  // Keep latest values accessible in observer callback (avoid stale closure)
+  const latestValuesRef = useRef({ messages, lang, roomId });
+  latestValuesRef.current = { messages, lang, roomId };
+
+  // Helper function to translate a single message
+  const translateMessage = async (messageId: string, messageText: string, toLang: string) => {
+    if (!roomId) return;
+    
+    try {
+      translatingRef.current.add(messageId);
+      const translated = await translateText(messageText, toLang);
+      if (translated && translated !== messageText) {
+        await updateDoc(doc(db, 'rooms', roomId, 'messages', messageId), {
+          [`translations.${toLang}`]: translated,
+        });
+        saveTranslatedId(messageId);
+      }
+    } catch (err) {
+      console.error('[Translation] Error translating message:', err);
+    } finally {
+      translatingRef.current.delete(messageId);
+    }
+  };
+
+  // ----- IntersectionObserver initialization (only when room changes) -----
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !roomId || !lang) return;
+    if (!container || !roomId) return;
 
     const MAX_IO_CALLS = 5;
 
     const observer = new IntersectionObserver((entries) => {
+      console.log(`[IntersectionObserver] Processing ${entries.length} entries`);
       let ioProcessed = 0;
       entries.forEach((entry) => {
-        if (!entry.isIntersecting || ioProcessed >= MAX_IO_CALLS) return;
         const el = entry.target as HTMLElement;
         const id = el.getAttribute('data-msg-id');
+        
+        console.log(`[IntersectionObserver] Entry: ${id}, isIntersecting: ${entry.isIntersecting}, processed: ${ioProcessed}/${MAX_IO_CALLS}`);
+        
+        if (!entry.isIntersecting || ioProcessed >= MAX_IO_CALLS) return;
         if (!id) return;
-        const msg = messages.find((m) => m.id === id);
-        if (!msg) return;
+        
+        // Use latest values to avoid stale closure
+        const { messages: currentMessages, lang: currentLang } = latestValuesRef.current;
+        const msg = currentMessages.find((m) => m.id === id);
+        if (!msg) {
+          console.log(`[IntersectionObserver] Message not found: ${id}`);
+          return;
+        }
         const { originalLang, translations } = msg;
-        if (translatedIdsRef.current.has(id)) return;
-        if (translatingRef.current.has(id)) return;
-        if (translations?.[lang]) return;
-        if (originalLang === lang) return;
+        
+        console.log(`[IntersectionObserver] Checking ${id}: originalLang=${originalLang}, currentLang=${currentLang}, hasTranslation=${!!translations?.[currentLang]}, isTranslating=${translatingRef.current.has(id)}, isTranslated=${translatedIdsRef.current.has(id)}`);
+        
+        if (translatedIdsRef.current.has(id)) {
+          console.log(`[IntersectionObserver] Already translated: ${id}`);
+          return;
+        }
+        if (translatingRef.current.has(id)) {
+          console.log(`[IntersectionObserver] Currently translating: ${id}`);
+          return;
+        }
+        if (translations?.[currentLang]) {
+          console.log(`[IntersectionObserver] Translation already exists: ${id}`);
+          return;
+        }
+        if (!originalLang || originalLang === currentLang) {
+          console.log(`[IntersectionObserver] Same language: ${id} (${originalLang} === ${currentLang})`);
+          return;
+        }
 
+        console.log(`[IntersectionObserver] Starting translation: ${id} from ${originalLang} to ${currentLang}`);
         ioProcessed++;
-        (async () => {
-          try {
-            translatingRef.current.add(id);
-            const translated = await translateText(msg.text, lang);
-            if (translated && translated !== msg.text) {
-              await updateDoc(doc(db, 'rooms', roomId, 'messages', id), {
-                [`translations.${lang}`]: translated,
-              });
-              saveTranslatedId(id);
-            }
-          } catch (err) {
-            console.error('[Translation] IO on-demand error', err);
-          } finally {
-            translatingRef.current.delete(id);
-            observer.unobserve(el); // translate once per lang
-          }
-        })();
+        translateMessage(id, msg.text, currentLang);
       });
     }, {
       root: container,
@@ -508,13 +545,12 @@ const handleContainerScroll = () => {
       rootMargin: '0px',
     });
 
-    // Observe current visible elements after a short delay (allow DOM to paint)
+    observerRef.current = observer;
+
+    // Observe all current message elements
     const timer = setTimeout(() => {
       const els = Array.from(container.querySelectorAll('[data-msg-id]')) as HTMLElement[];
       els.forEach((el) => {
-        const id = el.getAttribute('data-msg-id');
-        if (!id) return;
-        if (translatedIdsRef.current.has(id)) return;
         observer.observe(el);
       });
     }, 300);
@@ -522,8 +558,128 @@ const handleContainerScroll = () => {
     return () => {
       clearTimeout(timer);
       observer.disconnect();
+      observerRef.current = null;
     };
-  }, [lang, roomId, messages]); // messagesを依存関係に追加して新しいメッセージも観察対象にする
+  }, [roomId]); // Only depend on roomId, not on lang or messages
+
+  // Track previous language to detect actual language changes
+  const prevLangRef = useRef(lang);
+  
+  // ----- Handle language changes: translate only currently visible messages -----
+  useEffect(() => {
+    // Only execute when language actually changes (not on initial mount or message updates)
+    if (prevLangRef.current === lang) return;
+    prevLangRef.current = lang;
+    
+    if (!roomId || !lang) return;
+    
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Add a small delay to ensure DOM is updated and messages are rendered
+    const timer = setTimeout(() => {
+      // Get current messages from latest ref to avoid stale state
+      const currentMessages = latestValuesRef.current.messages;
+      
+      if (currentMessages.length === 0) {
+        console.log(`[Translation] No messages available yet, skipping language change translation`);
+        return;
+      }
+      
+      // Find currently visible message elements more precisely
+      const containerRect = container.getBoundingClientRect();
+      const containerTop = containerRect.top;
+      const containerBottom = containerRect.bottom;
+      
+      console.log(`[Translation] Language changed to ${lang}, checking visible messages in range ${containerTop} - ${containerBottom}`);
+      console.log(`[Translation] Available messages: ${currentMessages.length}`);
+      
+      const allElements = Array.from(container.querySelectorAll('[data-msg-id]')) as HTMLElement[];
+      console.log(`[Translation] Found ${allElements.length} message elements in DOM`);
+      
+      const visibleElementsWithRect = allElements
+        .map((el) => {
+          const rect = el.getBoundingClientRect();
+          const isVisible = (
+            rect.bottom > containerTop + 10 && // Add small margin
+            rect.top < containerBottom - 10     // Add small margin
+          );
+          return { el, rect, isVisible };
+        })
+        .filter((item) => item.isVisible);
+
+      // Sort visible elements by their position: bottom to top (newer messages first)
+      visibleElementsWithRect.sort((a, b) => b.rect.top - a.rect.top);
+
+      console.log(`[Translation] Found ${visibleElementsWithRect.length} visible messages out of ${allElements.length} total`);
+      visibleElementsWithRect.forEach((item, index) => {
+        console.log(`[Translation] Visible element ${index}: ${item.el.getAttribute('data-msg-id')}, rect: ${item.rect.top} - ${item.rect.bottom}`);
+      });
+
+      // Translate visible messages that need translation, with rate limiting
+      let processed = 0;
+      const MAX_LANG_CHANGE_TRANSLATIONS = 10;
+
+      visibleElementsWithRect.forEach((item) => {
+        const el = item.el;
+        if (processed >= MAX_LANG_CHANGE_TRANSLATIONS) return;
+        
+        const id = el.getAttribute('data-msg-id');
+        if (!id) return;
+        
+        const msg = currentMessages.find((m) => m.id === id);
+        if (!msg) {
+          console.log(`[Translation] Message not found in state: ${id}`);
+          return;
+        }
+        
+        const { originalLang, translations } = msg;
+        if (translatedIdsRef.current.has(id)) return;
+        if (translatingRef.current.has(id)) return;
+        if (translations?.[lang]) return;
+        if (!originalLang || originalLang === lang) return;
+
+        console.log(`[Translation] Translating visible message ${id} from ${originalLang} to ${lang}`);
+        processed++;
+        translateMessage(id, msg.text, lang);
+      });
+      
+      console.log(`[Translation] Started translation for ${processed} visible messages`);
+    }, 300); // Increase delay to ensure messages are rendered
+
+    return () => clearTimeout(timer);
+  }, [lang]); // Only depend on lang, but use prevLangRef to detect actual changes
+
+  // ----- Handle new messages: add them to observer -----
+  useEffect(() => {
+    if (!observerRef.current) {
+      console.log(`[Observer] No observer ref available`);
+      return;
+    }
+    
+    const container = containerRef.current;
+    if (!container) {
+      console.log(`[Observer] No container ref available`);
+      return;
+    }
+
+    console.log(`[Observer] Messages changed, updating observer targets. Message count: ${messages.length}`);
+
+    // Find new message elements that aren't being observed yet
+    const timer = setTimeout(() => {
+      const allElements = Array.from(container.querySelectorAll('[data-msg-id]')) as HTMLElement[];
+      console.log(`[Observer] Found ${allElements.length} message elements to observe`);
+      allElements.forEach((el) => {
+        const id = el.getAttribute('data-msg-id');
+        console.log(`[Observer] Adding element to observer: ${id}`);
+        // IntersectionObserver will automatically handle new elements
+        // No need to check if already observing as observe() is idempotent
+        observerRef.current?.observe(el);
+      });
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [messages]); // Trigger only when messages change
 
   // load / subscribe to user profiles referenced in messages
   /*useEffect(() => {
