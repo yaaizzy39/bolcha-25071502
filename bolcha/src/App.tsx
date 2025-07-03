@@ -43,8 +43,11 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const isAdmin = useIsAdmin(user);
 
+  const location = useLocation();
+  
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
+      console.log('[App] Auth state changed:', u ? 'User logged in' : 'User logged out');
       setUser(u);
     });
     return unsub;
@@ -53,8 +56,6 @@ function App() {
   if (!user) {
     return <Login />;
   }
-
-  const location = useLocation();
   const hideNav = location.pathname.startsWith("/profile");
 
   return (

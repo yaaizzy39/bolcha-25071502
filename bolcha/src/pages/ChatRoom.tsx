@@ -16,7 +16,6 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { setDoc } from "firebase/firestore";
-import { translateText } from "../translation";
 import useIsAdmin from "../hooks/useIsAdmin";
 import { detectLanguage } from "../langDetect";
 import { useI18n } from "../i18n";
@@ -73,7 +72,6 @@ function formatTime(date: Date, lang: string) {
 }
 
 function ChatRoom({ user }: Props) {
-  console.log('[ChatRoom] Component rendering - user:', user?.uid);
   
   // --- Room Deletion and Auto-Delete Warning State ---
   const navigate = useNavigate();
@@ -174,7 +172,6 @@ function ChatRoom({ user }: Props) {
     // Only sync once per component mount and when user changes
     syncLocalStorage();
   }, [user.uid]); // Only depend on user.uid, not prefs to prevent loop
-  const [profiles, setProfiles] = useState<Record<string, { photoURL?: string }>>({});
 
   // Derived state for translations using useMemo
   const translations = useMemo(() => {
@@ -200,10 +197,6 @@ function ChatRoom({ user }: Props) {
       JSON.parse(sessionStorage.getItem(`translated-${lang}`) || '[]')
     );
   }, [lang]);
-  const saveTranslatedId = (id: string) => {
-    translatedIdsRef.current.add(id);
-    sessionStorage.setItem(`translated-${lang}`, JSON.stringify(Array.from(translatedIdsRef.current)));
-  };
 
   // NOTE: 以前は IntersectionObserver でスクロール位置を判定していましたが、
   // Sentinel 要素が高さ 0 のため誤検知が起こるケースがありました。
@@ -225,12 +218,10 @@ function ChatRoom({ user }: Props) {
     }
   }, [replyTarget]);
 
-  const translatingRef = useRef<Set<string>>(new Set());
   // Scroll-related state and refs have been temporarily removed for diagnostics.
 
   // Firestore: subscribe to messages in real-time
   useEffect(() => {
-    console.log('[ChatRoom] useEffect triggered with roomId:', roomId);
     if (!roomId) return;
     const q = query(
       collection(db, "rooms", roomId, "messages"),
@@ -238,10 +229,8 @@ function ChatRoom({ user }: Props) {
     );
 
     const unsub = onSnapshot(q, (snap) => {
-      console.log('[ChatRoom] Firestore snapshot received:', snap.docs.length, 'documents');
       const msgs: Message[] = snap.docs.map((doc) => {
         const data = doc.data();
-        console.log('[ChatRoom] Processing message:', doc.id, data);
         return {
           id: doc.id,
           text: data.text,
@@ -254,7 +243,6 @@ function ChatRoom({ user }: Props) {
           translations: data.translations,
         };
       });
-      console.log('[ChatRoom] Setting messages:', msgs.length);
       setMessages(msgs);
     });
     return unsub;
@@ -303,7 +291,6 @@ const getBottomDistance = () => {
   return document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
 };
 
-const isAtBottom = () => getBottomDistance() < 40;
 const prevMessageCount = useRef(messages.length);
 
 // 新着メッセージ時の自動スクロール判定
@@ -419,7 +406,7 @@ const handleContainerScroll = () => {
 
   /* ---------- Translation helpers ---------- */
   
-    if (!roomId || !lang) return;
+  /*  if (!roomId || !lang) return;
     const container = containerRef.current;
     if (!container) return; // require container
     
@@ -464,10 +451,10 @@ const handleContainerScroll = () => {
           translatingRef.current.delete(id);
         }
       })();
-    });
+    });*/
     
   // ----- IntersectionObserver for on-demand translation (more reliable than scroll handler) -----
-  useEffect(() => {
+  /*useEffect(() => {
     const container = containerRef.current;
     if (!container || !roomId || !lang) return;
 
@@ -528,10 +515,10 @@ const handleContainerScroll = () => {
       clearTimeout(timer);
       observer.disconnect();
     };
-  }, [lang, roomId]); // Remove messages from deps - observer handles message changes dynamically
+  }, [lang, roomId]); // Remove messages from deps - observer handles message changes dynamically*/
 
   // load / subscribe to user profiles referenced in messages
-  useEffect(() => {
+  /*useEffect(() => {
     const uids = Array.from(new Set(messages.map((m) => m.uid)));
     const missingUids = uids.filter(uid => !profiles[uid]);
     
@@ -547,7 +534,7 @@ const handleContainerScroll = () => {
     return () => {
       unsubscribes.forEach((fn) => fn());
     };
-  }, [messages]); // Remove profiles from deps to prevent infinite loop
+  }, [messages]); // Remove profiles from deps to prevent infinite loop*/
 
   // helper: ensure 2-letter lowercase code
   const normalizeLang = (c: string | undefined | null) => (c || 'en').slice(0, 2).toLowerCase();
@@ -599,8 +586,8 @@ const handleContainerScroll = () => {
     setReplyTarget(null);
   };
 
-  
 
+  
   return (
     <>
       {/* Show auto-delete warning bar at the very top if needed */}
@@ -651,12 +638,7 @@ const handleContainerScroll = () => {
         style={{ flex: 1, overflowY: "auto", padding: "0.5rem", position: "relative", marginTop: 44 }}
       >
         {(() => {
-          console.log('[ChatRoom] BEFORE MAP - messages array:', messages);
-          console.log('[ChatRoom] BEFORE MAP - messages length:', messages.length);
-          console.log('[ChatRoom] BEFORE MAP - messages type:', typeof messages);
-          console.log('[ChatRoom] BEFORE MAP - Array.isArray(messages):', Array.isArray(messages));
           return messages.map((m) => {
-            console.log('[ChatRoom] Rendering message:', m.id);
           const isMe = m.uid === user.uid;
           const avatar = userPrefs[m.uid]?.photoURL || (isMe ? user.photoURL : undefined) || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E";
           const myDir = isMe ? (prefs.side === "right" ? "row-reverse" : "row") : "row";

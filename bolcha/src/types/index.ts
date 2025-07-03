@@ -21,11 +21,12 @@ export interface RoomData {
 
 export interface Message {
   id: string;
-  uid: string;
   text: string;
-  createdAt: FirestoreTimestamp;
-  likes?: { [uid: string]: boolean };
-  translatedText?: string;
-  originalText?: string;
-  isTranslated?: boolean;
+  uid: string;
+  createdAt: Date;
+  readBy?: string[];
+  likes?: string[];
+  replyTo?: string;
+  originalLang?: string; // ISO-639-1 code of source language
+  translations?: Record<string, string>; // cached translations per language
 }

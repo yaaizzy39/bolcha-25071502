@@ -7,10 +7,10 @@ import { I18nProvider } from "./i18n";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <I18nProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <I18nProvider>
         <App />
-      </BrowserRouter>
-    </I18nProvider>
+      </I18nProvider>
+    </BrowserRouter>
   </StrictMode>
 );
