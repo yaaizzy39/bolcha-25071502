@@ -20,23 +20,11 @@ import { translateText } from "../translation";
 import useIsAdmin from "../hooks/useIsAdmin";
 import { detectLanguage } from "../langDetect";
 import { useI18n } from "../i18n";
+import { useUserPrefs } from "../hooks/useUserPrefs";
 
 import type { User } from "firebase/auth";
+import type { UserPreferences, Message } from "../types";
 import { doc as fbDoc, getDoc } from "firebase/firestore";
-
-
-
-type Message = {
-  id: string;
-  text: string;
-  uid: string;
-  createdAt: Date;
-  readBy?: string[];
-  likes?: string[];
-  replyTo?: string;
-  originalLang?: string; // ISO-639-1 code of source language
-  translations?: Record<string, string>; // cached translations per language
-};
 
 type Props = {
   user: User;
@@ -153,24 +141,8 @@ function ChatRoom({ user }: Props) {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [roomName, setRoomName] = useState<string>("");
-  const [userPrefs, setUserPrefs] = useState<Record<string, { photoURL?: string; bubbleColor?: string; textColor?: string; displayName?: string }>>({});
-  const [prefs, setPrefs] = useState<{
-    side: "left" | "right";
-    showOriginal: boolean;
-    lang?: string;
-    bubbleColor?: string;
-    textColor?: string;
-  }>(() => {
-    // Try to load from localStorage first for fast UI
-    try {
-      const stored = localStorage.getItem("chat_prefs");
-      if (stored) return JSON.parse(stored);
-    } catch {}
-    return { side: "right", showOriginal: true };
-  });
-  const [lang, setLang] = useState<string>(() => {
-    return localStorage.getItem("chat_lang") || "en";
-  });
+  const [userPrefs, setUserPrefs] = useState<Record<string, UserPreferences>>({});
+  const { prefs, setPrefs, lang, setLang } = useUserPrefs(user.uid);
 
   // persist language selection both locally and to Firestore
   useEffect(() => {
@@ -261,31 +233,6 @@ function ChatRoom({ user }: Props) {
     return unsub;
   }, [roomId]);
 
-  // load user preferences once on mount
-  useEffect(() => {
-    (async () => {
-      // Try to load from Firestore
-      try {
-        const snap = await getDoc(fbDoc(db, "users", user.uid));
-        if (snap.exists()) {
-          const data = snap.data() as any;
-          setPrefs((p) => {
-            const merged = { ...p, ...data };
-            // Persist to localStorage for next reload
-            try {
-              localStorage.setItem("chat_prefs", JSON.stringify(merged));
-            } catch {}
-            return merged;
-          });
-          if (data.lang) {
-            setLang(data.lang);
-          }
-        }
-      } catch {
-        // If Firestore fails, try to restore from localStorage (already done in initialState)
-      }
-    })();
-  }, [user.uid]);
 
   useEffect(() => {
     if (!roomId) return;
@@ -400,28 +347,6 @@ const handleContainerScroll = () => {
     };
   }, [lastActivityAt, autoDeleteHours, lang]);
 
-  // load current user's prefs on mount
-  useEffect(() => {
-    (async () => {
-      try {
-        const snap = await getDoc(fbDoc(db, "users", user.uid));
-        if (snap.exists()) {
-          const data = snap.data() as any;
-          setPrefs((p) => {
-            const merged = { ...p, ...data };
-            // Persist to localStorage for next reload
-            try {
-              localStorage.setItem("chat_prefs", JSON.stringify(merged));
-            } catch {}
-            return merged;
-          });
-          if (data.lang) {
-            setLang(data.lang);
-          }
-        }
-      } catch {}
-    })();
-  }, [user.uid]);
 
   // fetch missing user prefs when messages change
   useEffect(() => {

@@ -19,21 +19,14 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 // }
 import { db, storage } from "../firebase";
 import type { User } from "firebase/auth";
+import type { UserPreferences } from "../types";
 
 interface Props {
   user: User;
   onSaved?: () => void;
 }
 
-type Prefs = {
-  side: "left" | "right";
-  showOriginal: boolean;
-  photoURL?: string;
-  bubbleColor?: string;
-  textColor?: string;
-};
-
-const defaultPrefs: Prefs = {
+const defaultPrefs: UserPreferences = {
   side: "right",
   showOriginal: true,
   bubbleColor: "#ffffff",
@@ -43,7 +36,7 @@ const defaultPrefs: Prefs = {
 export default function Profile({ user, onSaved }: Props) {
   const navigate = useNavigate();
   const { lang: uiLang, setLang: setUiLang, t } = useI18n();
-  const [prefs, setPrefs] = useState<Prefs>(defaultPrefs);
+  const [prefs, setPrefs] = useState<UserPreferences>(defaultPrefs);
   const [saving, setSaving] = useState(false);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
 
@@ -51,7 +44,7 @@ export default function Profile({ user, onSaved }: Props) {
     const load = async () => {
       const snap = await getDoc(doc(db, "users", user.uid));
       if (snap.exists()) {
-        setPrefs({ ...defaultPrefs, ...snap.data() } as Prefs);
+        setPrefs({ ...defaultPrefs, ...snap.data() } as UserPreferences);
       }
     };
     load();

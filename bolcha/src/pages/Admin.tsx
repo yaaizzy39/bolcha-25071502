@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { db, functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
 import type { User } from "firebase/auth";
+import type { RoomData } from "../types";
 import useIsAdmin from "../hooks/useIsAdmin";
 import ConfirmModal from "../components/ConfirmModal";
 
@@ -11,7 +12,7 @@ export default function Admin({ user }: { user: User }) {
   const isAdmin = useIsAdmin(user);
   const [gasList, setGasList] = useState<string[]>([]);
   const [newUrl, setNewUrl] = useState("");
-  const [rooms, setRooms] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<(RoomData & { id: string })[]>([]);
   // room delete modal state
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [autoDeleteHours, setAutoDeleteHours] = useState<number>(24);
@@ -33,7 +34,7 @@ export default function Admin({ user }: { user: User }) {
     if (!isAdmin) return;
     const fetchRooms = async () => {
       const snap = await getDocs(collection(db, "rooms"));
-      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() as RoomData }));
       setRooms(list);
     };
     fetchRooms();
