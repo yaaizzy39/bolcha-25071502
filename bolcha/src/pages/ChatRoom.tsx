@@ -73,6 +73,8 @@ function formatTime(date: Date, lang: string) {
 }
 
 function ChatRoom({ user }: Props) {
+  console.log('[ChatRoom] Component rendering - user:', user?.uid);
+  
   // --- Room Deletion and Auto-Delete Warning State ---
   const navigate = useNavigate();
 
@@ -151,6 +153,27 @@ function ChatRoom({ user }: Props) {
       setDoc(doc(db, "users", user.uid), { lang }, { merge: true });
     });
   }, [lang, user.uid]);
+
+  // Sync localStorage changes for current user prefs (prevent infinite loop)
+  useEffect(() => {
+    const syncLocalStorage = () => {
+      try {
+        const stored = localStorage.getItem("chat_prefs");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (
+            (parsed.bubbleColor && parsed.bubbleColor !== prefs.bubbleColor) ||
+            (parsed.textColor && parsed.textColor !== prefs.textColor)
+          ) {
+            setPrefs(p => ({ ...p, ...parsed }));
+          }
+        }
+      } catch {}
+    };
+    
+    // Only sync once per component mount and when user changes
+    syncLocalStorage();
+  }, [user.uid]); // Only depend on user.uid, not prefs to prevent loop
   const [profiles, setProfiles] = useState<Record<string, { photoURL?: string }>>({});
 
   // Derived state for translations using useMemo
@@ -207,6 +230,7 @@ function ChatRoom({ user }: Props) {
 
   // Firestore: subscribe to messages in real-time
   useEffect(() => {
+    console.log('[ChatRoom] useEffect triggered with roomId:', roomId);
     if (!roomId) return;
     const q = query(
       collection(db, "rooms", roomId, "messages"),
@@ -214,8 +238,10 @@ function ChatRoom({ user }: Props) {
     );
 
     const unsub = onSnapshot(q, (snap) => {
+      console.log('[ChatRoom] Firestore snapshot received:', snap.docs.length, 'documents');
       const msgs: Message[] = snap.docs.map((doc) => {
         const data = doc.data();
+        console.log('[ChatRoom] Processing message:', doc.id, data);
         return {
           id: doc.id,
           text: data.text,
@@ -228,6 +254,7 @@ function ChatRoom({ user }: Props) {
           translations: data.translations,
         };
       });
+      console.log('[ChatRoom] Setting messages:', msgs.length);
       setMessages(msgs);
     });
     return unsub;
@@ -352,27 +379,42 @@ const handleContainerScroll = () => {
   useEffect(() => {
     const missing = Array.from(new Set(messages.map(m => m.uid))).filter(uid => !(uid in userPrefs));
     if (missing.length === 0) return;
-    missing.forEach(async (uid) => {
-      try {
-        // Try to load from localStorage for current user, else Firestore
-        if (uid === user.uid) {
-          try {
-            const stored = localStorage.getItem("chat_prefs");
-            if (stored) {
-              setUserPrefs(prev => ({ ...prev, [uid]: JSON.parse(stored) }));
-              return;
-            }
-          } catch {}
+    
+    // Batch update to prevent multiple re-renders
+    const fetchAllMissing = async () => {
+      const newPrefs: Record<string, UserPreferences> = {};
+      
+      for (const uid of missing) {
+        try {
+          // Try to load from localStorage for current user, else Firestore
+          if (uid === user.uid) {
+            try {
+              const stored = localStorage.getItem("chat_prefs");
+              if (stored) {
+                newPrefs[uid] = JSON.parse(stored);
+                continue;
+              }
+            } catch {}
+          }
+          const snap = await getDoc(fbDoc(db, "users", uid));
+          if (snap.exists()) {
+            newPrefs[uid] = snap.data() as any;
+          } else {
+            newPrefs[uid] = {};
+          }
+        } catch {
+          newPrefs[uid] = {};
         }
-        const snap = await getDoc(fbDoc(db, "users", uid));
-        if (snap.exists()) {
-          setUserPrefs(prev => ({ ...prev, [uid]: snap.data() as any }));
-        } else {
-          setUserPrefs(prev => ({ ...prev, [uid]: {} }));
-        }
-      } catch {}
-    });
-  }, [messages]);
+      }
+      
+      // Single batch update
+      if (Object.keys(newPrefs).length > 0) {
+        setUserPrefs(prev => ({ ...prev, ...newPrefs }));
+      }
+    };
+    
+    fetchAllMissing();
+  }, [messages, user.uid]); // Add user.uid to deps for consistency
 
 
   /* ---------- Translation helpers ---------- */
@@ -473,7 +515,6 @@ const handleContainerScroll = () => {
 
     // Observe current visible elements after a short delay (allow DOM to paint)
     const timer = setTimeout(() => {
-      const containerRect = container.getBoundingClientRect();
       const els = Array.from(container.querySelectorAll('[data-msg-id]')) as HTMLElement[];
       els.forEach((el) => {
         const id = el.getAttribute('data-msg-id');
@@ -487,14 +528,17 @@ const handleContainerScroll = () => {
       clearTimeout(timer);
       observer.disconnect();
     };
-  }, [messages, lang, roomId]);
+  }, [lang, roomId]); // Remove messages from deps - observer handles message changes dynamically
 
   // load / subscribe to user profiles referenced in messages
   useEffect(() => {
     const uids = Array.from(new Set(messages.map((m) => m.uid)));
+    const missingUids = uids.filter(uid => !profiles[uid]);
+    
+    if (missingUids.length === 0) return;
+    
     const unsubscribes: (() => void)[] = [];
-    uids.forEach((uid) => {
-      if (profiles[uid]) return; // already have
+    missingUids.forEach((uid) => {
       const unsub = onSnapshot(fbDoc(db, "users", uid), (snap) => {
         setProfiles((prev) => ({ ...prev, [uid]: { photoURL: snap.data()?.photoURL } }));
       });
@@ -503,7 +547,7 @@ const handleContainerScroll = () => {
     return () => {
       unsubscribes.forEach((fn) => fn());
     };
-  }, [messages, profiles]);
+  }, [messages]); // Remove profiles from deps to prevent infinite loop
 
   // helper: ensure 2-letter lowercase code
   const normalizeLang = (c: string | undefined | null) => (c || 'en').slice(0, 2).toLowerCase();
@@ -606,23 +650,18 @@ const handleContainerScroll = () => {
         onScroll={handleContainerScroll}
         style={{ flex: 1, overflowY: "auto", padding: "0.5rem", position: "relative", marginTop: 44 }}
       >
-        {messages.map((m) => {
+        {(() => {
+          console.log('[ChatRoom] BEFORE MAP - messages array:', messages);
+          console.log('[ChatRoom] BEFORE MAP - messages length:', messages.length);
+          console.log('[ChatRoom] BEFORE MAP - messages type:', typeof messages);
+          console.log('[ChatRoom] BEFORE MAP - Array.isArray(messages):', Array.isArray(messages));
+          return messages.map((m) => {
+            console.log('[ChatRoom] Rendering message:', m.id);
           const isMe = m.uid === user.uid;
           const avatar = userPrefs[m.uid]?.photoURL || (isMe ? user.photoURL : undefined) || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E";
           const myDir = isMe ? (prefs.side === "right" ? "row-reverse" : "row") : "row";
           const bubbleBg = isMe ? (prefs.bubbleColor ?? "#dcf8c6") : (userPrefs[m.uid]?.bubbleColor ?? "#fff");
           const textColor = isMe ? (prefs.textColor ?? "#000") : (userPrefs[m.uid]?.textColor ?? "#000");
-          // If the user changed their color in another tab, update from localStorage
-          if (isMe) {
-            try {
-              const stored = localStorage.getItem("chat_prefs");
-              if (stored) {
-                const parsed = JSON.parse(stored);
-                if (parsed.bubbleColor && parsed.bubbleColor !== prefs.bubbleColor) setPrefs(p => ({ ...p, bubbleColor: parsed.bubbleColor }));
-                if (parsed.textColor && parsed.textColor !== prefs.textColor) setPrefs(p => ({ ...p, textColor: parsed.textColor }));
-              }
-            } catch {}
-          }
           return (
             <div
               key={m.id}
@@ -778,6 +817,8 @@ const handleContainerScroll = () => {
                     const liked = (m.likes ?? []).includes(user.uid);
                     updateDoc(doc(db, "rooms", roomId, "messages", m.id), {
                       likes: liked ? arrayRemove(user.uid) : arrayUnion(user.uid),
+                    }).catch(err => {
+                      console.error('[Like] Update failed:', err);
                     });
                   }}
                   style={{
@@ -816,7 +857,8 @@ const handleContainerScroll = () => {
               </span>
             </div>
           );
-        })}
+          });
+        })()}
         <div ref={bottomRef} />
       </div>
       {confirmDelete && (
