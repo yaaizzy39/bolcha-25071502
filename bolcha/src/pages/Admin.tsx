@@ -126,12 +126,17 @@ export default function Admin({ user }: { user: User }) {
   const handleConfirmUserDelete = async () => {
     if (!deleteUserTarget) return;
     try {
+      // Get the user data before deletion to save display name
+      const userToDelete = users.find(u => u.id === deleteUserTarget);
+      const displayName = userToDelete?.displayName || deleteUserTarget;
+      
       // Add user to deleted users list first (for immediate logout trigger)
       const deletedUsersRef = doc(db, "admin", "deletedUsers");
       await setDoc(deletedUsersRef, { 
         [deleteUserTarget]: { 
           deletedAt: new Date(),
-          deletedBy: user.uid 
+          deletedBy: user.uid,
+          displayName: displayName
         } 
       }, { merge: true });
       
@@ -344,6 +349,7 @@ export default function Admin({ user }: { user: User }) {
             <thead>
               <tr style={{ borderBottom: "2px solid #ddd" }}>
                 <th style={{ textAlign: "left", padding: "8px 12px" }}>User ID</th>
+                <th style={{ textAlign: "left", padding: "8px 12px" }}>Display Name</th>
                 <th style={{ textAlign: "left", padding: "8px 12px" }}>Deleted At</th>
                 <th style={{ textAlign: "left", padding: "8px 12px" }}>Deleted By</th>
                 <th style={{ textAlign: "center", padding: "8px 12px" }}>Actions</th>
@@ -354,6 +360,9 @@ export default function Admin({ user }: { user: User }) {
                 <tr key={userId} style={{ borderBottom: "1px solid #eee" }}>
                   <td style={{ padding: "8px 12px", fontFamily: "monospace", fontSize: "0.85em" }}>
                     {userId}
+                  </td>
+                  <td style={{ padding: "8px 12px" }}>
+                    {data.displayName || "-"}
                   </td>
                   <td style={{ padding: "8px 12px" }}>
                     {data.deletedAt ? new Date(data.deletedAt.seconds * 1000).toLocaleString() : "-"}
