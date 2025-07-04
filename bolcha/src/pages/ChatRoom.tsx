@@ -48,13 +48,13 @@ function LikeIcon({ filled }: { filled: boolean }) {
   );
 }
 
-function formatTime(date: Date, lang: string) {
+function formatTime(date: Date, uiLang: string) {
   const now = new Date();
   const sameDay =
     now.getFullYear() === date.getFullYear() &&
     now.getMonth() === date.getMonth() &&
     now.getDate() === date.getDate();
-  if (lang === 'en') {
+  if (uiLang === 'en') {
     // Always use English locale
     if (sameDay) {
       return date.toLocaleTimeString('en-US', { hour: "2-digit", minute: "2-digit" });
@@ -62,6 +62,14 @@ function formatTime(date: Date, lang: string) {
     return date.toLocaleDateString('en-US', { month: "short", day: "numeric", year: "numeric" }) +
       ", " +
       date.toLocaleTimeString('en-US', { hour: "2-digit", minute: "2-digit" });
+  } else if (uiLang === 'ja') {
+    // Use Japanese locale
+    if (sameDay) {
+      return date.toLocaleTimeString('ja-JP', { hour: "2-digit", minute: "2-digit", hour12: false });
+    }
+    return date.toLocaleDateString('ja-JP', { month: "short", day: "numeric", year: "numeric" }) +
+      " " +
+      date.toLocaleTimeString('ja-JP', { hour: "2-digit", minute: "2-digit", hour12: false });
   } else {
     if (sameDay) {
       return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -994,7 +1002,7 @@ const handleContainerScroll = () => {
                     textAlign: "right",
                   }}
                 >
-                  {formatTime(m.createdAt, lang)}
+                  {formatTime(m.createdAt, uiLang)}
                   {isMe && (
                     <span style={{ marginLeft: 4 }}>
                       {m.readBy && m.readBy.length > 1 ? "✔✔" : "✔"}
