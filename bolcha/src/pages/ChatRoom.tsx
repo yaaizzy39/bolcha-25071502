@@ -800,11 +800,10 @@ const handleContainerScroll = () => {
         backgroundColor: prefs.backgroundColor || "#f5f5f5"
       }}>
         <div style={{
-            width: "100%",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "0 0.5rem 0 0.2rem",
+            padding: "0 0.5rem",
             minHeight: 36,
             position: "fixed",
             top: autoDeleteWarning ? 88 : 47,
@@ -812,9 +811,16 @@ const handleContainerScroll = () => {
             right: 0,
             background: "#fff",
             zIndex: 100,
-            boxShadow: "0 2px 1px rgba(0,0,0,0.06)",
+            boxShadow: "0 2px 1px rgba(0,0,0,0.06)"
+          }}>
+          <div style={{
             maxWidth: 1000,
-            margin: "0 auto"
+            width: "100%",
+            margin: "0 auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 0.5rem"
           }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span title="現在アクセス中の人数" style={{ fontWeight: 500, fontSize: '1rem', color: '#1e90ff' }}>
@@ -822,7 +828,7 @@ const handleContainerScroll = () => {
           </span>
           <span style={{ fontWeight: 700, fontSize: "1.2rem", letterSpacing: 1, margin: 0 }}>{roomName}</span>
         </div>
-        <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ marginRight: 24, height: 28, fontSize: "1rem", borderRadius: 12, border: "1px solid #ccc", padding: "0 8px" }}>
+            <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ height: 28, fontSize: "1rem", borderRadius: 12, border: "1px solid #ccc", padding: "0 8px" }}>
           {[
             ["en", "English"],
             ["ja", "日本語"],
@@ -836,7 +842,8 @@ const handleContainerScroll = () => {
             </option>
           ))}
         </select>
-      </div>
+          </div>
+        </div>
 
       <div
         ref={containerRef}
@@ -847,7 +854,9 @@ const handleContainerScroll = () => {
           padding: "0.5rem", 
           position: "relative", 
           marginTop: autoDeleteWarning ? 88 : 44,
-          backgroundColor: prefs.backgroundColor || "#f5f5f5"
+          backgroundColor: prefs.backgroundColor || "#f5f5f5",
+          maxWidth: 1000,
+          margin: "0 auto"
         }}
       >
         {(() => {
@@ -923,7 +932,7 @@ const handleContainerScroll = () => {
                   padding: "0.4rem 0.6rem",
                   borderRadius: "16px",
                   display: "inline-block",
-                  maxWidth: 1000,
+                  maxWidth: "70%",
                   width: "fit-content",
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word",
