@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, doc, onSnapshot, setDoc } from "firebase/firestore";
+import { collection, getDocs, doc, onSnapshot, setDoc, deleteDoc } from "firebase/firestore";
 import { Link } from "react-router-dom";
 import { db, functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
 import type { User } from "firebase/auth";
-import type { RoomData } from "../types";
+import type { RoomData, UserPreferences } from "../types";
 import useIsAdmin from "../hooks/useIsAdmin";
 import ConfirmModal from "../components/ConfirmModal";
 
@@ -17,6 +17,10 @@ export default function Admin({ user }: { user: User }) {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [autoDeleteHours, setAutoDeleteHours] = useState<number>(24);
   const [autoDeleteSaved, setAutoDeleteSaved] = useState(false);
+  
+  // user management state
+  const [users, setUsers] = useState<(UserPreferences & { id: string })[]>([]);
+  const [deleteUserTarget, setDeleteUserTarget] = useState<string | null>(null);
 
   useEffect(() => {
     const cfgRef = doc(db, "admin", "config");
@@ -38,6 +42,17 @@ export default function Admin({ user }: { user: User }) {
       setRooms(list);
     };
     fetchRooms();
+  }, [isAdmin]);
+
+  // Fetch users for admin management
+  useEffect(() => {
+    if (!isAdmin) return;
+    const fetchUsers = async () => {
+      const snap = await getDocs(collection(db, "users"));
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() as UserPreferences }));
+      setUsers(list);
+    };
+    fetchUsers();
   }, [isAdmin]);
 
   const saveGasList = async (list: string[]) => {
@@ -82,6 +97,35 @@ export default function Admin({ user }: { user: User }) {
     }
   };
   const handleCancelDelete = () => setDeleteTarget(null);
+
+  // User deletion functions
+  const handleDeleteUserClick = (userId: string) => {
+    // Prevent admin from deleting themselves
+    if (userId === user.uid) {
+      alert("You cannot delete your own account!");
+      return;
+    }
+    setDeleteUserTarget(userId);
+  };
+
+  const handleConfirmUserDelete = async () => {
+    if (!deleteUserTarget) return;
+    try {
+      // Delete user document from Firestore
+      await deleteDoc(doc(db, "users", deleteUserTarget));
+      
+      // Remove user from local state
+      setUsers((prev) => prev.filter((u) => u.id !== deleteUserTarget));
+      
+      alert("User deleted successfully");
+    } catch (err) {
+      alert("Failed to delete user: " + (err as any).message);
+    } finally {
+      setDeleteUserTarget(null);
+    }
+  };
+
+  const handleCancelUserDelete = () => setDeleteUserTarget(null);
 
   if (!isAdmin) {
     return (
@@ -174,12 +218,91 @@ export default function Admin({ user }: { user: User }) {
           </tbody>
         </table>
       </section>
+
+      <section style={{ marginTop: 32 }}>
+        <h3>Registered Users</h3>
+        <div style={{ marginBottom: 16, fontSize: "0.9em", color: "#666" }}>
+          Total users: {users.length}
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "2px solid #ddd" }}>
+              <th style={{ textAlign: "left", padding: "8px 12px" }}>User ID</th>
+              <th style={{ textAlign: "left", padding: "8px 12px" }}>Display Name</th>
+              <th style={{ textAlign: "left", padding: "8px 12px" }}>Avatar</th>
+              <th style={{ textAlign: "left", padding: "8px 12px" }}>Language</th>
+              <th style={{ textAlign: "center", padding: "8px 12px" }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users
+              .slice()
+              .sort((a, b) => (a.displayName || a.id).localeCompare(b.displayName || b.id))
+              .map((userData) => (
+                <tr key={userData.id} style={{ borderBottom: "1px solid #eee" }}>
+                  <td style={{ padding: "8px 12px", fontFamily: "monospace", fontSize: "0.85em" }}>
+                    {userData.id}
+                  </td>
+                  <td style={{ padding: "8px 12px" }}>
+                    {userData.displayName || "-"}
+                  </td>
+                  <td style={{ padding: "8px 12px" }}>
+                    {userData.photoURL ? (
+                      <img 
+                        src={userData.photoURL} 
+                        alt="avatar" 
+                        style={{ width: 24, height: 24, borderRadius: "50%" }}
+                      />
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td style={{ padding: "8px 12px" }}>
+                    {userData.lang || "-"}
+                  </td>
+                  <td style={{ padding: "8px 12px", textAlign: "center" }}>
+                    {userData.id === user.uid ? (
+                      <span style={{ color: "#999", fontSize: "0.8em" }}>You</span>
+                    ) : (
+                      <button 
+                        onClick={() => handleDeleteUserClick(userData.id)} 
+                        style={{ 
+                          background: 'transparent', 
+                          border: 'none', 
+                          cursor: 'pointer',
+                          padding: '4px'
+                        }}
+                        title="Delete user"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e53e3e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          <line x1="10" y1="11" x2="10" y2="17"></line>
+                          <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </section>
+
       <ConfirmModal
         open={!!deleteTarget}
         title="ルーム削除の確認"
         message="本当にこのルームを削除しますか？この操作は取り消せません。"
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
+      />
+      
+      <ConfirmModal
+        open={!!deleteUserTarget}
+        title="ユーザー削除の確認"
+        message="本当にこのユーザーを削除しますか？この操作は取り消せません。ユーザーの設定情報が完全に削除されます。"
+        onConfirm={handleConfirmUserDelete}
+        onCancel={handleCancelUserDelete}
       />
     </div>
   );
