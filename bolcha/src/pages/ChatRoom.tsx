@@ -781,7 +781,7 @@ const handleContainerScroll = () => {
           </span>
           <span style={{ fontWeight: 700, fontSize: "1.2rem", letterSpacing: 1, margin: 0 }}>{roomName}</span>
         </div>
-        <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ marginLeft: 8, height: 28, fontSize: "1rem", borderRadius: 6, border: "1px solid #ccc", padding: "0 8px" }}>
+        <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ marginRight: 24, height: 28, fontSize: "1rem", borderRadius: 12, border: "1px solid #ccc", padding: "0 8px" }}>
           {[
             ["en", "English"],
             ["ja", "日本語"],
