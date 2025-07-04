@@ -151,6 +151,7 @@ function ChatRoom({ user }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [roomName, setRoomName] = useState<string>("");
   const [userPrefs, setUserPrefs] = useState<Record<string, UserPreferences>>({});
+  const [deletedUsers, setDeletedUsers] = useState<Record<string, any>>({});
   const { prefs, setPrefs, lang, setLang } = useUserPrefs(user.uid);
 
   // persist language selection both locally and to Firestore
@@ -440,12 +441,16 @@ const handleContainerScroll = () => {
     const deletedUsersRef = fbDoc(db, "admin", "deletedUsers");
     const unsubscribe = onSnapshot(deletedUsersRef, (doc) => {
       if (doc.exists()) {
-        const deletedUsers = doc.data();
-        if (deletedUsers && deletedUsers[user.uid]) {
+        const deletedUsersData = doc.data();
+        setDeletedUsers(deletedUsersData || {});
+        
+        if (deletedUsersData && deletedUsersData[user.uid]) {
           console.log("User deleted - forcing logout from ChatRoom");
           alert("Your account has been deleted by an administrator.");
           signOut(auth).catch(console.error);
         }
+      } else {
+        setDeletedUsers({});
       }
     });
 
@@ -848,10 +853,22 @@ const handleContainerScroll = () => {
         {(() => {
           return messages.map((m) => {
           const isMe = m.uid === user.uid;
-          const avatar = userPrefs[m.uid]?.photoURL || (isMe ? user.photoURL : undefined) || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E";
+          const isDeletedUser = deletedUsers[m.uid];
+          
+          // Handle deleted user display
+          const avatar = isDeletedUser 
+            ? "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23999'/%3E%3Ctext x='16' y='20' text-anchor='middle' fill='%23fff' font-size='14'%3E✕%3C/text%3E%3C/svg%3E"
+            : (userPrefs[m.uid]?.photoURL || (isMe ? user.photoURL : undefined) || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E");
+          
           const myDir = isMe ? (prefs.side === "right" ? "row-reverse" : "row") : "row";
-          const bubbleBg = isMe ? (prefs.bubbleColor ?? "#dcf8c6") : (userPrefs[m.uid]?.bubbleColor ?? "#fff");
-          const textColor = isMe ? (prefs.textColor ?? "#000") : (userPrefs[m.uid]?.textColor ?? "#000");
+          
+          // Handle deleted user bubble styling
+          const bubbleBg = isDeletedUser 
+            ? "#f0f0f0" 
+            : (isMe ? (prefs.bubbleColor ?? "#dcf8c6") : (userPrefs[m.uid]?.bubbleColor ?? "#fff"));
+          const textColor = isDeletedUser 
+            ? "#666" 
+            : (isMe ? (prefs.textColor ?? "#000") : (userPrefs[m.uid]?.textColor ?? "#000"));
           return (
             <div
               key={m.id}
@@ -894,7 +911,7 @@ const handleContainerScroll = () => {
                       whiteSpace: "nowrap",
                       boxShadow: "0 2px 8px rgba(0,0,0,0.18)"
                     }}>
-                      {userPrefs[m.uid]?.displayName || (isMe ? user.displayName : "") || "(No name)"}
+                      {isDeletedUser ? "[削除されたユーザー]" : (userPrefs[m.uid]?.displayName || (isMe ? user.displayName : "") || "(No name)")}
                     </div>
                   )}
                 </>
@@ -917,7 +934,10 @@ const handleContainerScroll = () => {
                 {m.replyTo && (() => {
                   const quoted = messages.find(msg => msg.id === m.replyTo);
                   if (!quoted) return null;
-                  const quotedName = userPrefs[quoted.uid]?.displayName || (quoted.uid === user.uid ? user.displayName : "") || "(No name)";
+                  const isQuotedUserDeleted = deletedUsers[quoted.uid];
+                  const quotedName = isQuotedUserDeleted 
+                    ? "[削除されたユーザー]" 
+                    : (userPrefs[quoted.uid]?.displayName || (quoted.uid === user.uid ? user.displayName : "") || "(No name)");
                   const quotedText = translations[quoted.id] !== undefined ? translations[quoted.id] : quoted.text;
                   return (
                     <div style={{
@@ -939,6 +959,14 @@ const handleContainerScroll = () => {
                 {/* Render message text with clickable URLs and warning dialog */}
                 {(() => {
                   const text = translations[m.id] !== undefined ? translations[m.id] : m.text;
+                  const isDeletedUser = deletedUsers[m.uid];
+                  
+                  // If user is deleted, render plain text without links
+                  if (isDeletedUser) {
+                    return <span>{text}</span>;
+                  }
+                  
+                  // Normal link processing for active users
                   const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)/gi;
                   const parts: (string | React.ReactElement)[] = [];
                   let lastIndex = 0;
