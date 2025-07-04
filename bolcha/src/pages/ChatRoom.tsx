@@ -14,8 +14,9 @@ import {
   arrayUnion,
   arrayRemove,
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { db, auth } from "../firebase";
 import { setDoc } from "firebase/firestore";
+import { signOut } from "firebase/auth";
 import useIsAdmin from "../hooks/useIsAdmin";
 import { detectLanguage } from "../langDetect";
 import { useI18n } from "../i18n";
@@ -431,6 +432,25 @@ const handleContainerScroll = () => {
       window.removeEventListener('userPrefsUpdated', handleUserPrefsUpdate as EventListener);
     };
   }, []);
+
+  // Monitor for user deletion in ChatRoom as well for extra safety
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const deletedUsersRef = fbDoc(db, "admin", "deletedUsers");
+    const unsubscribe = onSnapshot(deletedUsersRef, (doc) => {
+      if (doc.exists()) {
+        const deletedUsers = doc.data();
+        if (deletedUsers && deletedUsers[user.uid]) {
+          console.log("User deleted - forcing logout from ChatRoom");
+          alert("Your account has been deleted by an administrator.");
+          signOut(auth).catch(console.error);
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [user?.uid]);
 
 
   /* ---------- Translation helpers ---------- */

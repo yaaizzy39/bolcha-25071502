@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, getDoc } from "firebase/firestore";
 import type { User } from "firebase/auth";
 import Login from "./pages/Login";
 import Rooms from "./pages/Rooms";
@@ -56,8 +56,26 @@ function App() {
   const location = useLocation();
   
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       console.log('[App] Auth state changed:', u ? 'User logged in' : 'User logged out');
+      
+      if (u) {
+        // Check if user is in the deleted/blocked list
+        try {
+          const deletedUsersRef = doc(db, "admin", "deletedUsers");
+          const deletedUsersDoc = await getDoc(deletedUsersRef);
+          
+          if (deletedUsersDoc.exists() && deletedUsersDoc.data()[u.uid]) {
+            console.log("Blocked user attempted to login:", u.uid);
+            alert("Your account has been disabled by an administrator. Please contact support if you believe this is an error.");
+            await signOut(auth);
+            return;
+          }
+        } catch (error) {
+          console.error("Error checking user status:", error);
+        }
+      }
+      
       setUser(u);
     });
     return unsub;
@@ -79,20 +97,24 @@ function App() {
     };
   }, [user?.uid, setUserPrefs]);
 
-  // Monitor user document for deletion - auto logout if user is deleted by admin
+  // Monitor deleted users list - auto logout if user is deleted by admin
   useEffect(() => {
     if (!user?.uid) return;
 
-    const userDocRef = doc(db, "users", user.uid);
-    const unsubscribe = onSnapshot(userDocRef, (doc) => {
-      // If user document doesn't exist, the user has been deleted by admin
-      if (!doc.exists()) {
-        console.log("User account has been deleted by administrator");
-        signOut(auth).catch(console.error);
+    const deletedUsersRef = doc(db, "admin", "deletedUsers");
+    const unsubscribe = onSnapshot(deletedUsersRef, (doc) => {
+      if (doc.exists()) {
+        const deletedUsers = doc.data();
+        // If current user is in the deleted users list, force logout
+        if (deletedUsers && deletedUsers[user.uid]) {
+          console.log("User account has been deleted by administrator");
+          alert("Your account has been deleted by an administrator. You will be logged out.");
+          signOut(auth).catch(console.error);
+        }
       }
     }, (error) => {
       // Handle potential permission errors gracefully
-      console.log("User document monitoring error:", error);
+      console.log("Deleted users monitoring error:", error);
     });
 
     return unsubscribe;

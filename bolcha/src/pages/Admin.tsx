@@ -21,6 +21,7 @@ export default function Admin({ user }: { user: User }) {
   // user management state
   const [users, setUsers] = useState<(UserPreferences & { id: string })[]>([]);
   const [deleteUserTarget, setDeleteUserTarget] = useState<string | null>(null);
+  const [deletedUsers, setDeletedUsers] = useState<Record<string, any>>({});
 
   useEffect(() => {
     const cfgRef = doc(db, "admin", "config");
@@ -53,6 +54,20 @@ export default function Admin({ user }: { user: User }) {
       setUsers(list);
     };
     fetchUsers();
+  }, [isAdmin]);
+
+  // Monitor deleted/blocked users
+  useEffect(() => {
+    if (!isAdmin) return;
+    const deletedUsersRef = doc(db, "admin", "deletedUsers");
+    const unsub = onSnapshot(deletedUsersRef, (doc) => {
+      if (doc.exists()) {
+        setDeletedUsers(doc.data());
+      } else {
+        setDeletedUsers({});
+      }
+    });
+    return unsub;
   }, [isAdmin]);
 
   const saveGasList = async (list: string[]) => {
@@ -111,6 +126,15 @@ export default function Admin({ user }: { user: User }) {
   const handleConfirmUserDelete = async () => {
     if (!deleteUserTarget) return;
     try {
+      // Add user to deleted users list first (for immediate logout trigger)
+      const deletedUsersRef = doc(db, "admin", "deletedUsers");
+      await setDoc(deletedUsersRef, { 
+        [deleteUserTarget]: { 
+          deletedAt: new Date(),
+          deletedBy: user.uid 
+        } 
+      }, { merge: true });
+      
       // Delete user document from Firestore
       await deleteDoc(doc(db, "users", deleteUserTarget));
       
@@ -126,6 +150,27 @@ export default function Admin({ user }: { user: User }) {
   };
 
   const handleCancelUserDelete = () => setDeleteUserTarget(null);
+
+  // Unblock/restore user function
+  const handleUnblockUser = async (userId: string) => {
+    try {
+      const deletedUsersRef = doc(db, "admin", "deletedUsers");
+      const currentData = { ...deletedUsers };
+      delete currentData[userId];
+      
+      if (Object.keys(currentData).length === 0) {
+        // If no more blocked users, delete the document
+        await deleteDoc(deletedUsersRef);
+      } else {
+        // Update the document without the unblocked user
+        await setDoc(deletedUsersRef, currentData);
+      }
+      
+      alert("User has been unblocked and can now log in again.");
+    } catch (err) {
+      alert("Failed to unblock user: " + (err as any).message);
+    }
+  };
 
   if (!isAdmin) {
     return (
@@ -288,6 +333,57 @@ export default function Admin({ user }: { user: User }) {
           </tbody>
         </table>
       </section>
+
+      {Object.keys(deletedUsers).length > 0 && (
+        <section style={{ marginTop: 32 }}>
+          <h3>Blocked/Deleted Users</h3>
+          <div style={{ marginBottom: 16, fontSize: "0.9em", color: "#666" }}>
+            These users are blocked from logging in. You can unblock them to restore access.
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid #ddd" }}>
+                <th style={{ textAlign: "left", padding: "8px 12px" }}>User ID</th>
+                <th style={{ textAlign: "left", padding: "8px 12px" }}>Deleted At</th>
+                <th style={{ textAlign: "left", padding: "8px 12px" }}>Deleted By</th>
+                <th style={{ textAlign: "center", padding: "8px 12px" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(deletedUsers).map(([userId, data]) => (
+                <tr key={userId} style={{ borderBottom: "1px solid #eee" }}>
+                  <td style={{ padding: "8px 12px", fontFamily: "monospace", fontSize: "0.85em" }}>
+                    {userId}
+                  </td>
+                  <td style={{ padding: "8px 12px" }}>
+                    {data.deletedAt ? new Date(data.deletedAt.seconds * 1000).toLocaleString() : "-"}
+                  </td>
+                  <td style={{ padding: "8px 12px", fontFamily: "monospace", fontSize: "0.85em" }}>
+                    {data.deletedBy || "-"}
+                  </td>
+                  <td style={{ padding: "8px 12px", textAlign: "center" }}>
+                    <button 
+                      onClick={() => handleUnblockUser(userId)} 
+                      style={{ 
+                        background: '#28a745', 
+                        color: 'white',
+                        border: 'none', 
+                        borderRadius: '4px',
+                        padding: '4px 12px',
+                        cursor: 'pointer',
+                        fontSize: '0.85em'
+                      }}
+                      title="Unblock user"
+                    >
+                      Unblock
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <ConfirmModal
         open={!!deleteTarget}
