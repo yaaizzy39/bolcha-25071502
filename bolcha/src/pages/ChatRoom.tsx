@@ -807,7 +807,7 @@ const handleContainerScroll = () => {
             padding: "0 0.5rem 0 0.2rem",
             minHeight: 36,
             position: "fixed",
-            top: autoDeleteWarning ? 88 : 44,
+            top: autoDeleteWarning ? 88 : 47,
             left: 0,
             right: 0,
             background: "#fff",

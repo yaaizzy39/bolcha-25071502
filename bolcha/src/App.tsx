@@ -50,6 +50,7 @@ import useIsAdmin from "./hooks/useIsAdmin";
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const isAdmin = useIsAdmin(user);
   const { prefs: userPrefs, setPrefs: setUserPrefs } = useUserPrefs(user?.uid || "");
 
@@ -123,9 +124,14 @@ function App() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      setShowLogoutConfirm(false);
     } catch (error) {
       console.error("Logout error:", error);
     }
+  };
+
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
   };
 
   if (!user) {
@@ -170,21 +176,6 @@ function App() {
               <Link to="/" title="Rooms"><IconGrid /></Link>
               {isAdmin && <Link to="/admin" title="Admin"><IconSliders /></Link>}
               <Link to="/profile" title="Settings"><IconCog /></Link>
-              <button 
-                onClick={handleLogout}
-                title="Logout"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  color: 'inherit'
-                }}
-              >
-                <IconLogOut />
-              </button>
             </>
           )}
           {user && (
@@ -198,6 +189,23 @@ function App() {
                   style={{ borderRadius: '50%', background: '#eee', marginLeft: 4, marginRight: 4, cursor: 'pointer' }}
                 />
               </Link>
+              {!hideNav && (
+                <button 
+                  onClick={handleLogoutClick}
+                  title="Logout"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: 'inherit'
+                  }}
+                >
+                  <IconLogOut />
+                </button>
+              )}
             </>
           )}
 
@@ -213,6 +221,66 @@ function App() {
             <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
+      
+      {/* Logout confirmation modal */}
+      {showLogoutConfirm && (
+        <div style={{ 
+          position: "fixed", 
+          top: 0, 
+          left: 0, 
+          width: "100%", 
+          height: "100%", 
+          background: "rgba(0,0,0,0.5)", 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center", 
+          zIndex: 1000 
+        }}>
+          <div style={{ 
+            background: "#fff", 
+            padding: "1.5rem 2rem", 
+            borderRadius: 8, 
+            maxWidth: 320, 
+            textAlign: "center",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+          }}>
+            <h3 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem" }}>ログアウトしますか？</h3>
+            <p style={{ margin: "0 0 1.5rem 0", color: "#666", fontSize: "0.9rem" }}>
+              現在のセッションを終了してログイン画面に戻ります。
+            </p>
+            <div style={{ display: "flex", justifyContent: "center", gap: "1rem" }}>
+              <button 
+                onClick={handleLogout}
+                style={{
+                  background: "#dc3545",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  padding: "8px 16px",
+                  cursor: "pointer",
+                  fontSize: "0.9rem"
+                }}
+              >
+                ログアウト
+              </button>
+              <button 
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  background: "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  padding: "8px 16px",
+                  cursor: "pointer",
+                  fontSize: "0.9rem"
+                }}
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
