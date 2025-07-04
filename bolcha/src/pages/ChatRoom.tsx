@@ -853,10 +853,9 @@ const handleContainerScroll = () => {
           overflowY: "auto", 
           padding: "0.5rem", 
           position: "relative", 
-          marginTop: autoDeleteWarning ? 88 : 44,
-          backgroundColor: prefs.backgroundColor || "#f5f5f5",
-          maxWidth: 1000,
-          margin: "0 auto"
+          marginTop: autoDeleteWarning ? 124 : 83,
+          marginBottom: 80,
+          backgroundColor: prefs.backgroundColor || "#f5f5f5"
         }}
       >
         {(() => {
@@ -1158,7 +1157,18 @@ const handleContainerScroll = () => {
           <button style={{ marginLeft: 8 }} onClick={() => setReplyTarget(null)}>×</button>
         </div>
       )}
-      <div style={{ display: "flex", gap: "0.5rem", padding: "0.5rem", position: "relative" }}>
+      <div style={{ 
+        display: "flex", 
+        gap: "0.5rem", 
+        padding: "0.5rem", 
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        background: "#fff",
+        zIndex: 99,
+        boxShadow: "0 -2px 1px rgba(0,0,0,0.06)"
+      }}>
         {userHasScrolledUp && (
           <button
             onClick={() => {
