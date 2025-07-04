@@ -31,6 +31,7 @@ const defaultPrefs: UserPreferences = {
   showOriginal: true,
   bubbleColor: "#ffffff",
   textColor: "#000000",
+  backgroundColor: "#f5f5f5",
 };
 
 export default function Profile({ user, onSaved }: Props) {
@@ -157,6 +158,25 @@ export default function Profile({ user, onSaved }: Props) {
           type="text"
           value={prefs.textColor ?? "#000000"}
           onChange={(e) => setPrefs((p) => ({ ...p, textColor: e.target.value }))}
+          pattern="#?[0-9a-fA-F]{6}"
+          style={{ marginLeft: 8, width: 90 }}
+        />
+      </div>
+
+      {/* background color picker */}
+      <div style={{ marginBottom: "1rem" }}>
+        <label>{t("backgroundColor") ?? "Background Color"}</label>
+        <br />
+        <input
+          type="color"
+          value={prefs.backgroundColor ?? "#f5f5f5"}
+          onChange={(e) => setPrefs((p) => ({ ...p, backgroundColor: e.target.value }))}
+          style={{ width: 50, height: 34, border: "none", background: "none", padding: 0 }}
+        />
+        <input
+          type="text"
+          value={prefs.backgroundColor ?? "#f5f5f5"}
+          onChange={(e) => setPrefs((p) => ({ ...p, backgroundColor: e.target.value }))}
           pattern="#?[0-9a-fA-F]{6}"
           style={{ marginLeft: 8, width: 90 }}
         />

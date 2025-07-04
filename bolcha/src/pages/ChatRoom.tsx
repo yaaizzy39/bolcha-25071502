@@ -758,14 +758,22 @@ const handleContainerScroll = () => {
 
   
   return (
-    <>
+    <div style={{ backgroundColor: prefs.backgroundColor || "#f5f5f5", minHeight: "100vh" }}>
       {/* Show auto-delete warning bar at the very top if needed */}
       {autoDeleteWarning && (
         <div style={{ background: '#fff3cd', color: '#856404', fontWeight: 700, padding: '8px 18px', fontSize: '1.12em', borderBottom: '2px solid #ffeeba', letterSpacing: 0.5, zIndex: 9998, width: '100%', textAlign: 'center' }}>
           {autoDeleteWarning}
         </div>
       )}
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", maxWidth: 1000, width: "100%", margin: "0 auto" }}>
+      <div style={{ 
+        display: "flex", 
+        flexDirection: "column", 
+        height: "100%", 
+        maxWidth: 1000, 
+        width: "100%", 
+        margin: "0 auto",
+        backgroundColor: prefs.backgroundColor || "#f5f5f5"
+      }}>
         <div style={{
             width: "100%",
             display: "flex",
@@ -808,7 +816,14 @@ const handleContainerScroll = () => {
       <div
         ref={containerRef}
         onScroll={handleContainerScroll}
-        style={{ flex: 1, overflowY: "auto", padding: "0.5rem", position: "relative", marginTop: autoDeleteWarning ? 88 : 44 }}
+        style={{ 
+          flex: 1, 
+          overflowY: "auto", 
+          padding: "0.5rem", 
+          position: "relative", 
+          marginTop: autoDeleteWarning ? 88 : 44,
+          backgroundColor: prefs.backgroundColor || "#f5f5f5"
+        }}
       >
         {(() => {
           return messages.map((m) => {
@@ -1170,7 +1185,7 @@ const handleContainerScroll = () => {
         </button>
       </div>
       </div>
-    </>
+    </div>
   );
 }
 

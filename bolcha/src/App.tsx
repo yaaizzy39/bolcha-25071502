@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { auth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import type { User } from "firebase/auth";
+import type { UserPreferences } from "./types";
 import Login from "./pages/Login";
 import Rooms from "./pages/Rooms";
 import ChatRoom from "./pages/ChatRoom";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
+import { useUserPrefs } from "./hooks/useUserPrefs";
 
 // Minimal abstract icons
 const IconGrid = () => (
@@ -42,6 +44,7 @@ import useIsAdmin from "./hooks/useIsAdmin";
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const isAdmin = useIsAdmin(user);
+  const { prefs: userPrefs, setPrefs: setUserPrefs } = useUserPrefs(user?.uid || "");
 
   const location = useLocation();
   
@@ -53,13 +56,34 @@ function App() {
     return unsub;
   }, []);
 
+  // Listen for userPrefsUpdated event from Profile page
+  useEffect(() => {
+    const handleUserPrefsUpdate = (event: CustomEvent) => {
+      const { uid, prefs } = event.detail;
+      if (uid === user?.uid) {
+        setUserPrefs(prefs);
+      }
+    };
+
+    window.addEventListener('userPrefsUpdated', handleUserPrefsUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('userPrefsUpdated', handleUserPrefsUpdate as EventListener);
+    };
+  }, [user?.uid, setUserPrefs]);
+
   if (!user) {
     return <Login />;
   }
   const hideNav = location.pathname.startsWith("/profile");
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+    <div style={{ 
+      display: "flex", 
+      flexDirection: "column", 
+      height: "100vh",
+      backgroundColor: userPrefs.backgroundColor || "#f5f5f5"
+    }}>
       <header style={{
                         display: "flex",
         justifyContent: "space-between",

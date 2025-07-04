@@ -2,6 +2,7 @@ export interface UserPreferences {
   photoURL?: string;
   bubbleColor?: string;
   textColor?: string;
+  backgroundColor?: string;
   displayName?: string;
   side?: 'left' | 'right';
   showOriginal?: boolean;
