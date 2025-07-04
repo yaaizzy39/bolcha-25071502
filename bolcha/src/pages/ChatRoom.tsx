@@ -1075,7 +1075,7 @@ const handleContainerScroll = () => {
             fontSize: "1.05em"
           }}>
             <div style={{ fontWeight: 700, fontSize: "1.1em", marginBottom: 12, color: "#b50000" }}>
-              外部リンクを開こうとしています
+              {uiLang === 'en' ? 'Opening External Link' : '外部リンクを開こうとしています'}
             </div>
             <div style={{ background: "#f9f9f9", border: "1px solid #eee", borderRadius: 6, padding: "0.5rem", marginBottom: 18, wordBreak: "break-all", color: "#222" }}>
               {pendingLink?.label}
@@ -1087,11 +1087,11 @@ const handleContainerScroll = () => {
                   if (pendingLink) window.open(pendingLink.url, '_blank', 'noopener');
                   setPendingLink(null);
                 }}
-              >OK</button>
+              >{uiLang === 'en' ? 'OK' : 'OK'}</button>
               <button
                 style={{ background: "#eee", color: "#444", border: "none", borderRadius: 6, padding: "0.5rem 1.3rem", fontSize: "1em", cursor: "pointer" }}
                 onClick={() => setPendingLink(null)}
-              >キャンセル</button>            </div>
+              >{uiLang === 'en' ? 'Cancel' : 'キャンセル'}</button>            </div>
           </div>
         </div>
       )}

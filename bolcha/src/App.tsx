@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { auth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import type { User } from "firebase/auth";
-import type { UserPreferences } from "./types";
 import Login from "./pages/Login";
 import Rooms from "./pages/Rooms";
 import ChatRoom from "./pages/ChatRoom";

@@ -16,7 +16,11 @@ const translations: Record<UILang, Record<string, string>> = {
     english: "English",
     bubbleColor: "Bubble color",
     textColor: "Text color",
+    backgroundColor: "Background color",
     japanese: "日本語",
+    externalLinkWarning: "Opening External Link",
+    cancel: "Cancel",
+    ok: "OK",
   },
   ja: {
     profileSettings: "プロフィール設定",
@@ -31,7 +35,11 @@ const translations: Record<UILang, Record<string, string>> = {
     english: "英語",
     bubbleColor: "吹き出し色",
     textColor: "文字色",
+    backgroundColor: "背景色",
     japanese: "日本語",
+    externalLinkWarning: "外部リンクを開こうとしています",
+    cancel: "キャンセル",
+    ok: "OK",
   },
 };
 
