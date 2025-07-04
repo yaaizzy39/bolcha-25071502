@@ -6,5 +6,18 @@
       "Bash(rm -rf ~/*)",
       "Bash(rm -rf /*)"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -H \"Title: Claude Code\" -d \"タスク完了通知です\" ntfy.sh/Bolcha-250701-copy-250703"
+          }
+        ]
+      }
+    ]
   }
 }
