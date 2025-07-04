@@ -765,11 +765,15 @@ const handleContainerScroll = () => {
             justifyContent: "space-between",
             padding: "0 0.5rem 0 0.2rem",
             minHeight: 36,
-            position: "sticky",
-            top: 44,
+            position: "fixed",
+            top: autoDeleteWarning ? 88 : 44,
+            left: 0,
+            right: 0,
             background: "#fff",
-            zIndex: 50,
-            boxShadow: "0 2px 1px rgba(0,0,0,0.06)"
+            zIndex: 100,
+            boxShadow: "0 2px 1px rgba(0,0,0,0.06)",
+            maxWidth: 1000,
+            margin: "0 auto"
           }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span title="現在アクセス中の人数" style={{ fontWeight: 500, fontSize: '1rem', color: '#1e90ff' }}>
@@ -796,7 +800,7 @@ const handleContainerScroll = () => {
       <div
         ref={containerRef}
         onScroll={handleContainerScroll}
-        style={{ flex: 1, overflowY: "auto", padding: "0.5rem", position: "relative", marginTop: 44 }}
+        style={{ flex: 1, overflowY: "auto", padding: "0.5rem", position: "relative", marginTop: autoDeleteWarning ? 88 : 44 }}
       >
         {(() => {
           return messages.map((m) => {
