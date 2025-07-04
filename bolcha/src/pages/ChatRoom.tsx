@@ -410,6 +410,20 @@ const handleContainerScroll = () => {
     fetchAllMissing();
   }, [messages, user.uid]); // Add user.uid to deps for consistency
 
+  // Listen for userPrefsUpdated event from Profile page
+  useEffect(() => {
+    const handleUserPrefsUpdate = (event: CustomEvent) => {
+      const { uid, prefs } = event.detail;
+      setUserPrefs(prev => ({ ...prev, [uid]: prefs }));
+    };
+
+    window.addEventListener('userPrefsUpdated', handleUserPrefsUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('userPrefsUpdated', handleUserPrefsUpdate as EventListener);
+    };
+  }, []);
+
 
   /* ---------- Translation helpers ---------- */
   

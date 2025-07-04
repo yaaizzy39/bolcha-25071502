@@ -69,7 +69,17 @@ export default function Profile({ user, onSaved }: Props) {
       }
     }
 
-    await setDoc(doc(db, "users", user.uid), { ...prefs, photoURL: newPhotoURL }, { merge: true });
+    const updatedPrefs = { ...prefs, photoURL: newPhotoURL };
+    await setDoc(doc(db, "users", user.uid), updatedPrefs, { merge: true });
+    
+    // Update localStorage to immediately reflect changes in ChatRoom
+    localStorage.setItem("chat_prefs", JSON.stringify(updatedPrefs));
+    
+    // Trigger a custom event to notify ChatRoom of the update
+    window.dispatchEvent(new CustomEvent('userPrefsUpdated', { 
+      detail: { uid: user.uid, prefs: updatedPrefs } 
+    }));
+    
     setSelectedImageFile(null); // Clear selected file after saving
     setSaving(false);
     onSaved?.();
