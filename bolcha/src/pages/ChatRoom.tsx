@@ -1074,8 +1074,8 @@ const handleContainerScroll = () => {
             textAlign: "center",
             fontSize: "1.05em"
           }}>
-            <div style={{ fontWeight: 700, fontSize: "1.1em", marginBottom: 12, color: "#b50000" }}>
-              {uiLang === 'en' ? 'Opening External Link' : '外部リンクを開こうとしています'}
+            <div style={{ fontWeight: 700, fontSize: "1.1em", marginBottom: 12, color: "#b50000", whiteSpace: "pre-line" }}>
+              {uiLang === 'en' ? 'Opening External Link!\nPlease be careful of fraudulent or malicious websites!' : '外部リンクを開こうとしています！\n詐欺や悪意のあるサイトには十分注意してください！'}
             </div>
             <div style={{ background: "#f9f9f9", border: "1px solid #eee", borderRadius: 6, padding: "0.5rem", marginBottom: 18, wordBreak: "break-all", color: "#222" }}>
               {pendingLink?.label}
