@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { auth } from "./firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { auth, db } from "./firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore";
 import type { User } from "firebase/auth";
 import Login from "./pages/Login";
 import Rooms from "./pages/Rooms";
@@ -34,6 +35,13 @@ const IconCog = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3"/>
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+);
+const IconLogOut = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+    <polyline points="16 17 21 12 16 7"/>
+    <line x1="21" y1="12" x2="9" y2="12"/>
   </svg>
 );
 import Profile from "./pages/Profile";
@@ -70,6 +78,33 @@ function App() {
       window.removeEventListener('userPrefsUpdated', handleUserPrefsUpdate as EventListener);
     };
   }, [user?.uid, setUserPrefs]);
+
+  // Monitor user document for deletion - auto logout if user is deleted by admin
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const userDocRef = doc(db, "users", user.uid);
+    const unsubscribe = onSnapshot(userDocRef, (doc) => {
+      // If user document doesn't exist, the user has been deleted by admin
+      if (!doc.exists()) {
+        console.log("User account has been deleted by administrator");
+        signOut(auth).catch(console.error);
+      }
+    }, (error) => {
+      // Handle potential permission errors gracefully
+      console.log("User document monitoring error:", error);
+    });
+
+    return unsubscribe;
+  }, [user?.uid]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
   if (!user) {
     return <Login />;
@@ -113,6 +148,21 @@ function App() {
               <Link to="/" title="Rooms"><IconGrid /></Link>
               {isAdmin && <Link to="/admin" title="Admin"><IconSliders /></Link>}
               <Link to="/profile" title="Settings"><IconCog /></Link>
+              <button 
+                onClick={handleLogout}
+                title="Logout"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: 'inherit'
+                }}
+              >
+                <IconLogOut />
+              </button>
             </>
           )}
           {user && (
