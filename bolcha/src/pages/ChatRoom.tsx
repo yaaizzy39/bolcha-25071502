@@ -1023,45 +1023,6 @@ const handleContainerScroll = () => {
                 >
                   ↩︎
                 </span>
-                {/* delete button */}
-                {(isAdmin || isMe) && (
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!roomId) return;
-                      setConfirmDelete(m);
-                    }}
-                    style={{ cursor: "pointer", marginLeft: 6, fontSize: "0.9em", opacity: hoveredUser === m.id ? 1 : 0 }}
-                  >🗑️</span>
-                )}
-                {/* like button */}
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!roomId) return;
-
-                    const liked = (m.likes ?? []).includes(user.uid);
-                    updateDoc(doc(db, "rooms", roomId, "messages", m.id), {
-                      likes: liked ? arrayRemove(user.uid) : arrayUnion(user.uid),
-                    }).catch(err => {
-                      console.error('[Like] Update failed:', err);
-                    });
-                  }}
-                  style={{
-                    cursor: "pointer",
-                    marginLeft: 6,
-                    fontSize: "0.9em",
-                    color: (m.likes ?? []).includes(user.uid) ? "#e0245e" : "#888",
-                    opacity: 1,
-                    pointerEvents: "auto",
-                    transition: "opacity 0.2s",
-                  }}
-                >
-                  <LikeIcon filled={(m.likes ?? []).includes(user.uid)} />
-                </span>
-                {m.likes && m.likes.length > 0 && (
-                  <span style={{ marginLeft: 4, fontSize: "0.8em", color: "#555" }}>{m.likes.length}</span>
-                )}
                 {prefs.showOriginal && translations[m.id] && translations[m.id] !== m.text && (
                   <div style={{ fontSize: "0.8em", color: "#666", whiteSpace: "pre-wrap" }}>{m.text}</div>
                 )}
@@ -1070,15 +1031,61 @@ const handleContainerScroll = () => {
                     fontSize: "0.7em",
                     color: "#999",
                     marginTop: "2px",
-                    textAlign: "right",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "flex-end",
+                    gap: "4px",
                   }}
                 >
-                  {formatTime(m.createdAt, uiLang)}
-                  {isMe && (
-                    <span style={{ marginLeft: 4 }}>
-                      {m.readBy && m.readBy.length > 1 ? "✔✔" : "✔"}
-                    </span>
+                  {/* like button */}
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!roomId) return;
+
+                      const liked = (m.likes ?? []).includes(user.uid);
+                      updateDoc(doc(db, "rooms", roomId, "messages", m.id), {
+                        likes: liked ? arrayRemove(user.uid) : arrayUnion(user.uid),
+                      }).catch(err => {
+                        console.error('[Like] Update failed:', err);
+                      });
+                    }}
+                    style={{
+                      cursor: "pointer",
+                      fontSize: "0.9em",
+                      color: (m.likes ?? []).includes(user.uid) ? "#e0245e" : "#888",
+                      opacity: 1,
+                      pointerEvents: "auto",
+                      transition: "opacity 0.2s",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "2px",
+                    }}
+                  >
+                    <LikeIcon filled={(m.likes ?? []).includes(user.uid)} />
+                    {m.likes && m.likes.length > 0 && (
+                      <span style={{ fontSize: "0.8em", color: "#555" }}>{m.likes.length}</span>
+                    )}
+                  </span>
+                  {/* delete button */}
+                  {(isAdmin || isMe) && (
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!roomId) return;
+                        setConfirmDelete(m);
+                      }}
+                      style={{ cursor: "pointer", fontSize: "0.9em", opacity: hoveredUser === m.id ? 1 : 0 }}
+                    >🗑️</span>
                   )}
+                  <span>
+                    {formatTime(m.createdAt, uiLang)}
+                    {isMe && (
+                      <span style={{ marginLeft: 4 }}>
+                        {m.readBy && m.readBy.length > 1 ? "✔✔" : "✔"}
+                      </span>
+                    )}
+                  </span>
                 </div>
               </span>
             </div>
