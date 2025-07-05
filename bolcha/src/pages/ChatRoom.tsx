@@ -343,17 +343,18 @@ useEffect(() => {
   setUserHasScrolledUp(false);
 }, [roomId]);
 
-// スクロールイベントハンドラ (container)
-const handleContainerScroll = () => {
-
+// スクロールイベントハンドラ
+const handleScroll = () => {
   const bottomDistance = getBottomDistance();
   const scrolledUp = bottomDistance > 40;
   setUserHasScrolledUp(scrolledUp);
 };
 
-// window 用ハンドラは不要になったため削除
-
-// window listener attach
+// window scroll listener
+useEffect(() => {
+  window.addEventListener('scroll', handleScroll);
+  return () => window.removeEventListener('scroll', handleScroll);
+}, []);
 
 
 
@@ -862,7 +863,6 @@ const handleContainerScroll = () => {
 
       <div
         ref={containerRef}
-        onScroll={handleContainerScroll}
         style={{ 
           flex: 1, 
           overflowY: "auto", 
@@ -1198,36 +1198,6 @@ const handleContainerScroll = () => {
           width: "100%",
           margin: "0 auto"
         }}>
-        {userHasScrolledUp && (
-          <button
-            onClick={() => {
-              bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-              setUserHasScrolledUp(false); // Reset the flag after clicking
-            }}
-            style={{
-              position: "fixed",
-              right: 24,
-              bottom: 100,
-              width: "36px",
-              height: "36px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: "50%",
-              border: "1px solid #bbb",
-              background: "rgba(255,255,255,0.8)",
-              color: "#333",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
-              cursor: "pointer",
-              fontSize: "1rem",
-              lineHeight: 1,
-              zIndex: 20
-            }}
-            aria-label="Scroll to latest"
-          >
-            ↓
-          </button>
-        )}
         <textarea
            ref={inputRef}
            style={{
@@ -1281,6 +1251,36 @@ const handleContainerScroll = () => {
         </button>
         </div>
       </div>
+      {userHasScrolledUp && (
+        <button
+          onClick={() => {
+            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+            setUserHasScrolledUp(false); // Reset the flag after clicking
+          }}
+          style={{
+            position: "fixed",
+            right: 24,
+            bottom: 100,
+            width: "36px",
+            height: "36px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "50%",
+            border: "1px solid #bbb",
+            background: "rgba(255,255,255,0.8)",
+            color: "#333",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+            cursor: "pointer",
+            fontSize: "1rem",
+            lineHeight: 1,
+            zIndex: 200
+          }}
+          aria-label="Scroll to latest"
+        >
+          ↓
+        </button>
+      )}
       </div>
     </div>
   );
