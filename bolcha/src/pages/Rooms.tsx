@@ -36,6 +36,8 @@ function Rooms({ user }: Props) {
   const [showCreateWarning, setShowCreateWarning] = useState(false);
   // プレゼンスカウンター設定
   const [enablePresenceCounter, setEnablePresenceCounter] = useState<boolean>(false);
+  // ルーム数制限設定
+  const [maxRooms, setMaxRooms] = useState<number>(0);
 
   // プレゼンス設定の読み込み
   useEffect(() => {
@@ -44,6 +46,9 @@ function Rooms({ user }: Props) {
       const data = snap.data();
       if (typeof data?.enablePresenceCounter === 'boolean') {
         setEnablePresenceCounter(data.enablePresenceCounter);
+      }
+      if (typeof data?.maxRooms === 'number') {
+        setMaxRooms(data.maxRooms);
       }
     });
     return unsub;
@@ -130,6 +135,13 @@ function Rooms({ user }: Props) {
       setTimeout(() => setDuplicateError(false), 2500);
       return;
     }
+    
+    // ルーム数制限チェック
+    if (maxRooms > 0 && rooms.length >= maxRooms) {
+      alert(`ルーム数が上限（${maxRooms}個）に達しています。新しいルームを作成できません。`);
+      return;
+    }
+    
     // FirestoreからautoDeleteHours取得
     let autoDeleteHours = 24;
     try {
@@ -241,7 +253,26 @@ function Rooms({ user }: Props) {
           }}
           placeholder="New room name"
         />
-        <button className="room-create-btn" onClick={() => setShowCreateWarning(true)} disabled={!roomName.trim()}>Create</button>
+        <button 
+          className="room-create-btn" 
+          onClick={() => setShowCreateWarning(true)} 
+          disabled={!roomName.trim() || (maxRooms > 0 && rooms.length >= maxRooms)}
+        >
+          Create
+        </button>
+        
+        {/* ルーム数表示 */}
+        <div style={{ fontSize: '0.9em', color: '#666', marginTop: 8 }}>
+          {maxRooms > 0 ? (
+            <span>
+              ルーム数: {rooms.length}/{maxRooms} 
+              {rooms.length >= maxRooms && <span style={{ color: 'red', marginLeft: 4 }}>(上限に達しています)</span>}
+            </span>
+          ) : (
+            <span>ルーム数: {rooms.length} (制限なし)</span>
+          )}
+        </div>
+        
         {(() => {
           let len = 0;
           for (const c of roomName) {

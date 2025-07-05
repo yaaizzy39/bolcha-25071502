@@ -20,6 +20,10 @@ export default function Admin({ user }: { user: User }) {
   const [enablePresenceCounter, setEnablePresenceCounter] = useState<boolean>(false);
   const [presenceCounterSaved, setPresenceCounterSaved] = useState(false);
   
+  // Room limit settings
+  const [maxRooms, setMaxRooms] = useState<number>(10);
+  const [maxRoomsSaved, setMaxRoomsSaved] = useState(false);
+  
   // user management state
   const [users, setUsers] = useState<(UserPreferences & { id: string })[]>([]);
   const [deleteUserTarget, setDeleteUserTarget] = useState<string | null>(null);
@@ -35,6 +39,9 @@ export default function Admin({ user }: { user: User }) {
       }
       if (typeof data?.enablePresenceCounter === 'boolean') {
         setEnablePresenceCounter(data.enablePresenceCounter);
+      }
+      if (typeof data?.maxRooms === 'number') {
+        setMaxRooms(data.maxRooms);
       }
     });
     return unsub;
@@ -92,6 +99,13 @@ export default function Admin({ user }: { user: User }) {
     await setDoc(cfgRef, { enablePresenceCounter }, { merge: true });
     setPresenceCounterSaved(true);
     setTimeout(() => setPresenceCounterSaved(false), 1800);
+  };
+
+  const saveMaxRooms = async () => {
+    const cfgRef = doc(db, "admin", "config");
+    await setDoc(cfgRef, { maxRooms }, { merge: true });
+    setMaxRoomsSaved(true);
+    setTimeout(() => setMaxRoomsSaved(false), 1800);
   };
 
   const addEndpoint = async () => {
@@ -241,6 +255,28 @@ export default function Admin({ user }: { user: User }) {
           無効にするとFirebaseへの書き込み回数を大幅に削減できます。各ルームで現在参加中の人数は表示されなくなります。
         </div>
       </section>
+
+      <section style={{ marginBottom: 24 }}>
+        <h3>Room Limit</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>最大ルーム数:</span>
+            <input
+              type="number"
+              min="0"
+              value={maxRooms}
+              onChange={e => setMaxRooms(parseInt(e.target.value) || 0)}
+              style={{ width: 80, padding: '4px 8px' }}
+            />
+          </label>
+          <button onClick={saveMaxRooms} style={{ marginLeft: 8 }}>保存</button>
+          {maxRoomsSaved && <span style={{ color: 'green', marginLeft: 8 }}>保存しました</span>}
+        </div>
+        <div style={{ fontSize: '0.9em', color: '#666', marginTop: 8 }}>
+          0を設定すると無制限になります。既存のルーム数が設定値を超えていても自動削除は行われません。
+        </div>
+      </section>
+
       <section>
         <h3>GAS Endpoints</h3>
         <ul>
