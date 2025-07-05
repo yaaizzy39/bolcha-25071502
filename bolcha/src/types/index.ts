@@ -4,6 +4,7 @@ export interface UserPreferences {
   textColor?: string;
   backgroundColor?: string;
   displayName?: string;
+  nickname?: string;
   side?: 'left' | 'right';
   showOriginal?: boolean;
   lang?: string;

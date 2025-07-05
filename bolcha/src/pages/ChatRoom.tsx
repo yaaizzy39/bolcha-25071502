@@ -737,6 +737,32 @@ useEffect(() => {
   // helper: ensure 2-letter lowercase code
   const normalizeLang = (c: string | undefined | null) => (c || 'en').slice(0, 2).toLowerCase();
 
+  // helper: get display name (nickname > displayName > fallback)
+  const getDisplayName = (uid: string, fallback: string = "(No name)") => {
+    const isMe = uid === user.uid;
+    const isDeletedUser = deletedUsers[uid];
+    
+    if (isDeletedUser) {
+      return "[削除されたユーザー]";
+    }
+    
+    // For current user, use prefs from useUserPrefs hook
+    // For other users, use userPrefs state
+    const userPreferences = isMe ? prefs : userPrefs[uid];
+    
+    // Priority: nickname > displayName > user.displayName (for current user) > fallback
+    if (userPreferences?.nickname?.trim()) {
+      return userPreferences.nickname.trim();
+    }
+    if (userPreferences?.displayName?.trim()) {
+      return userPreferences.displayName.trim();
+    }
+    if (isMe && user.displayName?.trim()) {
+      return user.displayName.trim();
+    }
+    return fallback;
+  };
+
   const sendMessage = async () => {
     if (!text.trim() || !roomId) return;
     
@@ -929,7 +955,7 @@ useEffect(() => {
                       whiteSpace: "nowrap",
                       boxShadow: "0 2px 8px rgba(0,0,0,0.18)"
                     }}>
-                      {isDeletedUser ? "[削除されたユーザー]" : (userPrefs[m.uid]?.displayName || (isMe ? user.displayName : "") || "(No name)")}
+                      {getDisplayName(m.uid)}
                     </div>
                   )}
                 </>
@@ -952,10 +978,7 @@ useEffect(() => {
                 {m.replyTo && (() => {
                   const quoted = messages.find(msg => msg.id === m.replyTo);
                   if (!quoted) return null;
-                  const isQuotedUserDeleted = deletedUsers[quoted.uid];
-                  const quotedName = isQuotedUserDeleted 
-                    ? "[削除されたユーザー]" 
-                    : (userPrefs[quoted.uid]?.displayName || (quoted.uid === user.uid ? user.displayName : "") || "(No name)");
+                  const quotedName = getDisplayName(quoted.uid);
                   const quotedText = translations[quoted.id] !== undefined ? translations[quoted.id] : quoted.text;
                   return (
                     <div style={{

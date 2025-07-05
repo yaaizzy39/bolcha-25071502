@@ -112,6 +112,27 @@ export default function Profile({ user, onSaved }: Props) {
       </div>
 
       <div style={{ marginBottom: "1rem" }}>
+        <label>{t("nickname") ?? "ニックネーム"}</label>
+        <br />
+        <input
+          type="text"
+          value={prefs.nickname ?? user.displayName ?? ""}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (value.length <= 16) {
+              setPrefs((p) => ({ ...p, nickname: value }));
+            }
+          }}
+          placeholder={user.displayName ?? ""}
+          maxLength={16}
+          style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}
+        />
+        <small style={{ color: "#666" }}>
+          {t("nicknameLimit") ?? "全角8文字（半角16文字）まで"}
+        </small>
+      </div>
+
+      <div style={{ marginBottom: "1rem" }}>
         <label>{t("uiLanguage")}</label>
         <br />
         <select

@@ -180,7 +180,7 @@ function App() {
           )}
           {user && (
             <>
-              <span style={{ fontSize: "0.98rem", color: "#333" }}>{user.displayName || "Me"}</span>
+              <span style={{ fontSize: "0.98rem", color: "#333" }}>{userPrefs.nickname || user.displayName || "Me"}</span>
               <Link to="/profile" title="Profile Settings">
                 <img
                   src={user.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E"}
