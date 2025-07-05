@@ -1170,13 +1170,12 @@ useEffect(() => {
       <div style={{ 
         display: "flex", 
         gap: "0.5rem", 
-        padding: "0.5rem", 
+        padding: "0.5rem 0rem", 
         position: "fixed",
         bottom: 0,
         left: "50%",
         transform: "translateX(-50%)",
-        width: "100%",
-        maxWidth: 1000,
+        width: "min(100%, 1000px)",
         background: prefs.backgroundColor || "#f5f5f5",
         zIndex: 99,
         boxShadow: "0 -2px 1px rgba(0,0,0,0.06)"
@@ -1190,9 +1189,10 @@ useEffect(() => {
              maxHeight: 200,
              border: "1px solid #ccc",
              borderRadius: "20px",
-             padding: "10px 10px",
+             padding: "8px 12px",
+             margin: "0 1rem",
              lineHeight: 1.5,
-             fontSize: "1rem",
+             fontSize: "0.9rem",
              outline: "none",
              overflow: "hidden",
              resize: "none"
@@ -1220,7 +1220,7 @@ useEffect(() => {
          />
         <button
           onClick={sendMessage}
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, marginRight: "1rem" }}
         >
           <svg
             width="24"

@@ -30,14 +30,18 @@ export default function MessageInput({ user, roomId, onMessageSent }: MessageInp
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ 
-      padding: "1rem", 
-      borderTop: "1px solid #eee",
+    <div style={{
       position: "sticky",
       bottom: 0,
       background: "#fff",
+      borderTop: "1px solid #eee",
     }}>
-      <div style={{ display: "flex", gap: "0.5rem", maxWidth: 1000, margin: "0 auto" }}>
+      <form onSubmit={handleSubmit} style={{ 
+        padding: "1rem", 
+        maxWidth: 1000, 
+        margin: "0 auto"
+      }}>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
         <input
           type="text"
           value={message}
@@ -67,7 +71,8 @@ export default function MessageInput({ user, roomId, onMessageSent }: MessageInp
         >
           Send
         </button>
-      </div>
-    </form>
+        </div>
+      </form>
+    </div>
   );
 }
