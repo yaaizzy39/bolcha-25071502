@@ -795,47 +795,37 @@ useEffect(() => {
   };
 
 
-  
   return (
-    <div style={{ backgroundColor: prefs.backgroundColor || "#f5f5f5", minHeight: "100vh" }}>
+    <div style={{
+      maxWidth: 1000,
+      margin: "0 auto",
+      width: "100%",
+      minHeight: "100vh",
+      position: "relative",
+      backgroundColor: prefs.backgroundColor || "#f5f5f5"
+    }}>
       {/* Show auto-delete warning bar at the very top if needed */}
       {autoDeleteWarning && (
-        <div style={{ background: '#fff3cd', color: '#856404', fontWeight: 700, padding: '8px 18px', fontSize: '1.12em', borderBottom: '2px solid #ffeeba', letterSpacing: 0.5, zIndex: 9998, width: '100%', textAlign: 'center' }}>
+        <div style={{ background: '#fff3cd', color: '#856404', fontWeight: 700, padding: '8px 18px', fontSize: '1.12em', borderBottom: '2px solid #ffeeba', letterSpacing: 0.5, zIndex: 9998, width: '100%', textAlign: 'center', position: 'fixed', top: 47, left: 0, right: 0 }}>
           {autoDeleteWarning}
         </div>
       )}
-      <div style={{ 
-        display: "flex", 
-        flexDirection: "column", 
-        height: "100%", 
-        maxWidth: 1000, 
-        width: "100%", 
-        margin: "0 auto",
-        backgroundColor: prefs.backgroundColor || "#f5f5f5"
-      }}>
-        <div style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 0.5rem",
-            minHeight: 36,
-            position: "fixed",
-            top: autoDeleteWarning ? 88 : 47,
-            left: 0,
-            right: 0,
-            background: "#fff",
-            zIndex: 100,
-            boxShadow: "0 2px 1px rgba(0,0,0,0.06)"
-          }}>
-          <div style={{
-            maxWidth: 1000,
-            width: "100%",
-            margin: "0 auto",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 0.5rem"
-          }}>
+      
+      <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 0.5rem",
+          minHeight: 36,
+          position: "fixed",
+          top: autoDeleteWarning ? 88 : 47,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 1000,
+          background: "#fff",
+          zIndex: 100,
+          boxShadow: "0 2px 1px rgba(0,0,0,0.06)"
+        }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {enablePresenceCounter && (
             <span title="現在アクセス中の人数" style={{ fontWeight: 500, fontSize: '1rem', color: '#1e90ff' }}>
@@ -844,7 +834,7 @@ useEffect(() => {
           )}
           <span style={{ fontWeight: 700, fontSize: "1.2rem", letterSpacing: 1, margin: 0 }}>{roomName}</span>
         </div>
-            <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ height: 28, fontSize: "1rem", borderRadius: 12, border: "1px solid #ccc", padding: "0 8px" }}>
+        <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ height: 28, fontSize: "1rem", borderRadius: 12, border: "1px solid #ccc", padding: "0 8px" }}>
           {[
             ["en", "English"],
             ["ja", "日本語"],
@@ -858,19 +848,16 @@ useEffect(() => {
             </option>
           ))}
         </select>
-          </div>
-        </div>
+      </div>
 
       <div
         ref={containerRef}
         style={{ 
-          flex: 1, 
           overflowY: "auto", 
           padding: "0.5rem", 
+          paddingBottom: 80,
           position: "relative", 
-          marginTop: autoDeleteWarning ? 124 : 83,
-          marginBottom: 80,
-          backgroundColor: prefs.backgroundColor || "#f5f5f5"
+          marginTop: autoDeleteWarning ? 88 : 83
         }}
       >
         {(() => {
@@ -1185,19 +1172,13 @@ useEffect(() => {
         padding: "0.5rem", 
         position: "fixed",
         bottom: 0,
-        left: 0,
-        right: 0,
-        background: "#fff",
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: 1000,
+        background: prefs.backgroundColor || "#f5f5f5",
         zIndex: 99,
         boxShadow: "0 -2px 1px rgba(0,0,0,0.06)"
       }}>
-        <div style={{
-          display: "flex",
-          gap: "0.5rem",
-          maxWidth: 1000,
-          width: "100%",
-          margin: "0 auto"
-        }}>
         <textarea
            ref={inputRef}
            style={{
@@ -1249,7 +1230,6 @@ useEffect(() => {
             <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
           </svg>
         </button>
-        </div>
       </div>
       {userHasScrolledUp && (
         <button
@@ -1281,7 +1261,6 @@ useEffect(() => {
           ↓
         </button>
       )}
-      </div>
     </div>
   );
 }
