@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, getDocs, QueryDocumentSnapshot, doc } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, getDocs, doc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db } from "../firebase";
 import { Link, useNavigate } from "react-router-dom";
@@ -78,9 +78,10 @@ function Rooms({ user }: Props) {
       if (enablePresenceCounter) {
         await Promise.all(list.map(async (room) => {
           try {
-            const presSnap = await import("firebase/firestore").then(({ collection, getDocs }) =>
-              getDocs(collection(db, "rooms", room.id, "presence"))
-            );
+            const presSnap = await import("firebase/firestore").then((module: any) => {
+              const { collection, getDocs } = module;
+              return getDocs(collection(db, "rooms", room.id, "presence"));
+            });
             let count = 0;
             presSnap.forEach((doc) => {
               const last = doc.data().lastActive;
@@ -103,7 +104,10 @@ function Rooms({ user }: Props) {
   useEffect(() => {
     const fetchAutoDeleteHours = async () => {
       try {
-        const cfgSnap = await import("firebase/firestore").then(({ doc, getDoc }) => getDoc(doc(db, "admin", "config")));
+        const cfgSnap = await import("firebase/firestore").then((module: any) => {
+          const { doc, getDoc } = module;
+          return getDoc(doc(db, "admin", "config"));
+        });
         if (cfgSnap.exists()) {
           const d = cfgSnap.data();
           if (typeof d.autoDeleteHours === 'number') setAutoDeleteHours(d.autoDeleteHours);
@@ -129,7 +133,7 @@ function Rooms({ user }: Props) {
     const q = query(collection(db, "rooms"));
     const snap = await getDocs(q);
     const normalized = roomName.trim().toLowerCase();
-    const exists = snap.docs.some((doc: QueryDocumentSnapshot<any>) => (doc.data().name ?? "").trim().toLowerCase() === normalized);
+    const exists = snap.docs.some((doc: any) => (doc.data().name ?? "").trim().toLowerCase() === normalized);
     if (exists) {
       setDuplicateError(true);
       setTimeout(() => setDuplicateError(false), 2500);
@@ -145,7 +149,10 @@ function Rooms({ user }: Props) {
     // FirestoreからautoDeleteHours取得
     let autoDeleteHours = 24;
     try {
-      const cfgSnap = await import("firebase/firestore").then(({ doc, getDoc }) => getDoc(doc(db, "admin", "config")));
+      const cfgSnap = await import("firebase/firestore").then((module: any) => {
+        const { doc, getDoc } = module;
+        return getDoc(doc(db, "admin", "config"));
+      });
       if (cfgSnap.exists()) {
         const d = cfgSnap.data();
         if (typeof d.autoDeleteHours === 'number') autoDeleteHours = d.autoDeleteHours;

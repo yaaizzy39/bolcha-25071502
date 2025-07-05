@@ -170,7 +170,8 @@ function ChatRoom({ user }: Props) {
   // persist language selection both locally and to Firestore
   useEffect(() => {
     localStorage.setItem("chat_lang", lang);
-    import("firebase/firestore").then(({ doc, setDoc }) => {
+    import("firebase/firestore").then((module: any) => {
+      const { doc, setDoc } = module;
       setDoc(doc(db, "users", user.uid), { lang }, { merge: true });
     });
   }, [lang, user.uid]);
@@ -290,8 +291,9 @@ function ChatRoom({ user }: Props) {
           setLastActivityAt(data.lastActivityAt.toDate());
         }
         // Get autoDeleteHours from config (admin/config)
-        import("firebase/firestore").then(({ doc, getDoc }) => {
-          getDoc(doc(db, "admin", "config")).then(cfgSnap => {
+        import("firebase/firestore").then((module: any) => {
+          const { doc, getDoc } = module;
+          getDoc(doc(db, "admin", "config")).then((cfgSnap: any) => {
             if (cfgSnap.exists()) {
               const d = cfgSnap.data();
               if (typeof d.autoDeleteHours === 'number') setAutoDeleteHours(d.autoDeleteHours);

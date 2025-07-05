@@ -65,7 +65,8 @@ export default function Profile({ user, onSaved }: Props) {
 
       // update firebase auth profile so header reflects change
       if (user.photoURL !== newPhotoURL) {
-        const { updateProfile } = await import("firebase/auth");
+        const module = await import("firebase/auth");
+        const { updateProfile } = module;
         await updateProfile(user, { photoURL: newPhotoURL });
       }
     }
