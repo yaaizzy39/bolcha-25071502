@@ -815,14 +815,14 @@ useEffect(() => {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 0.5rem",
+          padding: "0 0.5rem 0 6rem",
           minHeight: 36,
           position: "fixed",
           top: autoDeleteWarning ? 88 : 47,
           left: "50%",
           transform: "translateX(-50%)",
           width: "100%",
-          maxWidth: 1000,
+          maxWidth: 984,
           background: "#fff",
           zIndex: 100,
           boxShadow: "0 2px 1px rgba(0,0,0,0.06)"
@@ -835,7 +835,7 @@ useEffect(() => {
           )}
           <span style={{ fontWeight: 700, fontSize: "1.2rem", letterSpacing: 1, margin: 0 }}>{roomName}</span>
         </div>
-        <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ height: 28, fontSize: "1rem", borderRadius: 12, border: "1px solid #ccc", padding: "0 8px" }}>
+        <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ height: 28, fontSize: "1rem", borderRadius: 12, border: "1px solid #ccc", padding: "0 8px", marginRight: "5rem" }}>
           {[
             ["en", "English"],
             ["ja", "日本語"],
