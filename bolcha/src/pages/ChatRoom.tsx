@@ -92,6 +92,7 @@ function ChatRoom({ user }: Props) {
   // presence管理用
   const [presenceCount, setPresenceCount] = useState(0);
   const presenceIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [enablePresenceCounter, setEnablePresenceCounter] = useState<boolean>(false);
 
   // ...既存のstate...
   const [pendingLink, setPendingLink] = useState<{ url: string; label: string } | null>(null);
@@ -101,9 +102,21 @@ function ChatRoom({ user }: Props) {
   // UI language from global context
   const { lang: uiLang } = useI18n();
 
+  // プレゼンス設定の読み込み
+  useEffect(() => {
+    const cfgRef = doc(db, "admin", "config");
+    const unsub = onSnapshot(cfgRef, (snap) => {
+      const data = snap.data();
+      if (typeof data?.enablePresenceCounter === 'boolean') {
+        setEnablePresenceCounter(data.enablePresenceCounter);
+      }
+    });
+    return unsub;
+  }, []);
+
   // presence: ルーム入室時に自分を追加・定期更新、離脱時に削除
   useEffect(() => {
-    if (!roomId || !user?.uid) return;
+    if (!roomId || !user?.uid || !enablePresenceCounter) return;
     const presenceRef = doc(db, "rooms", roomId, "presence", user.uid);
     // const now = new Date(); // 未使用のためコメントアウト
     const updatePresence = async () => {
@@ -121,11 +134,11 @@ function ChatRoom({ user }: Props) {
       clearInterval(presenceIntervalRef.current!);
       deleteDoc(presenceRef).catch(() => {});
     };
-  }, [roomId, user?.uid]);
+  }, [roomId, user?.uid, enablePresenceCounter]);
 
   // presence人数をリアルタイム取得
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId || !enablePresenceCounter) return;
     const q = query(
       collection(db, "rooms", roomId, "presence")
     );
@@ -146,7 +159,7 @@ function ChatRoom({ user }: Props) {
       setPresenceCount(count);
     });
     return unsub;
-  }, [roomId]);
+  }, [roomId, enablePresenceCounter]);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [roomName, setRoomName] = useState<string>("");
@@ -823,9 +836,11 @@ const handleContainerScroll = () => {
             padding: "0 0.5rem"
           }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span title="現在アクセス中の人数" style={{ fontWeight: 500, fontSize: '1rem', color: '#1e90ff' }}>
-            👥 {presenceCount}
-          </span>
+          {enablePresenceCounter && (
+            <span title="現在アクセス中の人数" style={{ fontWeight: 500, fontSize: '1rem', color: '#1e90ff' }}>
+              👥 {presenceCount}
+            </span>
+          )}
           <span style={{ fontWeight: 700, fontSize: "1.2rem", letterSpacing: 1, margin: 0 }}>{roomName}</span>
         </div>
             <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ height: 28, fontSize: "1rem", borderRadius: 12, border: "1px solid #ccc", padding: "0 8px" }}>

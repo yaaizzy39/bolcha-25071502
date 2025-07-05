@@ -17,6 +17,8 @@ export default function Admin({ user }: { user: User }) {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [autoDeleteHours, setAutoDeleteHours] = useState<number>(24);
   const [autoDeleteSaved, setAutoDeleteSaved] = useState(false);
+  const [enablePresenceCounter, setEnablePresenceCounter] = useState<boolean>(false);
+  const [presenceCounterSaved, setPresenceCounterSaved] = useState(false);
   
   // user management state
   const [users, setUsers] = useState<(UserPreferences & { id: string })[]>([]);
@@ -30,6 +32,9 @@ export default function Admin({ user }: { user: User }) {
       setGasList(data?.gasEndpoints ?? []);
       if (typeof data?.autoDeleteHours === 'number') {
         setAutoDeleteHours(data.autoDeleteHours);
+      }
+      if (typeof data?.enablePresenceCounter === 'boolean') {
+        setEnablePresenceCounter(data.enablePresenceCounter);
       }
     });
     return unsub;
@@ -80,6 +85,13 @@ export default function Admin({ user }: { user: User }) {
     await setDoc(cfgRef, { autoDeleteHours }, { merge: true });
     setAutoDeleteSaved(true);
     setTimeout(() => setAutoDeleteSaved(false), 1800);
+  };
+
+  const savePresenceCounterSetting = async () => {
+    const cfgRef = doc(db, "admin", "config");
+    await setDoc(cfgRef, { enablePresenceCounter }, { merge: true });
+    setPresenceCounterSaved(true);
+    setTimeout(() => setPresenceCounterSaved(false), 1800);
   };
 
   const addEndpoint = async () => {
@@ -208,6 +220,25 @@ export default function Admin({ user }: { user: User }) {
           <span>時間（最終投稿からこの時間経過で自動削除）</span>
           <button onClick={saveAutoDeleteHours} style={{ marginLeft: 8 }}>保存</button>
           {autoDeleteSaved && <span style={{ color: 'green', marginLeft: 8 }}>保存しました</span>}
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 24 }}>
+        <h3>Presence Counter</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={enablePresenceCounter}
+              onChange={e => setEnablePresenceCounter(e.target.checked)}
+            />
+            <span>プレゼンスカウンター機能を有効にする</span>
+          </label>
+          <button onClick={savePresenceCounterSetting} style={{ marginLeft: 8 }}>保存</button>
+          {presenceCounterSaved && <span style={{ color: 'green', marginLeft: 8 }}>保存しました</span>}
+        </div>
+        <div style={{ fontSize: '0.9em', color: '#666', marginTop: 8 }}>
+          無効にするとFirebaseへの書き込み回数を大幅に削減できます。各ルームで現在参加中の人数は表示されなくなります。
         </div>
       </section>
       <section>

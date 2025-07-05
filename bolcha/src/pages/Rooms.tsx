@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, getDocs, QueryDocumentSnapshot } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, getDocs, QueryDocumentSnapshot, doc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db } from "../firebase";
 import { Link, useNavigate } from "react-router-dom";
@@ -34,6 +34,20 @@ function Rooms({ user }: Props) {
   const [now, setNow] = useState<number>(new Date().getTime());
   // ルーム作成時警告ポップアップ
   const [showCreateWarning, setShowCreateWarning] = useState(false);
+  // プレゼンスカウンター設定
+  const [enablePresenceCounter, setEnablePresenceCounter] = useState<boolean>(false);
+
+  // プレゼンス設定の読み込み
+  useEffect(() => {
+    const cfgRef = doc(db, "admin", "config");
+    const unsub = onSnapshot(cfgRef, (snap) => {
+      const data = snap.data();
+      if (typeof data?.enablePresenceCounter === 'boolean') {
+        setEnablePresenceCounter(data.enablePresenceCounter);
+      }
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date().getTime()), 30000); // 30秒ごと
@@ -54,30 +68,32 @@ function Rooms({ user }: Props) {
         };
       });
       setRooms(list);
-      // presenceカウント取得
+      // presenceカウント取得（設定がONの場合のみ）
       const counts: Record<string, number | null> = {};
-      await Promise.all(list.map(async (room) => {
-        try {
-          const presSnap = await import("firebase/firestore").then(({ collection, getDocs }) =>
-            getDocs(collection(db, "rooms", room.id, "presence"))
-          );
-          let count = 0;
-          presSnap.forEach((doc) => {
-            const last = doc.data().lastActive;
-            let t = null;
-            if (!last) return;
-            t = last.toDate ? last.toDate().getTime() : new Date(last).getTime();
-            if (now - t < 3 * 60 * 1000) count++;
-          });
-          counts[room.id] = count;
-        } catch {
-          counts[room.id] = null;
-        }
-      }));
+      if (enablePresenceCounter) {
+        await Promise.all(list.map(async (room) => {
+          try {
+            const presSnap = await import("firebase/firestore").then(({ collection, getDocs }) =>
+              getDocs(collection(db, "rooms", room.id, "presence"))
+            );
+            let count = 0;
+            presSnap.forEach((doc) => {
+              const last = doc.data().lastActive;
+              let t = null;
+              if (!last) return;
+              t = last.toDate ? last.toDate().getTime() : new Date(last).getTime();
+              if (now - t < 3 * 60 * 1000) count++;
+            });
+            counts[room.id] = count;
+          } catch {
+            counts[room.id] = null;
+          }
+        }));
+      }
       setPresenceCounts(counts);
     });
     return unsub;
-  }, []);
+  }, [enablePresenceCounter]);
 
   useEffect(() => {
     const fetchAutoDeleteHours = async () => {
@@ -285,9 +301,11 @@ function Rooms({ user }: Props) {
           return (
             <li key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, height: 30, lineHeight: '30px' }}>
               <Link to={`/rooms/${r.id}`}>{r.name}</Link>
-              <span style={{ marginLeft: 8, color: '#1e90ff', fontWeight: 500, fontSize: '0.9em' }} title="参加者数">
-                👥 {presenceCounts[r.id] === undefined ? '...' : presenceCounts[r.id] ?? 0}
-              </span>
+              {enablePresenceCounter && (
+                <span style={{ marginLeft: 8, color: '#1e90ff', fontWeight: 500, fontSize: '0.9em' }} title="参加者数">
+                  👥 {presenceCounts[r.id] === undefined ? '...' : presenceCounts[r.id] ?? 0}
+                </span>
+              )}
               <span style={{ marginLeft: 8, color: diff <= 0 ? '#d00' : '#555', fontWeight: 400, fontSize: '0.85em' }} title="自動削除までの残り時間">
                 🕒 {remain}
               </span>
