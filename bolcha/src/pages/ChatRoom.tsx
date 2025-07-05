@@ -1169,6 +1169,13 @@ const handleContainerScroll = () => {
         zIndex: 99,
         boxShadow: "0 -2px 1px rgba(0,0,0,0.06)"
       }}>
+        <div style={{
+          display: "flex",
+          gap: "0.5rem",
+          maxWidth: 1000,
+          width: "100%",
+          margin: "0 auto"
+        }}>
         {userHasScrolledUp && (
           <button
             onClick={() => {
@@ -1250,6 +1257,7 @@ const handleContainerScroll = () => {
             <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
           </svg>
         </button>
+        </div>
       </div>
       </div>
     </div>
