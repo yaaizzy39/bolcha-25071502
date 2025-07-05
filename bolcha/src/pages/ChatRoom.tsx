@@ -337,10 +337,15 @@ useLayoutEffect(() => {
 
 
 
-// 部屋切り替え時は必ず最下部へ
+// 部屋切り替え時は必ず最下部へ & 入力欄にフォーカス
 useEffect(() => {
   bottomRef.current?.scrollIntoView();
   setUserHasScrolledUp(false);
+  // 短い遅延を入れて、DOMが完全に更新されてからフォーカスを設定
+  const timer = setTimeout(() => {
+    inputRef.current?.focus();
+  }, 100);
+  return () => clearTimeout(timer);
 }, [roomId]);
 
 // スクロールイベントハンドラ
