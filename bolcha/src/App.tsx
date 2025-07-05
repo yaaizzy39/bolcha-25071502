@@ -157,7 +157,7 @@ function App() {
         top: 0,
         background: "#fff",
         zIndex: 100,
-        boxShadow: "0 1px 4px rgba(0,0,0,0.06)"
+        boxShadow: "0 1px 4px rgba(0,0,0,0.0)"
       }}>
         <div style={{ maxWidth: 1000, margin: '0 auto', padding: '1rem 1rem 0 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
         <h2 style={{ margin: 0, lineHeight: 1, display: 'flex', alignItems: 'center' }}>

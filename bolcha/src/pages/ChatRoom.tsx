@@ -827,12 +827,12 @@ useEffect(() => {
           left: "50%",
           transform: "translateX(-50%)",
           width: "100%",
-          maxWidth: 984,
+          maxWidth: 900,
           background: "#fff",
           zIndex: 100,
           boxShadow: "0 2px 1px rgba(0,0,0,0.06)"
         }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'max(-2rem, 0px)' }}>
           {enablePresenceCounter && (
             <span title="現在アクセス中の人数" style={{ fontWeight: 500, fontSize: '1rem', color: '#1e90ff' }}>
               👥 {presenceCount}
