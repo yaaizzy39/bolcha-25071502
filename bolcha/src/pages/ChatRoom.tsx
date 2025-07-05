@@ -821,7 +821,8 @@ useEffect(() => {
           top: autoDeleteWarning ? 88 : 47,
           left: "50%",
           transform: "translateX(-50%)",
-          width: 1000,
+          width: "100%",
+          maxWidth: 1000,
           background: "#fff",
           zIndex: 100,
           boxShadow: "0 2px 1px rgba(0,0,0,0.06)"
@@ -854,7 +855,7 @@ useEffect(() => {
         ref={containerRef}
         style={{ 
           overflowY: "auto", 
-          padding: "0.5rem", 
+          padding: "0.5rem 0.25rem", 
           paddingBottom: 80,
           position: "relative", 
           marginTop: autoDeleteWarning ? 88 : 83
@@ -1174,7 +1175,8 @@ useEffect(() => {
         bottom: 0,
         left: "50%",
         transform: "translateX(-50%)",
-        width: 1000,
+        width: "100%",
+        maxWidth: 1000,
         background: prefs.backgroundColor || "#f5f5f5",
         zIndex: 99,
         boxShadow: "0 -2px 1px rgba(0,0,0,0.06)"

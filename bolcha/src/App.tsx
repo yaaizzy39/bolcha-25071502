@@ -143,7 +143,7 @@ function App() {
     <div style={{ 
       display: "flex", 
       flexDirection: "column", 
-      height: "100vh",
+      minHeight: "100vh",
       backgroundColor: userPrefs.backgroundColor || "#f5f5f5"
     }}>
       <header style={{
