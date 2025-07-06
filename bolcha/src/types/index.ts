@@ -8,6 +8,7 @@ export interface UserPreferences {
   side?: 'left' | 'right';
   showOriginal?: boolean;
   lang?: string;
+  enterToSend?: boolean;
 }
 
 export interface FirestoreTimestamp {

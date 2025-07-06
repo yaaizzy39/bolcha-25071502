@@ -1275,9 +1275,20 @@ useEffect(() => {
              }
            }}
            onKeyDown={e => {
-             if (e.key === "Enter" && !e.shiftKey) {
-               e.preventDefault();
-               sendMessage();
+             if (e.key === "Enter") {
+               if (prefs.enterToSend) {
+                 // enterToSend が true の場合：Enterで送信、Shift+Enterで改行
+                 if (!e.shiftKey) {
+                   e.preventDefault();
+                   sendMessage();
+                 }
+               } else {
+                 // enterToSend が false（デフォルト）の場合：Enterで改行、Shift+Enterで送信
+                 if (e.shiftKey) {
+                   e.preventDefault();
+                   sendMessage();
+                 }
+               }
              }
            }}
          />

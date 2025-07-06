@@ -32,6 +32,7 @@ const defaultPrefs: UserPreferences = {
   bubbleColor: "#ffffff",
   textColor: "#000000",
   backgroundColor: "#f5f5f5",
+  enterToSend: false,
 };
 
 export default function Profile({ user, onSaved }: Props) {
@@ -253,6 +254,21 @@ export default function Profile({ user, onSaved }: Props) {
           />
           {t("showOriginal")}
         </label>
+      </div>
+
+      <div style={{ marginBottom: "1rem" }}>
+        <label>
+          <input
+            type="checkbox"
+            checked={prefs.enterToSend ?? false}
+            onChange={() => setPrefs((p) => ({ ...p, enterToSend: !p.enterToSend }))}
+          />
+          {t("enterToSend")}
+        </label>
+        <br />
+        <small style={{ color: "#666", marginTop: "0.25rem", display: "block" }}>
+          {t("enterToSendDesc")}
+        </small>
       </div>
 
       <div style={{ display: 'flex', gap: '1em', justifyContent: 'flex-start' }}>
