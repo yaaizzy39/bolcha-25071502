@@ -858,7 +858,8 @@ useEffect(() => {
           maxWidth: 900,
           background: "#fff",
           zIndex: 100,
-          boxShadow: "0 2px 1px rgba(0,0,0,0.06)"
+          boxShadow: "0 2px 1px rgba(0,0,0,0.06)",
+          borderTop: "1px solid #ddd"  // ← この行を追加
         }}>
         <div style={{ 
           display: 'flex', 
