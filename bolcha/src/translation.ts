@@ -140,6 +140,65 @@ async function doTranslate(text: string, targetLang: string): Promise<string | n
   return null;
 }
 
+// New function to handle line breaks with placeholders
+async function doTranslateWithLineBreaks(text: string, targetLang: string): Promise<string | null> {
+  // If text has no line breaks, use original function
+  if (!text.includes('\n')) {
+    return await doTranslate(text, targetLang);
+  }
+  
+  console.log('[Translation] Processing text with line breaks:', { 
+    originalText: text, 
+    lineBreakCount: (text.match(/\n/g) || []).length 
+  });
+  
+  // Use multiple simple placeholders to increase survival chance
+  const placeholders = [
+    `[LB${Date.now()}]`,
+    `|LB${Date.now()}|`,
+    `<LB${Date.now()}>`,
+    `{LB${Date.now()}}`,
+    `--LB${Date.now()}--`
+  ];
+  
+  const selectedPlaceholder = placeholders[Math.floor(Math.random() * placeholders.length)];
+  
+  // Replace all line breaks with placeholder
+  const textWithPlaceholders = text.replace(/\n/g, selectedPlaceholder);
+  
+  console.log('[Translation] Text with placeholders:', textWithPlaceholders);
+  
+  // Translate the text with placeholders
+  const translatedWithPlaceholders = await doTranslate(textWithPlaceholders, targetLang);
+  
+  if (translatedWithPlaceholders === null) {
+    return null;
+  }
+  
+  console.log('[Translation] Translated with placeholders:', translatedWithPlaceholders);
+  
+  // Restore line breaks from placeholders
+  let finalTranslated = translatedWithPlaceholders.replace(new RegExp(escapeRegExp(selectedPlaceholder), 'g'), '\n');
+  
+  // Additional fallback: if placeholders were lost, try to preserve line structure
+  if (!finalTranslated.includes('\n') && text.includes('\n')) {
+    console.log('[Translation] Line break placeholders were lost, attempting to preserve structure');
+    finalTranslated = preserveBlankLines(text, finalTranslated);
+  }
+  
+  console.log('[Translation] Final translated text:', { 
+    finalText: finalTranslated, 
+    lineBreakCount: (finalTranslated.match(/\n/g) || []).length 
+  });
+  
+  return finalTranslated;
+}
+
+// Helper function to escape regular expression special characters
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 
 export function translateText(text: string, targetLang: string): Promise<string | null> {
   const cacheKey = `${targetLang}:${text}`;
@@ -147,7 +206,7 @@ export function translateText(text: string, targetLang: string): Promise<string 
     return Promise.resolve(cache.get(cacheKey)!);
   }
   const next = chain.then(async () => {
-    const res = await doTranslate(text, targetLang);
+    const res = await doTranslateWithLineBreaks(text, targetLang);
     if (res !== null) {
       cache.set(cacheKey, res);
       saveCache();
@@ -216,6 +275,10 @@ async function safeParse(res: Response): Promise<string | null> {
         .replace(/<br\s*\/?>/gi, "\n") // <br> to newline
         .replace(/<\/p>\s*<p>/gi, "\n\n") // paragraph breaks
         .replace(/<[^>]*>/g, "") // strip all other tags
+        .replace(/\r\n/g, "\n") // normalize Windows line endings
+        .replace(/\r/g, "\n") // normalize Mac line endings
+        // Keep placeholders intact - don't trim them
+        .replace(/\s*(\[LB\d+\]|\|LB\d+\||<LB\d+>|\{LB\d+\}|--LB\d+--)\s*/g, '$1') // preserve line break placeholders
         .trim();
 
       return cleaned;
@@ -233,15 +296,33 @@ function preserveBlankLines(src: string, dest: string): string {
   const d = dest.split("\n");
   const out: string[] = [];
   let j = 0;
-  for (let i = 0; i < s.length; i++) {
-    if (s[i].trim() === "") {
-      out.push("");
-      if (d[j]?.trim() === "") j++;
-    } else {
-      out.push(d[j] ?? "");
-      j++;
+  
+  // If source and destination have similar line counts, preserve structure
+  if (Math.abs(s.length - d.length) <= 1) {
+    for (let i = 0; i < s.length; i++) {
+      if (s[i].trim() === "") {
+        out.push("");
+        if (d[j]?.trim() === "") j++;
+      } else {
+        out.push(d[j] ?? "");
+        j++;
+      }
     }
+    while (j < d.length) out.push(d[j++]);
+  } else {
+    // If line counts are very different, just preserve the translated structure
+    // but ensure we maintain at least some line break structure
+    for (let i = 0; i < s.length; i++) {
+      if (s[i].trim() === "") {
+        out.push("");
+      } else if (j < d.length) {
+        out.push(d[j]);
+        j++;
+      }
+    }
+    // Add any remaining translated lines
+    while (j < d.length) out.push(d[j++]);
   }
-  while (j < d.length) out.push(d[j++]);
+  
   return out.join("\n");
 }
