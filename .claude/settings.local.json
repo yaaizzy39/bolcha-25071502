@@ -18,7 +18,8 @@
       "Bash(npm install:*)",
       "Bash(firebase --version)",
       "Bash(npx vite:*)",
-      "Bash(firebase projects:list:*)"
+      "Bash(firebase projects:list:*)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }
