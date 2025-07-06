@@ -112,6 +112,22 @@ export default function Profile({ user, onSaved }: Props) {
       </div>
 
       <div style={{ marginBottom: "1rem" }}>
+        <label>{t("googleAccount")}</label>
+        <br />
+        <div style={{ 
+          padding: "0.5rem", 
+          marginTop: "0.25rem", 
+          borderRadius: "8px", 
+          border: "1px solid #ddd", 
+          backgroundColor: "#f8f9fa",
+          fontSize: "0.9rem",
+          color: "#666"
+        }}>
+          {user.email || "No email"}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: "1rem" }}>
         <label>{t("nickname")}</label>
         <br />
         <input
