@@ -1120,7 +1120,7 @@ useEffect(() => {
                       cursor: "pointer",
                       fontSize: "0.9em",
                       color: (m.likes ?? []).includes(user.uid) ? "#e0245e" : "#888",
-                      opacity: 1,
+                      opacity: (m.likes && m.likes.length > 0) || hoveredUser === m.id ? 1 : 0,
                       pointerEvents: "auto",
                       transition: "opacity 0.2s",
                       display: "flex",
