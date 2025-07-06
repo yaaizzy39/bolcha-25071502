@@ -848,10 +848,10 @@ useEffect(() => {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 0.5rem 0 6rem",
-          minHeight: 36,
+          padding: "8px 0.5rem 8px 6rem",
+          minHeight: 20,
           position: "fixed",
-          top: autoDeleteWarning ? 88 : 47,
+          top: autoDeleteWarning ? 98 : 57,
           left: "50%",
           transform: "translateX(-50%)",
           width: "100%",
@@ -860,15 +860,47 @@ useEffect(() => {
           zIndex: 100,
           boxShadow: "0 2px 1px rgba(0,0,0,0.06)"
         }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'max(-2rem, 0px)' }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 12, 
+          marginLeft: 'max(-2rem, 0px)',
+          height: '100%'
+        }}>
           {enablePresenceCounter && (
-            <span title="現在アクセス中の人数" style={{ fontWeight: 500, fontSize: '1rem', color: '#1e90ff' }}>
+            <span title="現在アクセス中の人数" style={{ 
+              fontWeight: 500, 
+              fontSize: '1rem', 
+              color: '#1e90ff',
+              display: 'flex',
+              alignItems: 'center',
+              height: '100%',
+              lineHeight: 1.4
+            }}>
               👥 {presenceCount}
             </span>
           )}
-          <span style={{ fontWeight: 700, fontSize: "1.2rem", letterSpacing: 1, margin: 0 }}>{roomName}</span>
+          <span style={{ 
+            fontWeight: 700, 
+            fontSize: "1.2rem", 
+            letterSpacing: 1, 
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            height: '100%',
+            lineHeight: 1.4
+          }}>{roomName}</span>
         </div>
-        <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ height: 28, fontSize: "1rem", borderRadius: 12, border: "1px solid #ccc", padding: "0 8px", marginRight: "5rem" }}>
+        <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ 
+          height: 32, 
+          fontSize: "1rem", 
+          borderRadius: 12, 
+          border: "1px solid #ccc", 
+          padding: "0 8px", 
+          marginRight: "5rem",
+          display: 'flex',
+          alignItems: 'center'
+        }}>
           {[
             ["en", "English"],
             ["ja", "日本語"],
@@ -891,7 +923,7 @@ useEffect(() => {
           padding: "0.5rem 0.25rem", 
           paddingBottom: 80,
           position: "relative", 
-          marginTop: autoDeleteWarning ? 88 : 83
+          marginTop: autoDeleteWarning ? 100 : 95
         }}
       >
         {(() => {

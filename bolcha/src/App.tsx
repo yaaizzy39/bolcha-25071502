@@ -159,8 +159,8 @@ function App() {
         zIndex: 100,
         boxShadow: "0 1px 4px rgba(0,0,0,0.0)"
       }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto', padding: '1rem 1rem 0 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-        <h2 style={{ margin: 0, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto', padding: '0rem 1rem 1rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', minHeight: '45px' }}>
+        <h2 style={{ margin: 0, lineHeight: 1.4, display: 'flex', alignItems: 'center' }}>
   <img    
     src="/Bolcha-icon-250614-01.svg"
     alt="Bolcha icon"

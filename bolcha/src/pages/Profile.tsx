@@ -125,7 +125,7 @@ export default function Profile({ user, onSaved }: Props) {
           }}
           placeholder={user.displayName ?? ""}
           maxLength={16}
-          style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}
+          style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem", borderRadius: "8px", border: "1px solid #ddd" }}
         />
         <small style={{ color: "#666" }}>
           {t("nicknameLimit")}
@@ -142,6 +142,7 @@ export default function Profile({ user, onSaved }: Props) {
             setUiLang(val);
             await setDoc(doc(db, "users", user.uid), { uiLang: val }, { merge: true });
           }}
+          style={{ padding: "0.5rem", borderRadius: "8px", border: "1px solid #ddd" }}
         >
           <option value="en">{t("english")}</option>
           <option value="ja">{t("japanese")}</option>
@@ -162,7 +163,7 @@ export default function Profile({ user, onSaved }: Props) {
           value={prefs.bubbleColor ?? "#ffffff"}
           onChange={(e) => setPrefs((p) => ({ ...p, bubbleColor: e.target.value }))}
           pattern="#?[0-9a-fA-F]{6}"
-          style={{ marginLeft: 8, width: 90 }}
+          style={{ marginLeft: 8, width: 90, borderRadius: "6px", border: "1px solid #ddd", padding: "0.25rem" }}
         />
       </div>
 
@@ -181,7 +182,7 @@ export default function Profile({ user, onSaved }: Props) {
           value={prefs.textColor ?? "#000000"}
           onChange={(e) => setPrefs((p) => ({ ...p, textColor: e.target.value }))}
           pattern="#?[0-9a-fA-F]{6}"
-          style={{ marginLeft: 8, width: 90 }}
+          style={{ marginLeft: 8, width: 90, borderRadius: "6px", border: "1px solid #ddd", padding: "0.25rem" }}
         />
       </div>
 
@@ -200,7 +201,7 @@ export default function Profile({ user, onSaved }: Props) {
           value={prefs.backgroundColor ?? "#f5f5f5"}
           onChange={(e) => setPrefs((p) => ({ ...p, backgroundColor: e.target.value }))}
           pattern="#?[0-9a-fA-F]{6}"
-          style={{ marginLeft: 8, width: 90 }}
+          style={{ marginLeft: 8, width: 90, borderRadius: "6px", border: "1px solid #ddd", padding: "0.25rem" }}
         />
       </div>
 
