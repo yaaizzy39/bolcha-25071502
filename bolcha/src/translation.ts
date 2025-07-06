@@ -112,6 +112,41 @@ async function attemptTranslate(
   return null;
 }
 
+// Try translating via one endpoint: POST first, then GET fallback (Raw version without preserveBlankLines)
+async function attemptTranslateRaw(
+  url: string,
+  text: string,
+  targetLang: string
+): Promise<string | null> {
+  try {
+    const postRes = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, target: targetLang }),
+    });
+    if (postRes.ok) {
+      const maybeJson = await safeParse(postRes);
+      return handleResultRaw(maybeJson);
+    }
+    console.warn(`[translation debug] POST request to ${url} failed with status: ${postRes.status}`);
+  } catch (e) {
+    console.error(`[translation debug] Error during POST request to ${url}:`, e);
+  }
+
+  try {
+    const params = new URLSearchParams({ text, target: targetLang });
+    const getRes = await fetch(`${url}?${params.toString()}`);
+    if (getRes.ok) {
+      const maybeJson = await safeParse(getRes);
+      return handleResultRaw(maybeJson);
+    }
+    console.warn(`[translation debug] GET request to ${url} failed with status: ${getRes.status}`);
+  } catch (e) {
+    console.error(`[translation debug] Error during GET request to ${url}:`, e);
+  }
+  return null;
+}
+
 async function doTranslate(text: string, targetLang: string): Promise<string | null> {
   if (!endpoints.length) {
     console.warn("No GAS endpoints configured");
@@ -140,55 +175,101 @@ async function doTranslate(text: string, targetLang: string): Promise<string | n
   return null;
 }
 
-// New function to handle line breaks with placeholders
+// Function specifically for translating individual lines (bypasses preserveBlankLines)
+async function doTranslateLine(text: string, targetLang: string): Promise<string | null> {
+  if (!endpoints.length) {
+    console.warn("No GAS endpoints configured");
+    return null;
+  }
+  // Iterate over endpoints, starting with the current primary, until one succeeds
+  for (let i = 0; i < endpoints.length; i++) {
+    const idx = (primary + i) % endpoints.length;
+    const url = endpoints[idx];
+
+    const maybe = await attemptTranslateRaw(url, text, targetLang);
+    if (maybe !== null) {
+      // Success → promote this index to be the primary
+      primary = idx;
+      failStreak = 0;
+      return maybe;
+    }
+  }
+
+  // All endpoints failed this round
+  failStreak += 1;
+  if (failStreak >= FAIL_THRESHOLD) {
+    primary = (primary + 1) % endpoints.length; // shift to next endpoint
+    failStreak = 0;
+  }
+  return null;
+}
+
+// New function to handle line breaks by translating each line separately
 async function doTranslateWithLineBreaks(text: string, targetLang: string): Promise<string | null> {
   // If text has no line breaks, use original function
   if (!text.includes('\n')) {
+    console.log('[Translation] No line breaks detected, using standard translation');
     return await doTranslate(text, targetLang);
   }
   
   console.log('[Translation] Processing text with line breaks:', { 
     originalText: text, 
-    lineBreakCount: (text.match(/\n/g) || []).length 
+    lineBreakCount: (text.match(/\n/g) || []).length,
+    textLength: text.length
   });
   
-  // Use multiple simple placeholders to increase survival chance
-  const placeholders = [
-    `[LB${Date.now()}]`,
-    `|LB${Date.now()}|`,
-    `<LB${Date.now()}>`,
-    `{LB${Date.now()}}`,
-    `--LB${Date.now()}--`
-  ];
+  // Split text by line breaks - this ensures every \n creates a new line
+  const lines = text.split('\n');
+  const translatedLines: string[] = [];
   
-  const selectedPlaceholder = placeholders[Math.floor(Math.random() * placeholders.length)];
+  console.log('[Translation] Split into lines:', {
+    lineCount: lines.length,
+    lines: lines.map((line, index) => `${index}: "${line}"`)
+  });
   
-  // Replace all line breaks with placeholder
-  const textWithPlaceholders = text.replace(/\n/g, selectedPlaceholder);
-  
-  console.log('[Translation] Text with placeholders:', textWithPlaceholders);
-  
-  // Translate the text with placeholders
-  const translatedWithPlaceholders = await doTranslate(textWithPlaceholders, targetLang);
-  
-  if (translatedWithPlaceholders === null) {
-    return null;
+  // Translate each line separately
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    console.log(`[Translation] Processing line ${i}:`, { 
+      lineContent: `"${line}"`, 
+      isEmpty: line.trim() === '',
+      originalLength: line.length
+    });
+    
+    if (line.trim() === '') {
+      // Preserve empty lines
+      translatedLines.push('');
+      console.log(`[Translation] Line ${i}: Preserved empty line`);
+    } else {
+      try {
+        console.log(`[Translation] Line ${i}: Translating non-empty line`);
+        const translatedLine = await doTranslateLine(line, targetLang);
+        if (translatedLine !== null) {
+          translatedLines.push(translatedLine);
+          console.log(`[Translation] Line ${i}: Translation successful:`, `"${translatedLine}"`);
+        } else {
+          // If translation fails, keep original line
+          translatedLines.push(line);
+          console.log(`[Translation] Line ${i}: Translation failed, keeping original`);
+        }
+      } catch (error) {
+        console.error(`[Translation] Line ${i}: Error translating line:`, error);
+        // If translation fails, keep original line
+        translatedLines.push(line);
+      }
+    }
   }
   
-  console.log('[Translation] Translated with placeholders:', translatedWithPlaceholders);
+  // Join translated lines with line breaks
+  const finalTranslated = translatedLines.join('\n');
   
-  // Restore line breaks from placeholders
-  let finalTranslated = translatedWithPlaceholders.replace(new RegExp(escapeRegExp(selectedPlaceholder), 'g'), '\n');
-  
-  // Additional fallback: if placeholders were lost, try to preserve line structure
-  if (!finalTranslated.includes('\n') && text.includes('\n')) {
-    console.log('[Translation] Line break placeholders were lost, attempting to preserve structure');
-    finalTranslated = preserveBlankLines(text, finalTranslated);
-  }
-  
-  console.log('[Translation] Final translated text:', { 
-    finalText: finalTranslated, 
-    lineBreakCount: (finalTranslated.match(/\n/g) || []).length 
+  console.log('[Translation] Final result:', { 
+    originalLines: lines,
+    translatedLines: translatedLines,
+    finalText: finalTranslated,
+    originalLineBreakCount: (text.match(/\n/g) || []).length,
+    finalLineBreakCount: (finalTranslated.match(/\n/g) || []).length,
+    lineBreaksPreserved: (text.match(/\n/g) || []).length === (finalTranslated.match(/\n/g) || []).length
   });
   
   return finalTranslated;
@@ -203,13 +284,24 @@ function escapeRegExp(string: string): string {
 export function translateText(text: string, targetLang: string): Promise<string | null> {
   const cacheKey = `${targetLang}:${text}`;
   if (cache.has(cacheKey)) {
+    console.log('[Translation] Cache hit for:', { cacheKey });
     return Promise.resolve(cache.get(cacheKey)!);
   }
+  
+  console.log('[Translation] Starting translation for:', { 
+    text: text, 
+    targetLang: targetLang,
+    hasLineBreaks: text.includes('\n')
+  });
+  
   const next = chain.then(async () => {
     const res = await doTranslateWithLineBreaks(text, targetLang);
     if (res !== null) {
       cache.set(cacheKey, res);
       saveCache();
+      console.log('[Translation] Translation completed and cached');
+    } else {
+      console.log('[Translation] Translation failed');
     }
     // small delay between requests to avoid hitting quota hard
     await new Promise((r) => setTimeout(r, 300));
@@ -228,6 +320,11 @@ function handleResult(maybeJson: string | null, text: string): string | null {
   if (typeof maybeJson === "string") {
     return preserveBlankLines(text, maybeJson);
   }
+  return maybeJson;
+}
+
+function handleResultRaw(maybeJson: string | null): string | null {
+  // Return the raw result without preserveBlankLines processing
   return maybeJson;
 }
 
@@ -277,8 +374,6 @@ async function safeParse(res: Response): Promise<string | null> {
         .replace(/<[^>]*>/g, "") // strip all other tags
         .replace(/\r\n/g, "\n") // normalize Windows line endings
         .replace(/\r/g, "\n") // normalize Mac line endings
-        // Keep placeholders intact - don't trim them
-        .replace(/\s*(\[LB\d+\]|\|LB\d+\||<LB\d+>|\{LB\d+\}|--LB\d+--)\s*/g, '$1') // preserve line break placeholders
         .trim();
 
       return cleaned;
