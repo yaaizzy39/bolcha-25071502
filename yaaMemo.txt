@@ -4,7 +4,58 @@ Claude Code のエラー回避起動法
 claude --model claude-sonnet-4-20250514
 
 
+-------------------------------------------
+デプロイ手順
 
+  1. プロジェクトのビルド
+
+  cd /mnt/h/yasuyuki/ClaudeCode/Bolcha-250701-copy-250703/bolcha
+  npm run build
+
+  2. Firebase CLIにログイン（必要に応じて）
+
+  firebase login
+
+  3. Firebaseプロジェクトの確認
+
+  firebase projects:list
+
+  4. 現在のプロジェクト設定を確認
+
+  firebase use
+
+  5. 正しいプロジェクトに切り替え（必要に応じて）
+
+  firebase use [プロジェクトID]
+    ↓
+  firebase use bolcha-v02
+
+  6. デプロイ実行
+
+  firebase deploy
+
+  または、ホスティングのみの場合：
+  firebase deploy --only hosting
+
+  7. Cloud Functions もデプロイする場合（必要に応じて）
+
+  firebase deploy --only functions
+
+  8. Firestore のルールもデプロイする場合
+
+  firebase deploy --only firestore:rules
+
+  全てを一度にデプロイする場合
+
+  firebase deploy --only hosting,functions,firestore:rules
+
+  注意点
+
+  - WSL環境では、ブラウザが自動で開かない場合があります
+  - デプロイ完了後に表示されるURLをコピーして、手動でブラウザで確認してください
+  - エラーが出た場合は、ログを確認して対処してください
+
+  --------------------------------------------------------------
 
 
 
