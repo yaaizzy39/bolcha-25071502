@@ -6,6 +6,8 @@ const translations: Record<UILang, Record<string, string>> = {
   en: {
     profileSettings: "Profile Settings",
     avatar: "Avatar:",
+    nickname: "Nickname:",
+    nicknameLimit: "Up to 8 full-width characters (16 half-width characters)",
     myMessagePos: "My message position:",
     right: "Right",
     left: "Left",
@@ -25,6 +27,8 @@ const translations: Record<UILang, Record<string, string>> = {
   ja: {
     profileSettings: "プロフィール設定",
     avatar: "アバター：",
+    nickname: "ニックネーム：",
+    nicknameLimit: "全角8文字（半角16文字）まで",
     myMessagePos: "自分のメッセージ位置：",
     right: "右",
     left: "左",

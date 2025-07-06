@@ -112,7 +112,7 @@ export default function Profile({ user, onSaved }: Props) {
       </div>
 
       <div style={{ marginBottom: "1rem" }}>
-        <label>{t("nickname") ?? "ニックネーム"}</label>
+        <label>{t("nickname")}</label>
         <br />
         <input
           type="text"
@@ -128,7 +128,7 @@ export default function Profile({ user, onSaved }: Props) {
           style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}
         />
         <small style={{ color: "#666" }}>
-          {t("nicknameLimit") ?? "全角8文字（半角16文字）まで"}
+          {t("nicknameLimit")}
         </small>
       </div>
 

@@ -154,7 +154,7 @@ export default function Admin({ user }: { user: User }) {
     try {
       // Get the user data before deletion to save display name
       const userToDelete = users.find(u => u.id === deleteUserTarget);
-      const displayName = userToDelete?.displayName || deleteUserTarget;
+      const displayName = userToDelete?.nickname || userToDelete?.displayName || deleteUserTarget;
       
       // Add user to deleted users list first (for immediate logout trigger)
       const deletedUsersRef = doc(db, "admin", "deletedUsers");
@@ -354,14 +354,14 @@ export default function Admin({ user }: { user: User }) {
           <tbody>
             {users
               .slice()
-              .sort((a, b) => (a.displayName || a.id).localeCompare(b.displayName || b.id))
+              .sort((a, b) => (a.nickname || a.displayName || a.id).localeCompare(b.nickname || b.displayName || b.id))
               .map((userData) => (
                 <tr key={userData.id} style={{ borderBottom: "1px solid #eee" }}>
                   <td style={{ padding: "8px 12px", fontFamily: "monospace", fontSize: "0.85em" }}>
                     {userData.id}
                   </td>
                   <td style={{ padding: "8px 12px" }}>
-                    {userData.displayName || "-"}
+                    {userData.nickname || userData.displayName || "-"}
                   </td>
                   <td style={{ padding: "8px 12px" }}>
                     {userData.photoURL ? (
