@@ -8,20 +8,19 @@ function Login() {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       
-      // プライベート情報（完全なプロフィール）
+      // プライベート情報（個人設定のみ）
       await setDoc(
         doc(db, "users", user.uid),
         {
           uid: user.uid,
           displayName: user.displayName,
           email: user.email,
-          photoURL: user.photoURL,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
       );
       
-      // パブリック情報（チャット表示用）- displayNameとメールアドレスを除外
+      // パブリック情報（チャット表示用のみ）
       await setDoc(
         doc(db, "userProfiles", user.uid),
         {

@@ -40,6 +40,7 @@ export default function Profile({ user, onSaved }: Props) {
   const { lang: uiLang, setLang: setUiLang, t } = useI18n();
   const [prefs, setPrefs] = useState<UserPreferences>(defaultPrefs);
   const [saving, setSaving] = useState(false);
+  const [showNicknameWarning, setShowNicknameWarning] = useState(false);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
 
   useEffect(() => {
@@ -54,8 +55,14 @@ export default function Profile({ user, onSaved }: Props) {
   }, []);
 
   const handleSave = async () => {
+    // ニックネームが空の場合は警告
+    if (!prefs.nickname?.trim()) {
+      setShowNicknameWarning(true);
+      return;
+    }
+    
     setSaving(true);
-    let newPhotoURL = prefs.photoURL;
+    let newPhotoURL = prefs.photoURL || user.photoURL;
 
     if (selectedImageFile) {
       const ext = selectedImageFile.name.split(".").pop() || "jpg";
@@ -74,18 +81,35 @@ export default function Profile({ user, onSaved }: Props) {
 
     const updatedPrefs = { ...prefs, photoURL: newPhotoURL };
     
-    // プライベート情報（完全なプロフィール）
-    await setDoc(doc(db, "users", user.uid), updatedPrefs, { merge: true });
-    
-    // パブリック情報（チャット表示用）- displayNameとメールアドレスを除外
-    const publicProfile = {
-      nickname: updatedPrefs.nickname,
-      photoURL: newPhotoURL,
+    // プライベート情報（個人設定のみ）
+    const privateData = {
+      displayName: updatedPrefs.displayName || user.displayName,
+      email: user.email,
       lang: updatedPrefs.lang,
-      bubbleColor: updatedPrefs.bubbleColor,
-      textColor: updatedPrefs.textColor,
-      side: updatedPrefs.side
+      side: updatedPrefs.side,
+      updatedAt: new Date()
     };
+    await setDoc(doc(db, "users", user.uid), privateData, { merge: true });
+    
+    // パブリック情報（チャット表示用）
+    const publicProfile: any = {
+      updatedAt: new Date()
+    };
+    
+    // undefined値を除外して追加
+    if (updatedPrefs.nickname?.trim()) {
+      publicProfile.nickname = updatedPrefs.nickname.trim();
+    }
+    if (newPhotoURL) {
+      publicProfile.photoURL = newPhotoURL;
+    }
+    if (updatedPrefs.bubbleColor) {
+      publicProfile.bubbleColor = updatedPrefs.bubbleColor;
+    }
+    if (updatedPrefs.textColor) {
+      publicProfile.textColor = updatedPrefs.textColor;
+    }
+    
     await setDoc(doc(db, "userProfiles", user.uid), publicProfile, { merge: true });
     
     // Update localStorage to immediately reflect changes in ChatRoom
@@ -315,6 +339,69 @@ export default function Profile({ user, onSaved }: Props) {
           {(uiLang === 'ja' && (!t("cancel") || t("cancel").toLowerCase() === 'cancel')) ? 'キャンセル' : (t("cancel") || (uiLang === 'ja' ? 'キャンセル' : 'Cancel'))}
         </button>
       </div>
+
+      {/* ニックネーム警告モーダル */}
+      {showNicknameWarning && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          background: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: "#fff",
+            borderRadius: "12px",
+            padding: "2rem",
+            maxWidth: "400px",
+            width: "90%",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+            textAlign: "center"
+          }}>
+            <div style={{
+              fontSize: "2rem",
+              marginBottom: "1rem"
+            }}>
+              ✏️
+            </div>
+            <h3 style={{
+              color: "#d63384",
+              margin: "0 0 1rem 0",
+              fontSize: "1.2rem"
+            }}>
+              ニックネーム未設定
+            </h3>
+            <p style={{
+              color: "#666",
+              lineHeight: "1.5",
+              margin: "0 0 2rem 0"
+            }}>
+              チャットで他のユーザーに表示される<br/>
+              ニックネームを入力してください
+            </p>
+            <button
+              onClick={() => setShowNicknameWarning(false)}
+              style={{
+                background: "#0066cc",
+                color: "#fff",
+                border: "none",
+                borderRadius: "8px",
+                padding: "0.75rem 2rem",
+                fontSize: "1rem",
+                cursor: "pointer",
+                fontWeight: "500"
+              }}
+            >
+              わかりました
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

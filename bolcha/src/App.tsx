@@ -47,8 +47,7 @@ const IconLogOut = () => (
     <line x1="21" y1="12" x2="9" y2="12"/>
   </svg>
 );
-import Profile from "./pages/Profile";
-import Admin from "./pages/Admin";
+
 import useIsAdmin from "./hooks/useIsAdmin";
 
 function App() {
@@ -78,11 +77,11 @@ function App() {
         } catch (error) {
         }
         
-        // 新規ユーザーのニックネーム設定チェック
+        // 新規ユーザーのニックネーム設定チェック（userProfilesコレクションから）
         try {
-          const userDoc = await getDoc(doc(db, "users", u.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
+          const userProfileDoc = await getDoc(doc(db, "userProfiles", u.uid));
+          if (userProfileDoc.exists()) {
+            const userData = userProfileDoc.data();
             // ニックネームが設定されていない場合
             if (!userData.nickname?.trim()) {
               setNeedsNickname(true);
