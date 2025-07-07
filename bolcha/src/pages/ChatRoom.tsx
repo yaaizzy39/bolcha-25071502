@@ -452,14 +452,14 @@ useEffect(() => {
               newPrefs[uid] = {};
             }
           } else {
-            // For other users, load from Firestore only
-            const snap = await getDoc(fbDoc(db, "users", uid));
+            // For other users, load from public profile (userProfiles collection)
+            const snap = await getDoc(fbDoc(db, "userProfiles", uid));
             if (snap.exists()) {
               const userData = snap.data() as any;
-              if (DEBUG_AVATARS) console.log(`Loaded user prefs for ${uid} from Firestore:`, userData);
+              if (DEBUG_AVATARS) console.log(`Loaded user prefs for ${uid} from userProfiles:`, userData);
               newPrefs[uid] = userData;
             } else {
-              if (DEBUG_AVATARS) console.log(`No Firestore document found for user ${uid}`);
+              if (DEBUG_AVATARS) console.log(`No userProfiles document found for user ${uid}`);
               newPrefs[uid] = {};
             }
           }
@@ -791,16 +791,11 @@ useEffect(() => {
     // For other users, use userPrefs state
     const userPreferences = isMe ? prefs : userPrefs[uid];
     
-    // Priority: nickname > displayName > user.displayName (for current user) > fallback
+    // チャットではnicknameのみ表示（プライバシー保護）
     if (userPreferences?.nickname?.trim()) {
       return userPreferences.nickname.trim();
     }
-    if (userPreferences?.displayName?.trim()) {
-      return userPreferences.displayName.trim();
-    }
-    if (isMe && user.displayName?.trim()) {
-      return user.displayName.trim();
-    }
+    // nicknameがない場合はfallbackを表示
     return fallback;
   };
 
@@ -992,16 +987,6 @@ useEffect(() => {
             }
           }
           
-          // Debug avatar loading - always show for now
-          console.log('Avatar debug:', {
-            uid: m.uid,
-            isMe: isMe,
-            userPrefsPhotoURL: userPrefs[m.uid]?.photoURL,
-            userPhotoURL: user.photoURL,
-            finalAvatar: avatar,
-            avatarExists: !!avatar,
-            userPrefsExists: !!userPrefs[m.uid]
-          });
           
           const myDir = isMe ? (prefs.side === "right" ? "row-reverse" : "row") : "row";
           

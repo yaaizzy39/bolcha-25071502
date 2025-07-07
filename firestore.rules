@@ -26,9 +26,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    /* ---------- users ---------- */
+    /* ---------- users (プライベート情報) ---------- */
     match /users/{uid} {
-      allow read: if request.auth != null;  // チャット表示のため認証済みユーザーは他のユーザー情報を読み取り可能
+      allow read: if request.auth != null && (isAdmin() || request.auth.uid == uid);  // 自分のデータまたは管理者のみ
+      allow write: if isAdmin() || request.auth.uid == uid;
+    }
+
+    /* ---------- userProfiles (パブリック情報) ---------- */
+    match /userProfiles/{uid} {
+      allow read: if request.auth != null;  // チャット表示用のパブリック情報
       allow write: if isAdmin() || request.auth.uid == uid;
     }
 

@@ -7,13 +7,24 @@ function Login() {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      // Persist / update basic user profile in Firestore
+      
+      // プライベート情報（完全なプロフィール）
       await setDoc(
         doc(db, "users", user.uid),
         {
           uid: user.uid,
           displayName: user.displayName,
           email: user.email,
+          photoURL: user.photoURL,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      
+      // パブリック情報（チャット表示用）- displayNameとメールアドレスを除外
+      await setDoc(
+        doc(db, "userProfiles", user.uid),
+        {
           photoURL: user.photoURL,
           updatedAt: serverTimestamp(),
         },

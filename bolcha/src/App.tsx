@@ -6,8 +6,11 @@ import type { User } from "firebase/auth";
 import Login from "./pages/Login";
 import Rooms from "./pages/Rooms";
 import ChatRoom from "./pages/ChatRoom";
-import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
+import Profile from "./pages/Profile";
+import Admin from "./pages/Admin";
+import { Routes, Route, Navigate, Link, useLocation, useNavigate } from "react-router-dom";
 import { useUserPrefs } from "./hooks/useUserPrefs";
+import "./utils/migrateUserData"; // マイグレーション関数をグローバルに公開
 
 // Minimal abstract icons
 const IconGrid = () => (
@@ -51,6 +54,7 @@ import useIsAdmin from "./hooks/useIsAdmin";
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [needsNickname, setNeedsNickname] = useState(false);
   const isAdmin = useIsAdmin(user);
   const { prefs: userPrefs, setPrefs: setUserPrefs } = useUserPrefs(user?.uid || "");
 
@@ -73,6 +77,27 @@ function App() {
           }
         } catch (error) {
         }
+        
+        // 新規ユーザーのニックネーム設定チェック
+        try {
+          const userDoc = await getDoc(doc(db, "users", u.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            // ニックネームが設定されていない場合
+            if (!userData.nickname?.trim()) {
+              setNeedsNickname(true);
+            } else {
+              setNeedsNickname(false);
+            }
+          } else {
+            // 新規ユーザー（ドキュメントが存在しない）
+            setNeedsNickname(true);
+          }
+        } catch (error) {
+          setNeedsNickname(false);
+        }
+      } else {
+        setNeedsNickname(false);
       }
       
       setUser(u);
@@ -86,6 +111,10 @@ function App() {
       const { uid, prefs } = event.detail;
       if (uid === user?.uid) {
         setUserPrefs(prefs);
+        // ニックネームが設定されたかチェック
+        if (prefs.nickname?.trim()) {
+          setNeedsNickname(false);
+        }
       }
     };
 
@@ -208,11 +237,23 @@ function App() {
       </header>
       <main style={{ padding: "60px 1rem 1rem 1rem", flex: 1, display: "flex", flexDirection: "column" }}>
         <Routes>
-          <Route path="/" element={<Rooms user={user!} />} />
-          <Route path="/rooms/:roomId" element={<ChatRoom user={user!} />} />
+          <Route path="/" element={
+            needsNickname && location.pathname !== '/profile' ? 
+            <Navigate to="/profile" replace /> : 
+            <Rooms user={user!} />
+          } />
+          <Route path="/rooms/:roomId" element={
+            needsNickname ? 
+            <Navigate to="/profile" replace /> : 
+            <ChatRoom user={user!} />
+          } />
           <Route path="/profile" element={<Profile user={user!} />} />
-          {isAdmin && <Route path="/admin" element={<Admin user={user!} />} />}
-            <Route path="*" element={<Navigate to="/" />} />
+          {isAdmin && <Route path="/admin" element={
+            needsNickname ? 
+            <Navigate to="/profile" replace /> : 
+            <Admin user={user!} />
+          } />}
+          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
       

@@ -73,7 +73,20 @@ export default function Profile({ user, onSaved }: Props) {
     }
 
     const updatedPrefs = { ...prefs, photoURL: newPhotoURL };
+    
+    // プライベート情報（完全なプロフィール）
     await setDoc(doc(db, "users", user.uid), updatedPrefs, { merge: true });
+    
+    // パブリック情報（チャット表示用）- displayNameとメールアドレスを除外
+    const publicProfile = {
+      nickname: updatedPrefs.nickname,
+      photoURL: newPhotoURL,
+      lang: updatedPrefs.lang,
+      bubbleColor: updatedPrefs.bubbleColor,
+      textColor: updatedPrefs.textColor,
+      side: updatedPrefs.side
+    };
+    await setDoc(doc(db, "userProfiles", user.uid), publicProfile, { merge: true });
     
     // Update localStorage to immediately reflect changes in ChatRoom
     localStorage.setItem("chat_prefs", JSON.stringify(updatedPrefs));
@@ -130,19 +143,38 @@ export default function Profile({ user, onSaved }: Props) {
 
       <div style={{ marginBottom: "1rem" }}>
         <label>{t("nickname")}</label>
+        {!prefs.nickname?.trim() && (
+          <div style={{ 
+            background: "#fff3cd", 
+            border: "1px solid #ffeaa7", 
+            borderRadius: "4px", 
+            padding: "8px", 
+            margin: "4px 0",
+            fontSize: "0.9em",
+            color: "#856404"
+          }}>
+            📝 ニックネームを設定してください。チャットで他のユーザーに表示される名前です。
+          </div>
+        )}
         <br />
         <input
           type="text"
-          value={prefs.nickname ?? user.displayName ?? ""}
+          value={prefs.nickname ?? ""}
           onChange={(e) => {
             const value = e.target.value;
             if (value.length <= 16) {
               setPrefs((p) => ({ ...p, nickname: value }));
             }
           }}
-          placeholder={user.displayName ?? ""}
+          placeholder="チャットで表示される名前を入力"
           maxLength={16}
-          style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem", borderRadius: "8px", border: "1px solid #ddd" }}
+          style={{ 
+            width: "100%", 
+            padding: "0.5rem", 
+            marginTop: "0.25rem", 
+            borderRadius: "8px", 
+            border: !prefs.nickname?.trim() ? "2px solid #ffeaa7" : "1px solid #ddd"
+          }}
         />
         <small style={{ color: "#666" }}>
           {t("nicknameLimit")}
