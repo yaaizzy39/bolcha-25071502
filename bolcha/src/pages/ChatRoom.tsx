@@ -143,7 +143,6 @@ function ChatRoom({ user }: Props) {
       collection(db, "rooms", roomId, "presence")
     );
     const unsub = onSnapshot(q, (snap) => {
-      // DEBUG: Log snapshot docs
        
       const now = Date.now();
       const debugList = snap.docs.map(d => {
@@ -466,7 +465,6 @@ useEffect(() => {
         setDeletedUsers(deletedUsersData || {});
         
         if (deletedUsersData && deletedUsersData[user.uid]) {
-          console.log("User deleted - forcing logout from ChatRoom");
           alert("Your account has been deleted by an administrator.");
           signOut(auth).catch(console.error);
         }
@@ -521,7 +519,6 @@ useEffect(() => {
             saveTranslatedId(id);
           }
         } catch (err) {
-          console.error('[Translation] On-demand error', err);
         } finally {
           translatingRef.current.delete(id);
         }
@@ -549,7 +546,6 @@ useEffect(() => {
         saveTranslatedId(messageId);
       }
     } catch (err) {
-      console.error('[Translation] Error translating message:', err);
     } finally {
       translatingRef.current.delete(messageId);
     }
@@ -802,7 +798,6 @@ useEffect(() => {
           docData.translations = { [lang]: translated };
         }
       } catch (error) {
-        console.error('[Translation] Failed to translate message at post time:', error);
         // 翻訳に失敗しても投稿は続行
       }
     }
@@ -1113,7 +1108,6 @@ useEffect(() => {
                       updateDoc(doc(db, "rooms", roomId, "messages", m.id), {
                         likes: liked ? arrayRemove(user.uid) : arrayUnion(user.uid),
                       }).catch(err => {
-                        console.error('[Like] Update failed:', err);
                       });
                     }}
                     style={{

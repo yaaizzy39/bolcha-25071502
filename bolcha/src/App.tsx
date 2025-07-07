@@ -58,7 +58,6 @@ function App() {
   
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
-      console.log('[App] Auth state changed:', u ? 'User logged in' : 'User logged out');
       
       if (u) {
         // Check if user is in the deleted/blocked list
@@ -73,7 +72,6 @@ function App() {
             return;
           }
         } catch (error) {
-          console.error("Error checking user status:", error);
         }
       }
       
@@ -108,14 +106,12 @@ function App() {
         const deletedUsers = doc.data();
         // If current user is in the deleted users list, force logout
         if (deletedUsers && deletedUsers[user.uid]) {
-          console.log("User account has been deleted by administrator");
           alert("Your account has been deleted by an administrator. You will be logged out.");
           signOut(auth).catch(console.error);
         }
       }
     }, (error) => {
       // Handle potential permission errors gracefully
-      console.log("Deleted users monitoring error:", error);
     });
 
     return unsubscribe;
@@ -126,7 +122,6 @@ function App() {
       await signOut(auth);
       setShowLogoutConfirm(false);
     } catch (error) {
-      console.error("Logout error:", error);
     }
   };
 

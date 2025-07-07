@@ -20,9 +20,7 @@ export default function useIsAdmin(user: User | null): boolean {
       },
       (err) => {
         if (err.code === 'permission-denied') {
-          console.debug('[useIsAdmin] admin/config listener blocked: permission-denied');
         } else {
-          console.error('[useIsAdmin] listener error', err);
         }
       }
     );

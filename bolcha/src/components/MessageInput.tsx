@@ -25,7 +25,6 @@ export default function MessageInput({ user, roomId, onMessageSent }: MessageInp
       setMessage("");
       onMessageSent?.();
     } catch (error) {
-      console.error("Error sending message:", error);
     }
   };
 

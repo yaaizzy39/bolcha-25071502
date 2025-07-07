@@ -183,7 +183,6 @@ function Rooms({ user }: Props) {
       try {
         await deleteRoom({ roomId: deleteTarget });
       } catch (error) {
-        console.error("Error deleting room:", error);
         // Handle error appropriately, e.g., show a notification to the user
       } finally {
         setDeleteTarget(null);

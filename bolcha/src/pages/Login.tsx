@@ -20,7 +20,6 @@ function Login() {
         { merge: true }
       );
     } catch (err) {
-      console.error(err);
       alert("Google sign-in failed");
     }
   };
