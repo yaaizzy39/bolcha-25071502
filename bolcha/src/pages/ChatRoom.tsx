@@ -82,11 +82,13 @@ function formatTime(date: Date, uiLang: string) {
   }
 }
 
-function isValidFirebaseStorageUrl(url: string): boolean {
+function isValidAvatarUrl(url: string): boolean {
   if (!url) return false;
   return url.includes('firebasestorage.googleapis.com') || 
          url.includes('firebasestorage.app') ||
-         url.startsWith('data:image/');
+         url.includes('googleusercontent.com') ||
+         url.startsWith('data:image/') ||
+         url.startsWith('https://');
 }
 
 function ChatRoom({ user }: Props) {
@@ -982,24 +984,24 @@ useEffect(() => {
             const userPrefsAvatar = userPrefs[m.uid]?.photoURL;
             const authAvatar = isMe ? user.photoURL : undefined;
             
-            if (userPrefsAvatar && isValidFirebaseStorageUrl(userPrefsAvatar)) {
+            // Use any available avatar - remove validation temporarily for debugging
+            if (userPrefsAvatar) {
               avatar = userPrefsAvatar;
-            } else if (authAvatar && isValidFirebaseStorageUrl(authAvatar)) {
+            } else if (authAvatar) {
               avatar = authAvatar;
             }
           }
           
-          // Debug avatar loading
-          if (isMe && DEBUG_AVATARS) {
-            console.log('Avatar debug for current user:', {
-              uid: m.uid,
-              isMe: isMe,
-              userPrefsPhotoURL: userPrefs[m.uid]?.photoURL,
-              userPhotoURL: user.photoURL,
-              finalAvatar: avatar,
-              isValid: isValidFirebaseStorageUrl(avatar)
-            });
-          }
+          // Debug avatar loading - always show for now
+          console.log('Avatar debug:', {
+            uid: m.uid,
+            isMe: isMe,
+            userPrefsPhotoURL: userPrefs[m.uid]?.photoURL,
+            userPhotoURL: user.photoURL,
+            finalAvatar: avatar,
+            avatarExists: !!avatar,
+            userPrefsExists: !!userPrefs[m.uid]
+          });
           
           const myDir = isMe ? (prefs.side === "right" ? "row-reverse" : "row") : "row";
           
