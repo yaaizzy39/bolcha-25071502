@@ -45,9 +45,25 @@ export default function Profile({ user, onSaved }: Props) {
 
   useEffect(() => {
     const load = async () => {
-      const snap = await getDoc(doc(db, "users", user.uid));
-      if (snap.exists()) {
-        setPrefs({ ...defaultPrefs, ...snap.data() } as UserPreferences);
+      try {
+        // プライベート設定を読み込み
+        const privateSnap = await getDoc(doc(db, "users", user.uid));
+        let privateData = {};
+        if (privateSnap.exists()) {
+          privateData = privateSnap.data();
+        }
+        
+        // パブリック設定を読み込み（ニックネーム、色設定）
+        const publicSnap = await getDoc(doc(db, "userProfiles", user.uid));
+        let publicData = {};
+        if (publicSnap.exists()) {
+          publicData = publicSnap.data();
+        }
+        
+        // 両方をマージして設定
+        setPrefs({ ...defaultPrefs, ...privateData, ...publicData } as UserPreferences);
+      } catch (error) {
+        console.error("Error loading user preferences:", error);
       }
     };
     load();
@@ -82,13 +98,24 @@ export default function Profile({ user, onSaved }: Props) {
     const updatedPrefs = { ...prefs, photoURL: newPhotoURL };
     
     // プライベート情報（個人設定のみ）
-    const privateData = {
-      displayName: updatedPrefs.displayName || user.displayName,
-      email: user.email,
-      lang: updatedPrefs.lang,
-      side: updatedPrefs.side,
+    const privateData: any = {
       updatedAt: new Date()
     };
+    
+    // undefined値を除外して追加
+    if (updatedPrefs.displayName || user.displayName) {
+      privateData.displayName = updatedPrefs.displayName || user.displayName;
+    }
+    if (user.email) {
+      privateData.email = user.email;
+    }
+    if (updatedPrefs.lang) {
+      privateData.lang = updatedPrefs.lang;
+    }
+    if (updatedPrefs.side) {
+      privateData.side = updatedPrefs.side;
+    }
+    
     await setDoc(doc(db, "users", user.uid), privateData, { merge: true });
     
     // パブリック情報（チャット表示用）

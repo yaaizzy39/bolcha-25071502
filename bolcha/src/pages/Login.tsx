@@ -9,26 +9,32 @@ function Login() {
       const user = result.user;
       
       // プライベート情報（個人設定のみ）
-      await setDoc(
-        doc(db, "users", user.uid),
-        {
-          uid: user.uid,
-          displayName: user.displayName,
-          email: user.email,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      const privateData: any = {
+        uid: user.uid,
+        updatedAt: serverTimestamp(),
+      };
+      
+      // undefined値を除外して追加
+      if (user.displayName) {
+        privateData.displayName = user.displayName;
+      }
+      if (user.email) {
+        privateData.email = user.email;
+      }
+      
+      await setDoc(doc(db, "users", user.uid), privateData, { merge: true });
       
       // パブリック情報（チャット表示用のみ）
-      await setDoc(
-        doc(db, "userProfiles", user.uid),
-        {
-          photoURL: user.photoURL,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      const publicData: any = {
+        updatedAt: serverTimestamp(),
+      };
+      
+      // undefined値を除外して追加
+      if (user.photoURL) {
+        publicData.photoURL = user.photoURL;
+      }
+      
+      await setDoc(doc(db, "userProfiles", user.uid), publicData, { merge: true });
     } catch (err) {
       alert("Google sign-in failed");
     }
