@@ -67,7 +67,7 @@ function App() {
           const deletedUsersDoc = await getDoc(deletedUsersRef);
           
           if (deletedUsersDoc.exists() && deletedUsersDoc.data()[u.uid]) {
-            console.log("Blocked user attempted to login:", u.uid);
+            // User account disabled - removing sensitive logging
             alert("Your account has been disabled by an administrator. Please contact support if you believe this is an error.");
             await signOut(auth);
             return;

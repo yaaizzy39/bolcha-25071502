@@ -358,7 +358,7 @@ export default function Admin({ user }: { user: User }) {
               .map((userData) => (
                 <tr key={userData.id} style={{ borderBottom: "1px solid #eee" }}>
                   <td style={{ padding: "8px 12px", fontFamily: "monospace", fontSize: "0.85em" }}>
-                    {userData.id}
+                    {userData.id.substring(0, 8)}...
                   </td>
                   <td style={{ padding: "8px 12px" }}>
                     {userData.nickname || userData.displayName || "-"}
