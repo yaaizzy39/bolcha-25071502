@@ -26,6 +26,7 @@ import { translateText } from "../translation";
 import type { User } from "firebase/auth";
 import type { UserPreferences, Message } from "../types";
 import { doc as fbDoc, getDoc } from "firebase/firestore";
+import { debugAvatarIssues } from "../utils/avatarTest";
 
 type Props = {
   user: User;
@@ -81,7 +82,18 @@ function formatTime(date: Date, uiLang: string) {
   }
 }
 
+function isValidFirebaseStorageUrl(url: string): boolean {
+  if (!url) return false;
+  return url.includes('firebasestorage.googleapis.com') || 
+         url.includes('firebasestorage.app') ||
+         url.startsWith('data:image/');
+}
+
 function ChatRoom({ user }: Props) {
+  // Debug mode for avatar issues - add ?debug_avatars to URL to enable detailed logging
+  // Also use debugAvatarIssues(userId) in browser console for comprehensive avatar debugging
+  const DEBUG_AVATARS = new URLSearchParams(window.location.search).has('debug_avatars');
+  
   // --- Room Deletion and Auto-Delete Warning State ---
   const navigate = useNavigate();
 
@@ -404,35 +416,60 @@ useEffect(() => {
     const missing = Array.from(new Set(messages.map(m => m.uid))).filter(uid => !(uid in userPrefs));
     if (missing.length === 0) return;
     
+    if (DEBUG_AVATARS) console.log('Loading missing user preferences for:', missing);
+    
     // Batch update to prevent multiple re-renders
     const fetchAllMissing = async () => {
       const newPrefs: Record<string, UserPreferences> = {};
       
       for (const uid of missing) {
         try {
-          // Try to load from localStorage for current user, else Firestore
+          // For current user, always merge localStorage with Firestore to ensure latest photoURL
           if (uid === user.uid) {
             try {
               const stored = localStorage.getItem("chat_prefs");
+              let localPrefs = {};
               if (stored) {
-                newPrefs[uid] = JSON.parse(stored);
-                continue;
+                localPrefs = JSON.parse(stored);
+                if (DEBUG_AVATARS) console.log('Loaded current user prefs from localStorage:', localPrefs);
               }
-            } catch {}
-          }
-          const snap = await getDoc(fbDoc(db, "users", uid));
-          if (snap.exists()) {
-            newPrefs[uid] = snap.data() as any;
+              
+              // Always check Firestore for current user to get latest photoURL
+              const snap = await getDoc(fbDoc(db, "users", uid));
+              if (snap.exists()) {
+                const firestoreData = snap.data() as any;
+                if (DEBUG_AVATARS) console.log(`Loaded current user prefs from Firestore:`, firestoreData);
+                // Merge localStorage with Firestore, prioritizing Firestore for photoURL
+                newPrefs[uid] = { ...localPrefs, ...firestoreData };
+              } else {
+                if (DEBUG_AVATARS) console.log(`No Firestore document found for current user ${uid}`);
+                newPrefs[uid] = localPrefs;
+              }
+            } catch (error) {
+              if (DEBUG_AVATARS) console.log(`Error loading current user prefs:`, error);
+              newPrefs[uid] = {};
+            }
           } else {
-            newPrefs[uid] = {};
+            // For other users, load from Firestore only
+            const snap = await getDoc(fbDoc(db, "users", uid));
+            if (snap.exists()) {
+              const userData = snap.data() as any;
+              if (DEBUG_AVATARS) console.log(`Loaded user prefs for ${uid} from Firestore:`, userData);
+              newPrefs[uid] = userData;
+            } else {
+              if (DEBUG_AVATARS) console.log(`No Firestore document found for user ${uid}`);
+              newPrefs[uid] = {};
+            }
           }
-        } catch {
+        } catch (error) {
+          if (DEBUG_AVATARS) console.log(`Error loading prefs for user ${uid}:`, error);
           newPrefs[uid] = {};
         }
       }
       
       // Single batch update
       if (Object.keys(newPrefs).length > 0) {
+        if (DEBUG_AVATARS) console.log('Setting user preferences:', newPrefs);
         setUserPrefs(prev => ({ ...prev, ...newPrefs }));
       }
     };
@@ -443,8 +480,14 @@ useEffect(() => {
   // Listen for userPrefsUpdated event from Profile page
   useEffect(() => {
     const handleUserPrefsUpdate = (event: CustomEvent) => {
-      const { uid, prefs } = event.detail;
-      setUserPrefs(prev => ({ ...prev, [uid]: prefs }));
+      const { uid, prefs: updatedPrefs } = event.detail;
+      if (DEBUG_AVATARS) console.log('Received userPrefsUpdated event:', { uid, prefs: updatedPrefs });
+      setUserPrefs(prev => ({ ...prev, [uid]: updatedPrefs }));
+      
+      // If it's the current user, also update the localStorage-backed prefs
+      if (uid === user.uid) {
+        setPrefs(p => ({ ...p, ...updatedPrefs }));
+      }
     };
 
     window.addEventListener('userPrefsUpdated', handleUserPrefsUpdate as EventListener);
@@ -452,7 +495,7 @@ useEffect(() => {
     return () => {
       window.removeEventListener('userPrefsUpdated', handleUserPrefsUpdate as EventListener);
     };
-  }, []);
+  }, [user.uid, DEBUG_AVATARS, setPrefs]);
 
   // Monitor for user deletion in ChatRoom as well for extra safety
   useEffect(() => {
@@ -928,9 +971,35 @@ useEffect(() => {
           const isDeletedUser = deletedUsers[m.uid];
           
           // Handle deleted user display
-          const avatar = isDeletedUser 
-            ? "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23999'/%3E%3Ctext x='16' y='20' text-anchor='middle' fill='%23fff' font-size='14'%3E✕%3C/text%3E%3C/svg%3E"
-            : (userPrefs[m.uid]?.photoURL || (isMe ? user.photoURL : undefined) || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E");
+          const fallbackAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E";
+          
+          let avatar = fallbackAvatar;
+          
+          if (isDeletedUser) {
+            avatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23999'/%3E%3Ctext x='16' y='20' text-anchor='middle' fill='%23fff' font-size='14'%3E✕%3C/text%3E%3C/svg%3E";
+          } else {
+            // Try to get avatar from user preferences first
+            const userPrefsAvatar = userPrefs[m.uid]?.photoURL;
+            const authAvatar = isMe ? user.photoURL : undefined;
+            
+            if (userPrefsAvatar && isValidFirebaseStorageUrl(userPrefsAvatar)) {
+              avatar = userPrefsAvatar;
+            } else if (authAvatar && isValidFirebaseStorageUrl(authAvatar)) {
+              avatar = authAvatar;
+            }
+          }
+          
+          // Debug avatar loading
+          if (isMe && DEBUG_AVATARS) {
+            console.log('Avatar debug for current user:', {
+              uid: m.uid,
+              isMe: isMe,
+              userPrefsPhotoURL: userPrefs[m.uid]?.photoURL,
+              userPhotoURL: user.photoURL,
+              finalAvatar: avatar,
+              isValid: isValidFirebaseStorageUrl(avatar)
+            });
+          }
           
           const myDir = isMe ? (prefs.side === "right" ? "row-reverse" : "row") : "row";
           
@@ -960,7 +1029,17 @@ useEffect(() => {
                 <>
                   <img
                     src={avatar}
-                    onError={(e) => (e.currentTarget.style.display = "none")}
+                    onError={(e) => {
+                      if (DEBUG_AVATARS) console.log('Avatar load failed for user:', m.uid, 'URL:', avatar);
+                      // Instead of hiding, show fallback avatar
+                      e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E";
+                    }}
+                    onLoad={() => {
+                      // Log successful avatar loads for debugging
+                      if (DEBUG_AVATARS && avatar.includes('firebasestorage.googleapis.com')) {
+                        console.log('Firebase Storage avatar loaded successfully for user:', m.uid);
+                      }
+                    }}
                     alt="avatar"
                     width={32}
                     height={32}

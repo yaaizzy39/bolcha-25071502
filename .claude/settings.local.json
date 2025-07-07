@@ -20,7 +20,9 @@
       "Bash(npx vite:*)",
       "Bash(firebase projects:list:*)",
       "Bash(git rm:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(npm start)",
+      "Bash(npm run:*)"
     ],
     "deny": []
   }
