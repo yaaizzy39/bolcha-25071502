@@ -26,6 +26,7 @@ export default function Admin({ user }: { user: User }) {
   
   // user management state
   const [users, setUsers] = useState<(UserPreferences & { id: string })[]>([]);
+  const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
   const [deleteUserTarget, setDeleteUserTarget] = useState<string | null>(null);
   const [deletedUsers, setDeletedUsers] = useState<Record<string, any>>({});
 
@@ -57,13 +58,22 @@ export default function Admin({ user }: { user: User }) {
     fetchRooms();
   }, [isAdmin]);
 
-  // Fetch users for admin management
+  // Fetch users and userProfiles for admin management
   useEffect(() => {
     if (!isAdmin) return;
     const fetchUsers = async () => {
-      const snap = await getDocs(collection(db, "users"));
-      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() as UserPreferences }));
-      setUsers(list);
+      // Fetch private user data (includes email)
+      const usersSnap = await getDocs(collection(db, "users"));
+      const usersList = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() as UserPreferences }));
+      setUsers(usersList);
+      
+      // Fetch public user profiles (includes nickname)
+      const profilesSnap = await getDocs(collection(db, "userProfiles"));
+      const profilesData: Record<string, any> = {};
+      profilesSnap.docs.forEach((d) => {
+        profilesData[d.id] = d.data();
+      });
+      setUserProfiles(profilesData);
     };
     fetchUsers();
   }, [isAdmin]);
@@ -345,8 +355,8 @@ export default function Admin({ user }: { user: User }) {
           <thead>
             <tr style={{ borderBottom: "2px solid #ddd" }}>
               <th style={{ textAlign: "left", padding: "8px 12px" }}>User ID</th>
-              <th style={{ textAlign: "left", padding: "8px 12px" }}>Display Name</th>
-              <th style={{ textAlign: "left", padding: "8px 12px" }}>Avatar</th>
+              <th style={{ textAlign: "left", padding: "8px 12px" }}>Gmail</th>
+              <th style={{ textAlign: "left", padding: "8px 12px" }}>Nickname</th>
               <th style={{ textAlign: "left", padding: "8px 12px" }}>Language</th>
               <th style={{ textAlign: "center", padding: "8px 12px" }}>Actions</th>
             </tr>
@@ -354,25 +364,21 @@ export default function Admin({ user }: { user: User }) {
           <tbody>
             {users
               .slice()
-              .sort((a, b) => (a.nickname || a.displayName || a.id).localeCompare(b.nickname || b.displayName || b.id))
+              .sort((a, b) => {
+                const nameA = userProfiles[a.id]?.nickname || a.displayName || a.id;
+                const nameB = userProfiles[b.id]?.nickname || b.displayName || b.id;
+                return nameA.localeCompare(nameB);
+              })
               .map((userData) => (
                 <tr key={userData.id} style={{ borderBottom: "1px solid #eee" }}>
                   <td style={{ padding: "8px 12px", fontFamily: "monospace", fontSize: "0.85em" }}>
                     {userData.id.substring(0, 8)}...
                   </td>
                   <td style={{ padding: "8px 12px" }}>
-                    {userData.nickname || userData.displayName || "-"}
+                    {userData.email || "-"}
                   </td>
                   <td style={{ padding: "8px 12px" }}>
-                    {userData.photoURL ? (
-                      <img 
-                        src={userData.photoURL} 
-                        alt="avatar" 
-                        style={{ width: 24, height: 24, borderRadius: "50%" }}
-                      />
-                    ) : (
-                      "-"
-                    )}
+                    {userProfiles[userData.id]?.nickname || "-"}
                   </td>
                   <td style={{ padding: "8px 12px" }}>
                     {userData.lang || "-"}

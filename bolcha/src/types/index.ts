@@ -5,6 +5,7 @@ export interface UserPreferences {
   backgroundColor?: string;
   displayName?: string;
   nickname?: string;
+  email?: string;
   side?: 'left' | 'right';
   showOriginal?: boolean;
   lang?: string;
