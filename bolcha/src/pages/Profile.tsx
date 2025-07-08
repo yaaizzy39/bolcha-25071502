@@ -106,9 +106,7 @@ export default function Profile({ user, onSaved }: Props) {
     if (updatedPrefs.displayName || user.displayName) {
       privateData.displayName = updatedPrefs.displayName || user.displayName;
     }
-    if (user.email) {
-      privateData.email = user.email;
-    }
+    // メールアドレスは初回登録時のみ保存し、プロファイル更新時は送信しない
     if (updatedPrefs.lang) {
       privateData.lang = updatedPrefs.lang;
     }

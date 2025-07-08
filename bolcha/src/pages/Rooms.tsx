@@ -41,7 +41,7 @@ function Rooms({ user }: Props) {
 
   // プレゼンス設定の読み込み
   useEffect(() => {
-    const cfgRef = doc(db, "admin", "config");
+    const cfgRef = doc(db, "admin", "publicConfig");
     const unsub = onSnapshot(cfgRef, (snap) => {
       const data = snap.data();
       if (typeof data?.enablePresenceCounter === 'boolean') {

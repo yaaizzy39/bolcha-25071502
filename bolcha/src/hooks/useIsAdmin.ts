@@ -11,12 +11,13 @@ export default function useIsAdmin(user: User | null): boolean {
       setIsAdmin(false);
       return;
     }
-    const ref = doc(db, "admin", "config");
+    // 管理者権限チェック用の専用ドキュメントを参照
+    const ref = doc(db, "users", user.uid);
     const unsub = onSnapshot(
       ref,
       (snap) => {
-      const emails: string[] = snap.data()?.adminEmails ?? [];
-      setIsAdmin(emails.includes(user.email ?? ""));
+      const userData = snap.data();
+      setIsAdmin(userData?.isAdmin === true);
       },
       (err) => {
         if (err.code === 'permission-denied') {

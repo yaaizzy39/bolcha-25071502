@@ -45,7 +45,7 @@ if (!(globalThis as any).__TRAN_CFG_LISTENER__) {
 
   onAuthStateChanged(auth, (user) => {
     if (!user) return; // wait until sign-in
-    const cfgRef = doc(db, "admin", "config");
+    const cfgRef = doc(db, "admin", "publicConfig");
     onSnapshot(
       cfgRef,
       (snap) => {

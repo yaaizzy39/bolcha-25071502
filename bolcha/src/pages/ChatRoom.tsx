@@ -118,7 +118,7 @@ function ChatRoom({ user }: Props) {
 
   // プレゼンス設定の読み込み
   useEffect(() => {
-    const cfgRef = doc(db, "admin", "config");
+    const cfgRef = doc(db, "admin", "publicConfig");
     const unsub = onSnapshot(cfgRef, (snap) => {
       const data = snap.data();
       if (typeof data?.enablePresenceCounter === 'boolean') {
@@ -306,7 +306,7 @@ function ChatRoom({ user }: Props) {
         // Get autoDeleteHours from config (admin/config)
         import("firebase/firestore").then((module: any) => {
           const { doc, getDoc } = module;
-          getDoc(doc(db, "admin", "config")).then((cfgSnap: any) => {
+          getDoc(doc(db, "admin", "publicConfig")).then((cfgSnap: any) => {
             if (cfgSnap.exists()) {
               const d = cfgSnap.data();
               if (typeof d.autoDeleteHours === 'number') setAutoDeleteHours(d.autoDeleteHours);

@@ -31,7 +31,7 @@ export default function Admin({ user }: { user: User }) {
   const [deletedUsers, setDeletedUsers] = useState<Record<string, any>>({});
 
   useEffect(() => {
-    const cfgRef = doc(db, "admin", "config");
+    const cfgRef = doc(db, "admin", "publicConfig");
     const unsub = onSnapshot(cfgRef, (snap) => {
       const data = snap.data();
       setGasList(data?.gasEndpoints ?? []);
@@ -44,6 +44,8 @@ export default function Admin({ user }: { user: User }) {
       if (typeof data?.maxRooms === 'number') {
         setMaxRooms(data.maxRooms);
       }
+    }, (error) => {
+      console.error("Error loading admin config:", error);
     });
     return unsub;
   }, []);
@@ -93,26 +95,26 @@ export default function Admin({ user }: { user: User }) {
   }, [isAdmin]);
 
   const saveGasList = async (list: string[]) => {
-    const cfgRef = doc(db, "admin", "config");
+    const cfgRef = doc(db, "admin", "publicConfig");
     await setDoc(cfgRef, { gasEndpoints: list }, { merge: true });
   };
 
   const saveAutoDeleteHours = async () => {
-    const cfgRef = doc(db, "admin", "config");
+    const cfgRef = doc(db, "admin", "publicConfig");
     await setDoc(cfgRef, { autoDeleteHours }, { merge: true });
     setAutoDeleteSaved(true);
     setTimeout(() => setAutoDeleteSaved(false), 1800);
   };
 
   const savePresenceCounterSetting = async () => {
-    const cfgRef = doc(db, "admin", "config");
+    const cfgRef = doc(db, "admin", "publicConfig");
     await setDoc(cfgRef, { enablePresenceCounter }, { merge: true });
     setPresenceCounterSaved(true);
     setTimeout(() => setPresenceCounterSaved(false), 1800);
   };
 
   const saveMaxRooms = async () => {
-    const cfgRef = doc(db, "admin", "config");
+    const cfgRef = doc(db, "admin", "publicConfig");
     await setDoc(cfgRef, { maxRooms }, { merge: true });
     setMaxRoomsSaved(true);
     setTimeout(() => setMaxRoomsSaved(false), 1800);
@@ -290,7 +292,7 @@ export default function Admin({ user }: { user: User }) {
       <section>
         <h3>GAS Endpoints</h3>
         <ul>
-          {gasList.map((url, idx) => (
+          {(gasList || []).map((url, idx) => (
             <li key={idx}>
               <code>{url}</code>{" "}
               <button onClick={() => removeEndpoint(idx)}>Remove</button>
