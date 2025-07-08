@@ -10,6 +10,9 @@ import ConfirmModal from "../components/ConfirmModal";
 
 export default function Admin({ user }: { user: User }) {
   const isAdmin = useIsAdmin(user);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState(false);
   const [gasList, setGasList] = useState<string[]>([]);
   const [newUrl, setNewUrl] = useState("");
   const [rooms, setRooms] = useState<(RoomData & { id: string })[]>([]);
@@ -29,6 +32,24 @@ export default function Admin({ user }: { user: User }) {
   const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
   const [deleteUserTarget, setDeleteUserTarget] = useState<string | null>(null);
   const [deletedUsers, setDeletedUsers] = useState<Record<string, any>>({});
+
+  // パスワード認証処理
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // 環境変数から管理者パスワードを取得
+    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
+    if (!adminPassword) {
+      alert("管理者パスワードが設定されていません。.envファイルを確認してください。");
+      return;
+    }
+    if (password === adminPassword) {
+      setIsAuthenticated(true);
+      setPasswordError(false);
+    } else {
+      setPasswordError(true);
+      setPassword("");
+    }
+  };
 
   useEffect(() => {
     const cfgRef = doc(db, "admin", "publicConfig");
@@ -222,6 +243,57 @@ export default function Admin({ user }: { user: User }) {
           <Link to="/">← Rooms</Link> &nbsp; | &nbsp; <Link to="/profile">Settings</Link>
         </div>
         <p>Access denied.</p>
+      </div>
+    );
+  }
+
+  // パスワード認証が完了していない場合のパスワード入力画面
+  if (!isAuthenticated) {
+    return (
+      <div>
+        <div style={{ marginBottom: "1rem" }}>
+          <Link to="/">← Rooms</Link> &nbsp; | &nbsp; <Link to="/profile">Settings</Link>
+        </div>
+        <h2>管理者認証</h2>
+        <form onSubmit={handlePasswordSubmit} style={{ maxWidth: "300px" }}>
+          <div style={{ marginBottom: "1rem" }}>
+            <label htmlFor="adminPassword">管理者パスワード:</label>
+            <input
+              type="password"
+              id="adminPassword"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{
+                display: "block",
+                width: "100%",
+                padding: "8px",
+                marginTop: "4px",
+                border: passwordError ? "2px solid red" : "1px solid #ccc",
+                borderRadius: "4px"
+              }}
+              placeholder="パスワードを入力"
+              required
+            />
+            {passwordError && (
+              <p style={{ color: "red", fontSize: "0.9em", marginTop: "4px" }}>
+                パスワードが正しくありません
+              </p>
+            )}
+          </div>
+          <button
+            type="submit"
+            style={{
+              padding: "10px 20px",
+              backgroundColor: "#007bff",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer"
+            }}
+          >
+            認証
+          </button>
+        </form>
       </div>
     );
   }
