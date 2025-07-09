@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { db, functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
 import type { User } from "firebase/auth";
-import type { RoomData, UserPreferences } from "../types";
+import type { RoomData, UserPreferences, UserRole } from "../types";
 import useIsAdmin from "../hooks/useIsAdmin";
 import ConfirmModal from "../components/ConfirmModal";
 
@@ -85,18 +85,28 @@ export default function Admin({ user }: { user: User }) {
   useEffect(() => {
     if (!isAdmin) return;
     const fetchUsers = async () => {
-      // Fetch private user data (includes email)
-      const usersSnap = await getDocs(collection(db, "users"));
-      const usersList = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() as UserPreferences }));
-      setUsers(usersList);
-      
-      // Fetch public user profiles (includes nickname)
-      const profilesSnap = await getDocs(collection(db, "userProfiles"));
-      const profilesData: Record<string, any> = {};
-      profilesSnap.docs.forEach((d) => {
-        profilesData[d.id] = d.data();
-      });
-      setUserProfiles(profilesData);
+      try {
+        console.log("Fetching users collection...");
+        // Fetch private user data (includes email)
+        const usersSnap = await getDocs(collection(db, "users"));
+        console.log("Users found:", usersSnap.size);
+        const usersList = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() as UserPreferences }));
+        console.log("Users list:", usersList);
+        setUsers(usersList);
+        
+        console.log("Fetching userProfiles collection...");
+        // Fetch public user profiles (includes nickname)
+        const profilesSnap = await getDocs(collection(db, "userProfiles"));
+        console.log("UserProfiles found:", profilesSnap.size);
+        const profilesData: Record<string, any> = {};
+        profilesSnap.docs.forEach((d) => {
+          profilesData[d.id] = d.data();
+        });
+        console.log("UserProfiles data:", profilesData);
+        setUserProfiles(profilesData);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
     };
     fetchUsers();
   }, [isAdmin]);
@@ -233,6 +243,23 @@ export default function Admin({ user }: { user: User }) {
       alert("User has been unblocked and can now log in again.");
     } catch (err) {
       alert("Failed to unblock user: " + (err as any).message);
+    }
+  };
+
+  // User role change function
+  const handleRoleChange = async (userId: string, newRole: UserRole) => {
+    try {
+      const userRef = doc(db, "users", userId);
+      await setDoc(userRef, { role: newRole }, { merge: true });
+      
+      // Update local state
+      setUsers(prev => prev.map(u => 
+        u.id === userId ? { ...u, role: newRole } : u
+      ));
+      
+      alert(`ユーザーのロールを ${newRole} に変更しました`);
+    } catch (err) {
+      alert("Failed to change user role: " + (err as any).message);
     }
   };
 
@@ -431,6 +458,7 @@ export default function Admin({ user }: { user: User }) {
               <th style={{ textAlign: "left", padding: "8px 12px" }}>User ID</th>
               <th style={{ textAlign: "left", padding: "8px 12px" }}>Gmail</th>
               <th style={{ textAlign: "left", padding: "8px 12px" }}>Nickname</th>
+              <th style={{ textAlign: "left", padding: "8px 12px" }}>Role</th>
               <th style={{ textAlign: "left", padding: "8px 12px" }}>Language</th>
               <th style={{ textAlign: "center", padding: "8px 12px" }}>Actions</th>
             </tr>
@@ -453,6 +481,22 @@ export default function Admin({ user }: { user: User }) {
                   </td>
                   <td style={{ padding: "8px 12px" }}>
                     {userProfiles[userData.id]?.nickname || "-"}
+                  </td>
+                  <td style={{ padding: "8px 12px" }}>
+                    <select
+                      value={userData.role || 'user'}
+                      onChange={(e) => handleRoleChange(userData.id, e.target.value as UserRole)}
+                      style={{
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        border: '1px solid #ddd',
+                        fontSize: '0.9em'
+                      }}
+                    >
+                      <option value="user">User</option>
+                      <option value="staff">Staff</option>
+                      <option value="admin">Admin</option>
+                    </select>
                   </td>
                   <td style={{ padding: "8px 12px" }}>
                     {userData.lang || "-"}

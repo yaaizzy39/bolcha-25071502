@@ -30,11 +30,11 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   const [editingIdea, setEditingIdea] = useState<ProjectIdeaData | null>(null);
   const [formData, setFormData] = useState({
     title: "",
-    content: "",
-    developmentPeriod: ""
+    content: ""
   });
   const [staffComment, setStaffComment] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<IdeaStatus>('pending');
+  const [developmentPeriod, setDevelopmentPeriod] = useState("");
   
   const userRole = useUserRole(user);
 
@@ -112,7 +112,6 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         await updateDoc(doc(db, "projectIdeas", editingIdea.id), {
           title: formData.title,
           content: formData.content,
-          developmentPeriod: formData.developmentPeriod,
           updatedAt: serverTimestamp()
         });
         console.log("Project idea updated successfully");
@@ -121,7 +120,6 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         const docRef = await addDoc(collection(db, "projectIdeas"), {
           title: formData.title,
           content: formData.content,
-          developmentPeriod: formData.developmentPeriod,
           status: 'pending',
           createdBy: user.uid,
           projectId: projectId,
@@ -131,7 +129,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         console.log("New project idea created with ID:", docRef.id);
       }
 
-      setFormData({ title: "", content: "", developmentPeriod: "" });
+      setFormData({ title: "", content: "" });
       setShowForm(false);
       setEditingIdea(null);
       console.log("Form reset and closed");
@@ -159,8 +157,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     setEditingIdea(idea);
     setFormData({
       title: idea.title,
-      content: idea.content,
-      developmentPeriod: idea.developmentPeriod || ""
+      content: idea.content
     });
     setShowForm(true);
   };
@@ -175,14 +172,16 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     }
   };
 
-  const handleStatusUpdate = async (ideaId: string, status: IdeaStatus, comment: string) => {
+  const handleStatusUpdate = async (ideaId: string, status: IdeaStatus, comment: string, period: string) => {
     try {
       await updateDoc(doc(db, "projectIdeas", ideaId), {
         status,
         staffComment: comment,
+        developmentPeriod: period,
         updatedAt: serverTimestamp()
       });
       setStaffComment("");
+      setDevelopmentPeriod("");
     } catch (error) {
       console.error("Error updating status:", error);
     }
@@ -309,22 +308,6 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                   }}
                 />
               </div>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                  開発期間
-                </label>
-                <input
-                  type="text"
-                  value={formData.developmentPeriod}
-                  onChange={(e) => setFormData({ ...formData, developmentPeriod: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px'
-                  }}
-                />
-              </div>
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button
                   type="submit"
@@ -344,7 +327,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                   onClick={() => {
                     setShowForm(false);
                     setEditingIdea(null);
-                    setFormData({ title: "", content: "", developmentPeriod: "" });
+                    setFormData({ title: "", content: "" });
                   }}
                   style={{
                     backgroundColor: '#6c757d',
@@ -488,8 +471,20 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                         border: '1px solid #ddd'
                       }}
                     />
+                    <input
+                      type="text"
+                      value={developmentPeriod}
+                      onChange={(e) => setDevelopmentPeriod(e.target.value)}
+                      placeholder="開発期間"
+                      style={{
+                        width: '100px',
+                        padding: '0.25rem',
+                        borderRadius: '4px',
+                        border: '1px solid #ddd'
+                      }}
+                    />
                     <button
-                      onClick={() => handleStatusUpdate(idea.id, selectedStatus, staffComment)}
+                      onClick={() => handleStatusUpdate(idea.id, selectedStatus, staffComment, developmentPeriod)}
                       style={{
                         backgroundColor: '#17a2b8',
                         color: 'white',

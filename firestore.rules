@@ -7,7 +7,8 @@ service cloud.firestore {
       return request.auth != null &&
         (request.auth.token.admin == true ||
          get(/databases/$(db)/documents/admin/config)
-           .data.adminEmails.hasAny([request.auth.token.email]));
+           .data.adminEmails.hasAny([request.auth.token.email]) ||
+         getUserRole() == 'admin');
     }
 
     function getUserRole() {
@@ -41,8 +42,10 @@ service cloud.firestore {
 
     /* ---------- users (プライベート情報) ---------- */
     match /users/{uid} {
-      allow read: if request.auth != null && (isAdmin() || request.auth.uid == uid);  // 自分のデータまたは管理者のみ
-      allow write: if isAdmin() || request.auth.uid == uid;
+      allow read: if request.auth != null;  // 管理者がユーザー一覧を見るため一時的に許可
+      allow write: if request.auth.uid == uid || 
+                     (exists(/databases/$(db)/documents/users/$(request.auth.uid)) && 
+                      get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
 
     /* ---------- userProfiles (パブリック情報) ---------- */

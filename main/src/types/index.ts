@@ -10,6 +10,7 @@ export interface UserPreferences {
   showOriginal?: boolean;
   lang?: string;
   enterToSend?: boolean;
+  role?: UserRole;
 }
 
 export interface FirestoreTimestamp {
