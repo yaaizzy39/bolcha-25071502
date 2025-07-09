@@ -23,6 +23,7 @@ import type { UserPreferences } from "../types";
 
 interface Props {
   user: User;
+  needsNickname?: boolean;
   onSaved?: () => void;
 }
 
@@ -35,7 +36,7 @@ const defaultPrefs: UserPreferences = {
   enterToSend: false,
 };
 
-export default function Profile({ user, onSaved }: Props) {
+export default function Profile({ user, needsNickname, onSaved }: Props) {
   const navigate = useNavigate();
   const { lang: uiLang, setLang: setUiLang, t } = useI18n();
   const [prefs, setPrefs] = useState<UserPreferences>(defaultPrefs);
@@ -148,7 +149,16 @@ export default function Profile({ user, onSaved }: Props) {
     setSelectedImageFile(null); // Clear selected file after saving
     setSaving(false);
     onSaved?.();
-    navigate(-1);
+    
+    // 初回ログイン時（needsNicknameがtrueの場合）はホーム画面にリダイレクト
+    // それ以外の場合は前のページに戻る
+    if (needsNickname) {
+      // 初回ログイン時（ニックネーム設定が必要な場合）
+      navigate('/');
+    } else {
+      // 通常のプロフィール編集時
+      navigate(-1);
+    }
   };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {

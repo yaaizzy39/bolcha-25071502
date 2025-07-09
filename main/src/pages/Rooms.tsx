@@ -343,21 +343,6 @@ function Rooms({ user }: Props) {
           return (
             <li key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, height: 30, lineHeight: '30px' }}>
               <Link to={`/rooms/${r.id}`}>{r.name}</Link>
-              <Link 
-                to={`/rooms/${r.id}/ideas`} 
-                style={{ 
-                  marginLeft: 8, 
-                  textDecoration: 'none', 
-                  color: '#28a745',
-                  fontSize: '0.8em',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  border: '1px solid #28a745'
-                }}
-                title="アイデア一覧"
-              >
-                💡
-              </Link>
               {enablePresenceCounter && (
                 <span style={{ marginLeft: 8, color: '#1e90ff', fontWeight: 500, fontSize: '0.9em' }} title="参加者数">
                   👥 {presenceCounts[r.id] === undefined ? '...' : presenceCounts[r.id] ?? 0}

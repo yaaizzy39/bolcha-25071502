@@ -926,33 +926,6 @@ useEffect(() => {
             height: '100%',
             lineHeight: 1.4
           }}>{roomName}</span>
-          <button
-            onClick={() => navigate(`/rooms/${roomId}/ideas`)}
-            style={{
-              background: '#28a745',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '4px 8px',
-              fontSize: '0.8rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              height: '28px',
-              lineHeight: 1,
-              marginLeft: '8px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#218838';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#28a745';
-            }}
-          >
-            💡 アイデア
-          </button>
         </div>
         <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ 
           height: 32, 

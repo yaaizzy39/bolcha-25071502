@@ -9,7 +9,6 @@ import Rooms from "./pages/Rooms";
 import ChatRoom from "./pages/ChatRoom";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
-import Ideas from "./pages/Ideas";
 import IdeaList from "./pages/IdeaList";
 import ProjectList from "./pages/ProjectList";
 import ProjectIdeas from "./pages/ProjectIdeas";
@@ -256,11 +255,6 @@ function App() {
             <Navigate to="/profile" replace /> : 
             <ChatRoom user={user!} />
           } />
-          <Route path="/rooms/:roomId/ideas" element={
-            needsNickname ? 
-            <Navigate to="/profile" replace /> : 
-            <Ideas user={user!} />
-          } />
           <Route path="/ideas" element={
             needsNickname ? 
             <Navigate to="/profile" replace /> : 
@@ -281,7 +275,7 @@ function App() {
             <Navigate to="/profile" replace /> : 
             <IdeaList user={user!} />
           } />
-          <Route path="/profile" element={<Profile user={user!} />} />
+          <Route path="/profile" element={<Profile user={user!} needsNickname={needsNickname} />} />
           {isAdmin && <Route path="/admin" element={
             needsNickname ? 
             <Navigate to="/profile" replace /> : 
