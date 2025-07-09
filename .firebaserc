@@ -1,7 +1,7 @@
 {
   "projects": {
-    "default": "bolcha-v02",
-    "dev": "bolcha-v02"
+    "default": "idealt-v01",
+    "dev": "idealt-v01"
   },
   "targets": {},
   "etags": {}

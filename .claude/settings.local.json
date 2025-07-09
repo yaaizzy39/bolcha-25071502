@@ -22,7 +22,8 @@
       "Bash(git rm:*)",
       "Bash(cp:*)",
       "Bash(npm start)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(firebase use:*)"
     ],
     "deny": []
   }
