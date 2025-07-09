@@ -10,6 +10,19 @@ service cloud.firestore {
            .data.adminEmails.hasAny([request.auth.token.email]));
     }
 
+    function getUserRole() {
+      return exists(/databases/$(db)/documents/users/$(request.auth.uid)) ? 
+        get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role : 'user';
+    }
+
+    function isStaff() {
+      return request.auth != null && getUserRole() == 'staff';
+    }
+
+    function isAdminOrStaff() {
+      return isAdmin() || isStaff();
+    }
+
     /* ---------- admin コレクション ---------- */
     // コレクション全体 (list / listen)
     match /admin {
@@ -63,6 +76,32 @@ service cloud.firestore {
                               || resource.data.createdBy == request.auth.uid
                                || (!('createdBy' in resource.data) && request.auth != null);
       }
+    }
+
+    /* ---------- ideas コレクション（ルーム別） ---------- */
+    match /ideas/{ideaId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.createdBy;
+      allow update: if request.auth != null && 
+                   (isAdmin() || 
+                    resource.data.createdBy == request.auth.uid ||
+                    (isAdminOrStaff() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'staffComment', 'updatedAt'])));
+      allow delete: if request.auth != null && 
+                   (isAdmin() || resource.data.createdBy == request.auth.uid);
+    }
+
+    /* ---------- globalIdeas コレクション（グローバル） ---------- */
+    match /globalIdeas/{ideaId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.createdBy;
+      allow update: if request.auth != null && 
+                   (isAdmin() || 
+                    resource.data.createdBy == request.auth.uid ||
+                    (isAdminOrStaff() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'staffComment', 'updatedAt'])));
+      allow delete: if request.auth != null && 
+                   (isAdmin() || resource.data.createdBy == request.auth.uid);
     }
   }
 }

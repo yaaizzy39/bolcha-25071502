@@ -34,3 +34,20 @@ export interface Message {
   originalLang?: string; // ISO-639-1 code of source language
   translations?: Record<string, string>; // cached translations per language
 }
+
+export type UserRole = 'admin' | 'staff' | 'user';
+
+export type IdeaStatus = 'pending' | 'approved' | 'rejected';
+
+export interface IdeaData {
+  id: string;
+  title: string;
+  content: string;
+  status: IdeaStatus;
+  staffComment?: string;
+  developmentPeriod?: string;
+  createdBy: string;
+  createdAt: FirestoreTimestamp;
+  updatedAt: FirestoreTimestamp;
+  roomId: string;
+}

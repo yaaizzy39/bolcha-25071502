@@ -4,10 +4,13 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, onSnapshot, getDoc } from "firebase/firestore";
 import type { User } from "firebase/auth";
 import Login from "./pages/Login";
+import Home from "./pages/Home";
 import Rooms from "./pages/Rooms";
 import ChatRoom from "./pages/ChatRoom";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
+import Ideas from "./pages/Ideas";
+import IdeaList from "./pages/IdeaList";
 import { Routes, Route, Navigate, Link, useLocation, useNavigate } from "react-router-dom";
 import { useUserPrefs } from "./hooks/useUserPrefs";
 import "./utils/migrateUserData"; // マイグレーション関数をグローバルに公開
@@ -196,7 +199,7 @@ function App() {
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           {!hideNav && (
             <>
-              <Link to="/" title="Rooms"><IconGrid /></Link>
+              <Link to="/" title="Home"><IconGrid /></Link>
               {isAdmin && <Link to="/admin" title="Admin"><IconSliders /></Link>}
               <Link to="/profile" title="Settings"><IconCog /></Link>
             </>
@@ -239,12 +242,27 @@ function App() {
           <Route path="/" element={
             needsNickname && location.pathname !== '/profile' ? 
             <Navigate to="/profile" replace /> : 
+            <Home user={user!} />
+          } />
+          <Route path="/chat-rooms" element={
+            needsNickname ? 
+            <Navigate to="/profile" replace /> : 
             <Rooms user={user!} />
           } />
           <Route path="/rooms/:roomId" element={
             needsNickname ? 
             <Navigate to="/profile" replace /> : 
             <ChatRoom user={user!} />
+          } />
+          <Route path="/rooms/:roomId/ideas" element={
+            needsNickname ? 
+            <Navigate to="/profile" replace /> : 
+            <Ideas user={user!} />
+          } />
+          <Route path="/ideas" element={
+            needsNickname ? 
+            <Navigate to="/profile" replace /> : 
+            <IdeaList user={user!} />
           } />
           <Route path="/profile" element={<Profile user={user!} />} />
           {isAdmin && <Route path="/admin" element={
