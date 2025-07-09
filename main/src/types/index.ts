@@ -51,3 +51,25 @@ export interface IdeaData {
   updatedAt: FirestoreTimestamp;
   roomId: string;
 }
+
+export interface ProjectData {
+  id: string;
+  name: string;
+  description?: string;
+  createdBy: string;
+  createdAt: FirestoreTimestamp;
+  updatedAt: FirestoreTimestamp;
+}
+
+export interface ProjectIdeaData {
+  id: string;
+  title: string;
+  content: string;
+  status: IdeaStatus;
+  staffComment?: string;
+  developmentPeriod?: string;
+  createdBy: string;
+  createdAt: FirestoreTimestamp;
+  updatedAt: FirestoreTimestamp;
+  projectId: string;
+}

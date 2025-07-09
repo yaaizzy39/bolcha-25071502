@@ -11,6 +11,8 @@ import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Ideas from "./pages/Ideas";
 import IdeaList from "./pages/IdeaList";
+import ProjectList from "./pages/ProjectList";
+import ProjectIdeas from "./pages/ProjectIdeas";
 import { Routes, Route, Navigate, Link, useLocation, useNavigate } from "react-router-dom";
 import { useUserPrefs } from "./hooks/useUserPrefs";
 import "./utils/migrateUserData"; // マイグレーション関数をグローバルに公開
@@ -260,6 +262,21 @@ function App() {
             <Ideas user={user!} />
           } />
           <Route path="/ideas" element={
+            needsNickname ? 
+            <Navigate to="/profile" replace /> : 
+            <ProjectList user={user!} />
+          } />
+          <Route path="/projects" element={
+            needsNickname ? 
+            <Navigate to="/profile" replace /> : 
+            <ProjectList user={user!} />
+          } />
+          <Route path="/projects/:projectId/ideas" element={
+            needsNickname ? 
+            <Navigate to="/profile" replace /> : 
+            <ProjectIdeas user={user!} />
+          } />
+          <Route path="/global-ideas" element={
             needsNickname ? 
             <Navigate to="/profile" replace /> : 
             <IdeaList user={user!} />
