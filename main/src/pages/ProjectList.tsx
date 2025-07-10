@@ -180,25 +180,37 @@ const ProjectList = ({ user }: ProjectListProps) => {
 
       {/* Form Modal */}
       {showForm && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '2rem',
-            borderRadius: '8px',
-            width: '90%',
-            maxWidth: '600px'
-          }}>
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          onClick={() => {
+            setShowForm(false);
+            setEditingProject(null);
+            setFormData({ name: "", description: "" });
+          }}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              padding: '2rem',
+              borderRadius: '8px',
+              width: '90%',
+              maxWidth: '600px',
+              position: 'relative',
+              zIndex: 1001
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h2>{editingProject ? 'プロジェクトを編集' : '新しいプロジェクトを作成'}</h2>
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '1rem' }}>
@@ -210,11 +222,14 @@ const ProjectList = ({ user }: ProjectListProps) => {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
+                  autoFocus
                   style={{
                     width: '100%',
                     padding: '0.5rem',
                     border: '1px solid #ddd',
-                    borderRadius: '4px'
+                    borderRadius: '4px',
+                    pointerEvents: 'auto',
+                    userSelect: 'text'
                   }}
                 />
               </div>
@@ -231,7 +246,9 @@ const ProjectList = ({ user }: ProjectListProps) => {
                     padding: '0.5rem',
                     border: '1px solid #ddd',
                     borderRadius: '4px',
-                    resize: 'vertical'
+                    resize: 'vertical',
+                    pointerEvents: 'auto',
+                    userSelect: 'text'
                   }}
                 />
               </div>
