@@ -110,7 +110,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     if (ideas.length > 0) {
       autoTranslateIdeas(ideas);
     }
-  }, [ideas, translationLang, autoTranslateIdeas]);
+  }, [ideas, translationLang]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,17 +140,23 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         // Detect language of the content
         const detectedLang = await detectLanguage(formData.content);
         
-        const docRef = await addDoc(collection(db, "projectIdeas"), {
+        const docData = {
           title: formData.title,
           content: formData.content,
-          status: 'unconfirmed',
+          status: 'unconfirmed' as const,
           createdBy: user.uid,
           projectId: projectId,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-          originalLang: detectedLang || lang,
-          translations: detectedLang === lang ? { [lang]: { title: formData.title, content: formData.content } } : undefined
-        });
+          originalLang: detectedLang || lang
+        };
+
+        // Only add translations field if we have translations to add
+        if (detectedLang === lang) {
+          docData.translations = { [lang]: { title: formData.title, content: formData.content } };
+        }
+
+        const docRef = await addDoc(collection(db, "projectIdeas"), docData);
         console.log("New project idea created with ID:", docRef.id);
       }
 

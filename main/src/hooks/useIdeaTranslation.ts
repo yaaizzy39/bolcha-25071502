@@ -40,6 +40,12 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
   
   const translatedIdsRef = useRef<Set<string>>(new Set());
   const translatingRef = useRef<Set<string>>(new Set());
+  
+  // Local storage for translations when Firestore fails
+  const [localTranslations, setLocalTranslations] = useState<Record<string, Record<string, { title: string; content: string; staffComment?: string; }>>>(() => {
+    const stored = localStorage.getItem(`local-translations-${collectionName}`);
+    return stored ? JSON.parse(stored) : {};
+  });
 
   // Reset translated ID cache when translation language changes
   useEffect(() => {
@@ -63,16 +69,40 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
 
   // Get translated content for display
   const getTranslatedContent = (idea: T) => {
-    if (!idea.translations?.[translationLang]) {
-      // If original language matches current translation language, return original
-      if (idea.originalLang === translationLang) {
-        return {
-          title: idea.title,
-          content: idea.content,
-          staffComment: idea.staffComment
-        };
-      }
-      // Otherwise return original content (will be translated later)
+    console.log(`getTranslatedContent for idea ${idea.id}:`, {
+      translationLang,
+      originalLang: idea.originalLang,
+      hasTranslations: !!idea.translations,
+      translationKeys: idea.translations ? Object.keys(idea.translations) : [],
+      hasTargetTranslation: !!idea.translations?.[translationLang],
+      hasLocalTranslation: !!localTranslations[idea.id]?.[translationLang]
+    });
+    
+    // Check local translations first (for when Firestore fails)
+    if (localTranslations[idea.id]?.[translationLang]) {
+      const translation = localTranslations[idea.id][translationLang];
+      console.log(`Using local translation for ${translationLang}:`, translation);
+      return {
+        title: translation.title || idea.title,
+        content: translation.content || idea.content,
+        staffComment: translation.staffComment || idea.staffComment
+      };
+    }
+    
+    // If we have a translation for the current language, use it
+    if (idea.translations?.[translationLang]) {
+      const translation = idea.translations[translationLang];
+      console.log(`Using Firestore translation for ${translationLang}:`, translation);
+      return {
+        title: translation.title || idea.title,
+        content: translation.content || idea.content,
+        staffComment: translation.staffComment || idea.staffComment
+      };
+    }
+    
+    // If original language matches current translation language, return original
+    if (idea.originalLang === translationLang) {
+      console.log(`Using original content (same language: ${translationLang})`);
       return {
         title: idea.title,
         content: idea.content,
@@ -80,19 +110,19 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
       };
     }
     
-    // Return translated content, fallback to original for missing fields
-    const translation = idea.translations[translationLang];
+    // Otherwise return original content (will be translated later)
+    console.log(`Using original content (different language, will translate later)`);
     return {
-      title: translation.title || idea.title,
-      content: translation.content || idea.content,
-      staffComment: translation.staffComment || idea.staffComment
+      title: idea.title,
+      content: idea.content,
+      staffComment: idea.staffComment
     };
   };
 
   // Check if translation is needed
   const needsTranslation = (idea: T): boolean => {
-    // If already translated or currently translating, no need
-    if (idea.translations?.[translationLang] || translatingRef.current.has(idea.id)) {
+    // If already translated (Firestore or local) or currently translating, no need
+    if (idea.translations?.[translationLang] || localTranslations[idea.id]?.[translationLang] || translatingRef.current.has(idea.id)) {
       return false;
     }
     
@@ -131,15 +161,34 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
           ...(translatedStaffComment && { staffComment: translatedStaffComment })
         };
 
-        // Update Firestore with translations
-        await updateDoc(doc(db, collectionName, idea.id), {
-          [`translations.${translationLang}`]: translationData
-        });
-
-        saveTranslatedId(idea.id);
+        try {
+          // Update Firestore with translations
+          await updateDoc(doc(db, collectionName, idea.id), {
+            [`translations.${translationLang}`]: translationData
+          });
+          saveTranslatedId(idea.id);
+        } catch (firestoreError) {
+          console.warn('Firestore update failed, storing locally:', firestoreError);
+          
+          // Store translation locally if Firestore fails
+          const newLocalTranslations = {
+            ...localTranslations,
+            [idea.id]: {
+              ...localTranslations[idea.id],
+              [translationLang]: translationData
+            }
+          };
+          setLocalTranslations(newLocalTranslations);
+          localStorage.setItem(`local-translations-${collectionName}`, JSON.stringify(newLocalTranslations));
+          saveTranslatedId(idea.id);
+        }
       }
     } catch (error) {
       console.error('Translation failed for idea:', idea.id, error);
+      // Mark as translated to prevent retries on permission errors
+      if (error.code === 'permission-denied' || error.message?.includes('permission')) {
+        saveTranslatedId(idea.id);
+      }
     } finally {
       translatingRef.current.delete(idea.id);
       setTranslationState(prev => ({
