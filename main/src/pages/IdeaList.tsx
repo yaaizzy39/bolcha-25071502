@@ -15,6 +15,7 @@ import { db } from "../firebase";
 import type { User } from "firebase/auth";
 import type { IdeaStatus, UserRole } from "../types";
 import useUserRole from "../hooks/useUserRole";
+import { useI18n } from "../i18n";
 
 interface IdeaListProps {
   user: User;
@@ -33,6 +34,7 @@ interface GlobalIdeaData {
 }
 
 const IdeaList = ({ user }: IdeaListProps) => {
+  const { t } = useI18n();
   const [ideas, setIdeas] = useState<GlobalIdeaData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -128,9 +130,9 @@ const IdeaList = ({ user }: IdeaListProps) => {
         stack: error.stack
       });
       
-      let errorMessage = "アイデアの保存中にエラーが発生しました";
+      let errorMessage = t("saveIdeaError");
       if (error.code === 'permission-denied') {
-        errorMessage = "権限エラー: アイデアの作成権限がありません。管理者に連絡してください。";
+        errorMessage = t("permissionDeniedIdea");
       } else if (error.message) {
         errorMessage += ": " + error.message;
       }
@@ -149,7 +151,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
   };
 
   const handleDelete = async (ideaId: string) => {
-    if (!confirm("このアイデアを削除しますか？")) return;
+    if (!confirm(t("deleteIdeaConfirm"))) return;
 
     try {
       await deleteDoc(doc(db, "globalIdeas", ideaId));
@@ -187,9 +189,9 @@ const IdeaList = ({ user }: IdeaListProps) => {
 
   const getStatusText = (status: IdeaStatus) => {
     switch (status) {
-      case 'pending': return '検討中';
-      case 'approved': return '採用';
-      case 'rejected': return '却下';
+      case 'pending': return t('pending');
+      case 'approved': return t('approved');
+      case 'rejected': return t('rejected');
       default: return status;
     }
   };
@@ -204,17 +206,17 @@ const IdeaList = ({ user }: IdeaListProps) => {
   };
 
   if (loading) {
-    return <div>読み込み中...</div>;
+    return <div>{t("loading")}</div>;
   }
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
       <div style={{ marginBottom: '2rem' }}>
         <Link to="/" style={{ textDecoration: 'none', color: '#007bff' }}>
-          ← ホームに戻る
+          {t("backToHome")}
         </Link>
         <h1 style={{ margin: '0.5rem 0' }}>
-          アイデア管理
+          {t("ideaMgmt")}
         </h1>
         <button
           onClick={() => setShowForm(true)}
@@ -227,7 +229,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
             cursor: 'pointer'
           }}
         >
-          新しいアイデアを投稿
+          {t("newIdea")}
         </button>
       </div>
 
@@ -252,11 +254,11 @@ const IdeaList = ({ user }: IdeaListProps) => {
             width: '90%',
             maxWidth: '600px'
           }}>
-            <h2>{editingIdea ? 'アイデアを編集' : '新しいアイデアを投稿'}</h2>
+            <h2>{editingIdea ? t("editIdea") : t("newIdea")}</h2>
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                  タイトル *
+                  {t("title")} *
                 </label>
                 <input
                   type="text"
@@ -273,7 +275,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
               </div>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                  アイデアの内容 *
+                  {t("ideaContent")} *
                 </label>
                 <textarea
                   value={formData.content}
@@ -301,7 +303,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
                     cursor: 'pointer'
                   }}
                 >
-                  {editingIdea ? '更新' : '投稿'}
+                  {editingIdea ? t("update") : t("post")}
                 </button>
                 <button
                   type="button"
@@ -319,7 +321,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
                     cursor: 'pointer'
                   }}
                 >
-                  キャンセル
+                  {t("cancel")}
                 </button>
               </div>
             </form>
@@ -331,7 +333,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {ideas.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
-            まだアイデアがありません
+            {t("noIdeas")}
           </div>
         ) : (
           ideas.map((idea) => (
@@ -360,7 +362,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
                         fontSize: '0.8rem'
                       }}
                     >
-                      編集
+                      {t("edit")}
                     </button>
                   )}
                   {canDeleteIdea(idea) && (
@@ -376,23 +378,23 @@ const IdeaList = ({ user }: IdeaListProps) => {
                         fontSize: '0.8rem'
                       }}
                     >
-                      削除
+                      {t("delete")}
                     </button>
                   )}
                 </div>
               </div>
               
               <div style={{ marginBottom: '1rem' }}>
-                <strong>投稿日:</strong> {idea.createdAt?.toDate ? idea.createdAt.toDate().toLocaleDateString() : '不明'}
+                <strong>{t("postedAt")}</strong> {idea.createdAt?.toDate ? idea.createdAt.toDate().toLocaleDateString() : t("unknown")}
               </div>
               
               <div style={{ marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
-                <strong>内容:</strong><br />
+                <strong>{t("content")}:</strong><br />
                 {idea.content}
               </div>
               
               <div style={{ marginBottom: '1rem' }}>
-                <strong>運営の判断:</strong>{' '}
+                <strong>{t("adminJudgment")}</strong>{' '}
                 <span
                   style={{
                     backgroundColor: getStatusColor(idea.status),
@@ -408,21 +410,21 @@ const IdeaList = ({ user }: IdeaListProps) => {
               
               {idea.staffComment && (
                 <div style={{ marginBottom: '1rem' }}>
-                  <strong>運営コメント:</strong><br />
+                  <strong>{t("adminComment")}</strong><br />
                   {idea.staffComment}
                 </div>
               )}
               
               {idea.developmentPeriod && (
                 <div style={{ marginBottom: '1rem' }}>
-                  <strong>開発期間:</strong> {idea.developmentPeriod}
+                  <strong>{t("developmentPeriod")}</strong> {idea.developmentPeriod}
                 </div>
               )}
               
               {canManageStatus() && (
                 <div style={{ borderTop: '1px solid #ddd', paddingTop: '1rem' }}>
                   <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>運営操作:</strong>
+                    <strong>{t("adminOperations")}</strong>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                     <select
@@ -434,15 +436,15 @@ const IdeaList = ({ user }: IdeaListProps) => {
                         border: '1px solid #ddd'
                       }}
                     >
-                      <option value="pending">検討中</option>
-                      <option value="approved">採用</option>
-                      <option value="rejected">却下</option>
+                      <option value="pending">{t("pending")}</option>
+                      <option value="approved">{t("approved")}</option>
+                      <option value="rejected">{t("rejected")}</option>
                     </select>
                     <input
                       type="text"
                       value={staffComment}
                       onChange={(e) => setStaffComment(e.target.value)}
-                      placeholder="運営コメント"
+                      placeholder={t("adminCommentPlaceholder")}
                       style={{
                         flex: 1,
                         padding: '0.25rem',
@@ -454,7 +456,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
                       type="text"
                       value={developmentPeriod}
                       onChange={(e) => setDevelopmentPeriod(e.target.value)}
-                      placeholder="開発期間"
+                      placeholder={t("developmentPeriodPlaceholder")}
                       style={{
                         width: '100px',
                         padding: '0.25rem',

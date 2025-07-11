@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import type { User } from "firebase/auth";
 import useIsAdmin from "../hooks/useIsAdmin";
 import ConfirmModal from "../components/ConfirmModal";
+import { useI18n } from "../i18n";
 
 type Room = {
   id: string;
@@ -21,6 +22,7 @@ type Props = {
 
 function Rooms({ user }: Props) {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomName, setRoomName] = useState("");
   const isAdmin = useIsAdmin(user);
@@ -165,7 +167,7 @@ function Rooms({ user }: Props) {
       lastActivityAt: serverTimestamp(),
     });
     setRoomName("");
-    setAutoDeleteInfo(`このルームは最終投稿から${autoDeleteHours}時間後に自動で削除されます。`);
+    setAutoDeleteInfo(t("roomAutoDeleteInfo").replace("{hours}", autoDeleteHours.toString()));
     setTimeout(() => setAutoDeleteInfo(null), 6000);
     navigate(`/rooms/${docRef.id}`);
   };
@@ -199,7 +201,7 @@ function Rooms({ user }: Props) {
     <div>
       <div style={{ marginBottom: '1rem' }}>
         <Link to="/" style={{ textDecoration: 'none', color: '#007bff' }}>
-          ← ホームに戻る
+          ← {t("backToHome")}
         </Link>
       </div>
       <h3>Chat Rooms</h3>
@@ -220,7 +222,7 @@ function Rooms({ user }: Props) {
             fontSize: '0.97em',
             boxShadow: '0 2px 8px rgba(0,0,0,0.07)'
           }}>
-            同じ名前のルームが既に存在します
+            {t("roomAlreadyExists")}
           </div>
         )}
         {autoDeleteInfo && (
@@ -262,25 +264,25 @@ function Rooms({ user }: Props) {
             setDuplicateError(false); // 入力時にエラー消す
             setAutoDeleteInfo(null); // 入力時に案内も消す
           }}
-          placeholder="New room name"
+          placeholder={t("newRoomPlaceholder")}
         />
         <button 
           className="room-create-btn" 
           onClick={() => setShowCreateWarning(true)} 
           disabled={!roomName.trim() || (maxRooms > 0 && rooms.length >= maxRooms)}
         >
-          Create
+          {t("create")}
         </button>
         
         {/* ルーム数表示 */}
         <div style={{ fontSize: '0.9em', color: '#666', marginTop: 8 }}>
           {maxRooms > 0 ? (
             <span>
-              ルーム数: {rooms.length}/{maxRooms} 
-              {rooms.length >= maxRooms && <span style={{ color: 'red', marginLeft: 4 }}>(上限に達しています)</span>}
+              {t("roomCount")}: {rooms.length}/{maxRooms}{t("roomCountWithLimit")} 
+              {rooms.length >= maxRooms && <span style={{ color: 'red', marginLeft: 4 }}>{t("limitReached")}</span>}
             </span>
           ) : (
-            <span>ルーム数: {rooms.length} (制限なし)</span>
+            <span>{t("roomCount")}: {rooms.length} ({t("unlimited")})</span>
           )}
         </div>
         
@@ -291,7 +293,7 @@ function Rooms({ user }: Props) {
             len += isFull ? 2 : 1;
           }
           if (len === 36) {
-            return <span style={{ color: 'red', marginLeft: 8, fontSize: '0.9em' }}>Max</span>;
+            return <span style={{ color: 'red', marginLeft: 8, fontSize: '0.9em' }}>{t("max")}</span>;
           }
           return null;
         })()}
@@ -375,11 +377,11 @@ function Rooms({ user }: Props) {
       </ul>
       <ConfirmModal
         open={!!deleteTarget}
-        title="ルーム削除の確認"
+        title={t("confirmRoomDeletion")}
         message={
           deleteTarget
-            ? `本当にこのルーム「${rooms.find(r => r.id === deleteTarget)?.name ?? ''}」を削除しますか？この操作は取り消せません。`
-            : "本当にこのルームを削除しますか？この操作は取り消せません。"
+            ? t("confirmDeleteRoom").replace("{roomName}", rooms.find(r => r.id === deleteTarget)?.name ?? '')
+            : t("confirmDeleteRoomGeneric")
         }
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}

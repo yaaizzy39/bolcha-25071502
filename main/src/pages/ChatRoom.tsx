@@ -114,7 +114,7 @@ function ChatRoom({ user }: Props) {
   const isAdmin = useIsAdmin(user);
   const { roomId } = useParams<{ roomId: string }>();
   // UI language from global context
-  const { lang: uiLang } = useI18n();
+  const { lang: uiLang, t } = useI18n();
 
   // プレゼンス設定の読み込み
   useEffect(() => {
@@ -784,7 +784,7 @@ useEffect(() => {
     const isDeletedUser = deletedUsers[uid];
     
     if (isDeletedUser) {
-      return "[削除されたユーザー]";
+      return t("deletedUser");
     }
     
     // For current user, use prefs from useUserPrefs hook
@@ -1264,7 +1264,7 @@ useEffect(() => {
             fontSize: "1.05em"
           }}>
             <div style={{ fontWeight: 700, fontSize: "1.1em", marginBottom: 12, color: "#b50000", whiteSpace: "pre-line" }}>
-              {uiLang === 'en' ? 'Opening External Link!\nPlease be careful of fraudulent or malicious websites!' : '外部リンクを開こうとしています！\n詐欺や悪意のあるサイトには十分注意してください！'}
+              {t("externalLinkWarning")}
             </div>
             <div style={{ background: "#f9f9f9", border: "1px solid #eee", borderRadius: 6, padding: "0.5rem", marginBottom: 18, wordBreak: "break-all", color: "#222" }}>
               {pendingLink?.label}
@@ -1276,11 +1276,11 @@ useEffect(() => {
                   if (pendingLink) window.open(pendingLink.url, '_blank', 'noopener');
                   setPendingLink(null);
                 }}
-              >{uiLang === 'en' ? 'OK' : 'OK'}</button>
+              >{t("ok")}</button>
               <button
                 style={{ background: "#eee", color: "#444", border: "none", borderRadius: 6, padding: "0.5rem 1.3rem", fontSize: "1em", cursor: "pointer" }}
                 onClick={() => setPendingLink(null)}
-              >{uiLang === 'en' ? 'Cancel' : 'キャンセル'}</button>            </div>
+              >{t("cancel")}</button>            </div>
           </div>
         </div>
       )}

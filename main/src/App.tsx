@@ -12,8 +12,9 @@ import Admin from "./pages/Admin";
 import IdeaList from "./pages/IdeaList";
 import ProjectList from "./pages/ProjectList";
 import ProjectIdeas from "./pages/ProjectIdeas";
-import { Routes, Route, Navigate, Link, useLocation, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { useUserPrefs } from "./hooks/useUserPrefs";
+import { useI18n } from "./i18n";
 import "./utils/migrateUserData"; // マイグレーション関数をグローバルに公開
 
 // Minimal abstract icons
@@ -60,6 +61,7 @@ function App() {
   const [needsNickname, setNeedsNickname] = useState(false);
   const isAdmin = useIsAdmin(user);
   const { prefs: userPrefs, setPrefs: setUserPrefs } = useUserPrefs(user?.uid || "");
+  const { t } = useI18n();
 
   const location = useLocation();
   
@@ -209,10 +211,13 @@ function App() {
             <>
               <Link to="/profile" title="Profile Settings">
                 <img
-                  src={user.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E"}
+                  src={userPrefs.photoURL || user.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E"}
                   alt="my avatar"
                   height={28}
                   style={{ borderRadius: '50%', background: '#eee', marginLeft: 4, marginRight: 4, cursor: 'pointer' }}
+                  onError={(e) => {
+                    e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E";
+                  }}
                 />
               </Link>
               {!hideNav && (
@@ -307,9 +312,9 @@ function App() {
             textAlign: "center",
             boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
           }}>
-            <h3 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem" }}>ログアウトしますか？</h3>
+            <h3 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem" }}>{t("logoutConfirmTitle")}</h3>
             <p style={{ margin: "0 0 1.5rem 0", color: "#666", fontSize: "0.9rem" }}>
-              現在のセッションを終了してログイン画面に戻ります。
+              {t("logoutConfirmMessage")}
             </p>
             <div style={{ display: "flex", justifyContent: "center", gap: "1rem" }}>
               <button 
@@ -324,7 +329,7 @@ function App() {
                   fontSize: "0.9rem"
                 }}
               >
-                ログアウト
+                {t("logout")}
               </button>
               <button 
                 onClick={() => setShowLogoutConfirm(false)}
@@ -338,7 +343,7 @@ function App() {
                   fontSize: "0.9rem"
                 }}
               >
-                キャンセル
+                {t("cancel")}
               </button>
             </div>
           </div>

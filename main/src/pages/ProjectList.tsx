@@ -15,12 +15,14 @@ import { db } from "../firebase";
 import type { User } from "firebase/auth";
 import type { ProjectData, UserRole } from "../types";
 import useUserRole from "../hooks/useUserRole";
+import { useI18n } from "../i18n";
 
 interface ProjectListProps {
   user: User;
 }
 
 const ProjectList = ({ user }: ProjectListProps) => {
+  const { t } = useI18n();
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -111,9 +113,9 @@ const ProjectList = ({ user }: ProjectListProps) => {
         stack: error.stack
       });
       
-      let errorMessage = "プロジェクトの保存中にエラーが発生しました";
+      let errorMessage = t("saveProjectError");
       if (error.code === 'permission-denied') {
-        errorMessage = "権限エラー: プロジェクトの作成権限がありません。管理者に連絡してください。";
+        errorMessage = t("permissionDeniedProject");
       } else if (error.message) {
         errorMessage += ": " + error.message;
       }
@@ -132,7 +134,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
   };
 
   const handleDelete = async (projectId: string) => {
-    if (!confirm("このプロジェクトを削除しますか？関連するアイデアもすべて削除されます。")) return;
+    if (!confirm(t("deleteProjectConfirm"))) return;
 
     try {
       await deleteDoc(doc(db, "projects", projectId));
@@ -151,17 +153,17 @@ const ProjectList = ({ user }: ProjectListProps) => {
   };
 
   if (loading) {
-    return <div>読み込み中...</div>;
+    return <div>{t("loading")}</div>;
   }
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
       <div style={{ marginBottom: '2rem' }}>
         <Link to="/" style={{ textDecoration: 'none', color: '#007bff' }}>
-          ← ホームに戻る
+          {t("backToHome")}
         </Link>
         <h1 style={{ margin: '0.5rem 0' }}>
-          プロジェクト管理
+          {t("projectManagement")}
         </h1>
         <button
           onClick={() => setShowForm(true)}
@@ -174,7 +176,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
             cursor: 'pointer'
           }}
         >
-          新しいプロジェクトを作成
+          {t("newProject")}
         </button>
       </div>
 
@@ -211,11 +213,11 @@ const ProjectList = ({ user }: ProjectListProps) => {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2>{editingProject ? 'プロジェクトを編集' : '新しいプロジェクトを作成'}</h2>
+            <h2>{editingProject ? t("editProject") : t("newProject")}</h2>
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                  プロジェクト名 *
+                  {t("projectName")} *
                 </label>
                 <input
                   type="text"
@@ -235,7 +237,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
               </div>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                  説明
+                  {t("description")}
                 </label>
                 <textarea
                   value={formData.description}
@@ -264,7 +266,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
                     cursor: 'pointer'
                   }}
                 >
-                  {editingProject ? '更新' : '作成'}
+                  {editingProject ? t("update") : t("create")}
                 </button>
                 <button
                   type="button"
@@ -282,7 +284,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
                     cursor: 'pointer'
                   }}
                 >
-                  キャンセル
+                  {t("cancel")}
                 </button>
               </div>
             </form>
@@ -302,8 +304,8 @@ const ProjectList = ({ user }: ProjectListProps) => {
             borderRadius: '8px'
           }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📁</div>
-            <h3>プロジェクトがありません</h3>
-            <p>新しいプロジェクトを作成して始めましょう</p>
+            <h3>{t("noProjects")}</h3>
+            <p>{t("createFirstProject")}</p>
           </div>
         ) : (
           projects.map((project) => (
@@ -342,7 +344,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
                         fontSize: '0.8rem'
                       }}
                     >
-                      編集
+                      {t("edit")}
                     </button>
                   )}
                   {canDeleteProject(project) && (
@@ -358,7 +360,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
                         fontSize: '0.8rem'
                       }}
                     >
-                      削除
+                      {t("delete")}
                     </button>
                   )}
                 </div>
@@ -371,7 +373,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
               )}
               
               <div style={{ marginBottom: '1.5rem', color: '#999', fontSize: '0.8rem' }}>
-                作成日: {project.createdAt?.toDate ? project.createdAt.toDate().toLocaleDateString() : '不明'}
+                {t("createdAt")} {project.createdAt?.toDate ? project.createdAt.toDate().toLocaleDateString() : t("unknown")}
               </div>
               
               <Link
@@ -393,7 +395,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
                   e.currentTarget.style.backgroundColor = '#28a745';
                 }}
               >
-                💡 アイデアを管理
+                {t("manageIdeas")}
               </Link>
             </div>
           ))

@@ -16,12 +16,14 @@ import { db } from "../firebase";
 import type { User } from "firebase/auth";
 import type { ProjectIdeaData, IdeaStatus, UserRole, ProjectData } from "../types";
 import useUserRole from "../hooks/useUserRole";
+import { useI18n } from "../i18n";
 
 interface ProjectIdeasProps {
   user: User;
 }
 
 const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
+  const { t } = useI18n();
   const { projectId } = useParams<{ projectId: string }>();
   const [ideas, setIdeas] = useState<ProjectIdeaData[]>([]);
   const [project, setProject] = useState<ProjectData | null>(null);
@@ -142,9 +144,9 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         stack: error.stack
       });
       
-      let errorMessage = "アイデアの保存中にエラーが発生しました";
+      let errorMessage = t("saveIdeaError");
       if (error.code === 'permission-denied') {
-        errorMessage = "権限エラー: アイデアの作成権限がありません。管理者に連絡してください。";
+        errorMessage = t("permissionDeniedIdea");
       } else if (error.message) {
         errorMessage += ": " + error.message;
       }
@@ -163,7 +165,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   };
 
   const handleDelete = async (ideaId: string) => {
-    if (!confirm("このアイデアを削除しますか？")) return;
+    if (!confirm(t("deleteIdeaConfirm"))) return;
 
     try {
       await deleteDoc(doc(db, "projectIdeas", ideaId));
@@ -201,9 +203,9 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
 
   const getStatusText = (status: IdeaStatus) => {
     switch (status) {
-      case 'pending': return '検討中';
-      case 'approved': return '採用';
-      case 'rejected': return '却下';
+      case 'pending': return t('pending');
+      case 'approved': return t('approved');
+      case 'rejected': return t('rejected');
       default: return status;
     }
   };
@@ -218,17 +220,17 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   };
 
   if (loading) {
-    return <div>読み込み中...</div>;
+    return <div>{t("loading")}</div>;
   }
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
       <div style={{ marginBottom: '2rem' }}>
         <Link to="/projects" style={{ textDecoration: 'none', color: '#007bff' }}>
-          ← プロジェクト一覧に戻る
+          {t("backToProjects")}
         </Link>
         <h1 style={{ margin: '0.5rem 0' }}>
-          {project?.name || 'プロジェクト'} - アイデア管理
+          {project?.name || t("project")} - {t("ideaMgmt")}
         </h1>
         {project?.description && (
           <p style={{ color: '#666', margin: '0.5rem 0 1rem 0' }}>
@@ -246,7 +248,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
             cursor: 'pointer'
           }}
         >
-          新しいアイデアを投稿
+          {t("newIdea")}
         </button>
       </div>
 
@@ -271,11 +273,11 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
             width: '90%',
             maxWidth: '600px'
           }}>
-            <h2>{editingIdea ? 'アイデアを編集' : '新しいアイデアを投稿'}</h2>
+            <h2>{editingIdea ? t("editIdea") : t("newIdea")}</h2>
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                  タイトル *
+                  {t("title")} *
                 </label>
                 <input
                   type="text"
@@ -292,7 +294,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               </div>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                  アイデアの内容 *
+                  {t("ideaContent")} *
                 </label>
                 <textarea
                   value={formData.content}
@@ -320,7 +322,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                     cursor: 'pointer'
                   }}
                 >
-                  {editingIdea ? '更新' : '投稿'}
+                  {editingIdea ? t("update") : t("post")}
                 </button>
                 <button
                   type="button"
@@ -338,7 +340,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                     cursor: 'pointer'
                   }}
                 >
-                  キャンセル
+                  {t("cancel")}
                 </button>
               </div>
             </form>
@@ -351,8 +353,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         {ideas.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '3rem', color: '#666', border: '2px dashed #ddd', borderRadius: '8px' }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💡</div>
-            <h3>まだアイデアがありません</h3>
-            <p>最初のアイデアを投稿しましょう</p>
+            <h3>{t("noIdeas")}</h3>
+            <p>{t("postFirstIdea")}</p>
           </div>
         ) : (
           ideas.map((idea) => (
@@ -381,7 +383,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                         fontSize: '0.8rem'
                       }}
                     >
-                      編集
+                      {t("edit")}
                     </button>
                   )}
                   {canDeleteIdea(idea) && (
@@ -397,23 +399,23 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                         fontSize: '0.8rem'
                       }}
                     >
-                      削除
+                      {t("delete")}
                     </button>
                   )}
                 </div>
               </div>
               
               <div style={{ marginBottom: '1rem' }}>
-                <strong>投稿日:</strong> {idea.createdAt?.toDate ? idea.createdAt.toDate().toLocaleDateString() : '不明'}
+                <strong>{t("postedAt")}</strong> {idea.createdAt?.toDate ? idea.createdAt.toDate().toLocaleDateString() : t("unknown")}
               </div>
               
               <div style={{ marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
-                <strong>内容:</strong><br />
+                <strong>{t("content")}:</strong><br />
                 {idea.content}
               </div>
               
               <div style={{ marginBottom: '1rem' }}>
-                <strong>運営の判断:</strong>{' '}
+                <strong>{t("adminJudgment")}</strong>{' '}
                 <span
                   style={{
                     backgroundColor: getStatusColor(idea.status),
@@ -429,21 +431,21 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               
               {idea.staffComment && (
                 <div style={{ marginBottom: '1rem' }}>
-                  <strong>運営コメント:</strong><br />
+                  <strong>{t("adminComment")}</strong><br />
                   {idea.staffComment}
                 </div>
               )}
               
               {idea.developmentPeriod && (
                 <div style={{ marginBottom: '1rem' }}>
-                  <strong>開発期間:</strong> {idea.developmentPeriod}
+                  <strong>{t("developmentPeriod")}</strong> {idea.developmentPeriod}
                 </div>
               )}
               
               {canManageStatus() && (
                 <div style={{ borderTop: '1px solid #ddd', paddingTop: '1rem' }}>
                   <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>運営操作:</strong>
+                    <strong>{t("adminOperations")}</strong>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                     <select
@@ -455,15 +457,15 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                         border: '1px solid #ddd'
                       }}
                     >
-                      <option value="pending">検討中</option>
-                      <option value="approved">採用</option>
-                      <option value="rejected">却下</option>
+                      <option value="pending">{t("pending")}</option>
+                      <option value="approved">{t("approved")}</option>
+                      <option value="rejected">{t("rejected")}</option>
                     </select>
                     <input
                       type="text"
                       value={staffComment}
                       onChange={(e) => setStaffComment(e.target.value)}
-                      placeholder="運営コメント"
+                      placeholder={t("adminCommentPlaceholder")}
                       style={{
                         flex: 1,
                         padding: '0.25rem',
@@ -475,7 +477,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                       type="text"
                       value={developmentPeriod}
                       onChange={(e) => setDevelopmentPeriod(e.target.value)}
-                      placeholder="開発期間"
+                      placeholder={t("developmentPeriodPlaceholder")}
                       style={{
                         width: '100px',
                         padding: '0.25rem',
@@ -494,7 +496,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                         cursor: 'pointer'
                       }}
                     >
-                      更新
+                      {t("update")}
                     </button>
                   </div>
                 </div>

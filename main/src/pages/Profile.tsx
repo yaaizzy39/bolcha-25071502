@@ -175,11 +175,16 @@ export default function Profile({ user, needsNickname, onSaved }: Props) {
       <div style={{ marginBottom: "1rem" }}>
         <label>{t("avatar")}</label>
         <br />
-        {prefs.photoURL ? (
-          <img src={prefs.photoURL} alt="avatar" width={80} height={80} style={{ borderRadius: "50%" }} />
-        ) : (
-          <img src={user.photoURL ?? undefined} alt="avatar" width={80} height={80} style={{ borderRadius: "50%" }} />
-        )}
+        <img 
+          src={prefs.photoURL || user.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Ccircle cx='40' cy='40' r='40' fill='%23ddd'/%3E%3Ccircle cx='40' cy='32' r='15' fill='%23bbb'/%3E%3Cellipse cx='40' cy='60' rx='22' ry='15' fill='%23bbb'/%3E%3C/svg%3E"} 
+          alt="avatar" 
+          width={80} 
+          height={80} 
+          style={{ borderRadius: "50%", background: '#eee' }}
+          onError={(e) => {
+            e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Ccircle cx='40' cy='40' r='40' fill='%23ddd'/%3E%3Ccircle cx='40' cy='32' r='15' fill='%23bbb'/%3E%3Cellipse cx='40' cy='60' rx='22' ry='15' fill='%23bbb'/%3E%3C/svg%3E";
+          }}
+        />
         <br />
         <input type="file" accept="image/*" onChange={handleFile} />
       </div>
@@ -212,7 +217,7 @@ export default function Profile({ user, needsNickname, onSaved }: Props) {
             fontSize: "0.9em",
             color: "#856404"
           }}>
-            📝 ニックネームを設定してください。チャットで他のユーザーに表示される名前です。
+            {t("nicknameRequired")}
           </div>
         )}
         <br />
@@ -225,7 +230,7 @@ export default function Profile({ user, needsNickname, onSaved }: Props) {
               setPrefs((p) => ({ ...p, nickname: value }));
             }
           }}
-          placeholder="チャットで表示される名前を入力"
+          placeholder={t("nicknamePlaceholder")}
           maxLength={16}
           style={{ 
             width: "100%", 
@@ -371,7 +376,7 @@ export default function Profile({ user, needsNickname, onSaved }: Props) {
           type="button"
           onClick={() => navigate(-1)}
         >
-          {(uiLang === 'ja' && (!t("cancel") || t("cancel").toLowerCase() === 'cancel')) ? 'キャンセル' : (t("cancel") || (uiLang === 'ja' ? 'キャンセル' : 'Cancel'))}
+          {t("cancel")}
         </button>
       </div>
 
@@ -409,15 +414,19 @@ export default function Profile({ user, needsNickname, onSaved }: Props) {
               margin: "0 0 1rem 0",
               fontSize: "1.2rem"
             }}>
-              ニックネーム未設定
+              {t("nicknameNotSet")}
             </h3>
             <p style={{
               color: "#666",
               lineHeight: "1.5",
               margin: "0 0 2rem 0"
             }}>
-              チャットで他のユーザーに表示される<br/>
-              ニックネームを入力してください
+              {t("nicknameNotSetMessage").split('\n').map((line, i) => (
+                <span key={i}>
+                  {line}
+                  {i === 0 && <br/>}
+                </span>
+              ))}
             </p>
             <button
               onClick={() => setShowNicknameWarning(false)}
@@ -432,7 +441,7 @@ export default function Profile({ user, needsNickname, onSaved }: Props) {
                 fontWeight: "500"
               }}
             >
-              わかりました
+              {t("understood")}
             </button>
           </div>
         </div>

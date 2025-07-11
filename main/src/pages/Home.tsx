@@ -1,11 +1,14 @@
 import { Link } from "react-router-dom";
 import type { User } from "firebase/auth";
+import { useI18n } from "../i18n";
 
 interface HomeProps {
   user: User;
 }
 
 const Home = ({ user }: HomeProps) => {
+  const { t } = useI18n();
+  
   return (
     <div style={{ 
       maxWidth: 600, 
@@ -18,7 +21,7 @@ const Home = ({ user }: HomeProps) => {
         color: '#333',
         fontSize: '2rem'
       }}>
-        Bolcha - ホーム
+        {t("homeTitle")}
       </h1>
       
       <p style={{ 
@@ -26,7 +29,7 @@ const Home = ({ user }: HomeProps) => {
         color: '#666',
         fontSize: '1.1rem'
       }}>
-        どちらの機能を使用しますか？
+        {t("homeSubtitle")}
       </p>
 
       <div style={{ 
@@ -59,9 +62,9 @@ const Home = ({ user }: HomeProps) => {
           }}
         >
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💬</div>
-          <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.3rem' }}>チャットルーム</h2>
+          <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.3rem' }}>{t("chatRooms")}</h2>
           <p style={{ margin: 0, opacity: 0.9 }}>
-            リアルタイムチャットでコミュニケーション
+            {t("chatRoomsDesc")}
           </p>
         </Link>
 
@@ -88,9 +91,9 @@ const Home = ({ user }: HomeProps) => {
           }}
         >
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💡</div>
-          <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.3rem' }}>アイデア管理</h2>
+          <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.3rem' }}>{t("ideaManagement")}</h2>
           <p style={{ margin: 0, opacity: 0.9 }}>
-            アイデアの投稿・管理・評価
+            {t("ideaManagementDesc")}
           </p>
         </Link>
       </div>
@@ -104,7 +107,7 @@ const Home = ({ user }: HomeProps) => {
         color: '#666'
       }}>
         <p style={{ margin: 0 }}>
-          ログイン中: <strong>{user.displayName || user.email}</strong>
+          {t("loggedInAs")}<strong>{user.displayName || user.email}</strong>
         </p>
       </div>
     </div>
