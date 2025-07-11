@@ -96,6 +96,7 @@ const translations: Record<UILang, Record<string, string>> = {
     deleteProjectConfirm: "Are you sure you want to delete this project? All related ideas will also be deleted.",
     backToProjects: "← Back to Projects",
     // Status
+    unconfirmed: "Unconfirmed",
     pending: "Pending",
     approved: "Approved",
     rejected: "Rejected",
@@ -202,6 +203,7 @@ const translations: Record<UILang, Record<string, string>> = {
     deleteProjectConfirm: "このプロジェクトを削除しますか？関連するアイデアもすべて削除されます。",
     backToProjects: "← プロジェクト一覧に戻る",
     // Status
+    unconfirmed: "未確認",
     pending: "検討中",
     approved: "採用",
     rejected: "却下",

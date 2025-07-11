@@ -38,7 +38,7 @@ export interface Message {
 
 export type UserRole = 'admin' | 'staff' | 'user';
 
-export type IdeaStatus = 'pending' | 'approved' | 'rejected';
+export type IdeaStatus = 'unconfirmed' | 'pending' | 'approved' | 'rejected';
 
 export interface IdeaData {
   id: string;

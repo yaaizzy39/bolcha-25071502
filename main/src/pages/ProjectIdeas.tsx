@@ -35,7 +35,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     content: ""
   });
   const [staffComment, setStaffComment] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState<IdeaStatus>('pending');
+  const [selectedStatus, setSelectedStatus] = useState<IdeaStatus>('unconfirmed');
   const [developmentPeriod, setDevelopmentPeriod] = useState("");
   
   const userRole = useUserRole(user);
@@ -122,7 +122,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         const docRef = await addDoc(collection(db, "projectIdeas"), {
           title: formData.title,
           content: formData.content,
-          status: 'pending',
+          status: 'unconfirmed',
           createdBy: user.uid,
           projectId: projectId,
           createdAt: serverTimestamp(),
@@ -203,6 +203,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
 
   const getStatusText = (status: IdeaStatus) => {
     switch (status) {
+      case 'unconfirmed': return t('unconfirmed');
       case 'pending': return t('pending');
       case 'approved': return t('approved');
       case 'rejected': return t('rejected');
@@ -212,6 +213,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
 
   const getStatusColor = (status: IdeaStatus) => {
     switch (status) {
+      case 'unconfirmed': return '#6c757d';
       case 'pending': return '#ffc107';
       case 'approved': return '#28a745';
       case 'rejected': return '#dc3545';
@@ -457,6 +459,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                         border: '1px solid #ddd'
                       }}
                     >
+                      <option value="unconfirmed">{t("unconfirmed")}</option>
                       <option value="pending">{t("pending")}</option>
                       <option value="approved">{t("approved")}</option>
                       <option value="rejected">{t("rejected")}</option>
