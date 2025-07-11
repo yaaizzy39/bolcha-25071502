@@ -423,7 +423,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
                 </div>
               )}
               
-              {canManageStatus() && (
+{canManageStatus() && (
                 <div style={{ borderTop: '1px solid #ddd', paddingTop: '1rem' }}>
                   <div style={{ marginBottom: '0.5rem' }}>
                     <strong>{t("adminOperations")}</strong>
@@ -478,7 +478,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
                         cursor: 'pointer'
                       }}
                     >
-                      更新
+                      {t("update")}
                     </button>
                   </div>
                 </div>
