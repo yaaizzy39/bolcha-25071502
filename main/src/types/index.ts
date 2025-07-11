@@ -51,6 +51,8 @@ export interface IdeaData {
   createdAt: FirestoreTimestamp;
   updatedAt: FirestoreTimestamp;
   roomId: string;
+  originalLang?: string;
+  translations?: Record<string, { title: string; content: string; staffComment?: string; }>;
 }
 
 export interface ProjectData {
@@ -73,4 +75,6 @@ export interface ProjectIdeaData {
   createdAt: FirestoreTimestamp;
   updatedAt: FirestoreTimestamp;
   projectId: string;
+  originalLang?: string;
+  translations?: Record<string, { title: string; content: string; staffComment?: string; }>;
 }

@@ -16,6 +16,8 @@ import type { User } from "firebase/auth";
 import type { IdeaStatus, UserRole } from "../types";
 import useUserRole from "../hooks/useUserRole";
 import { useI18n } from "../i18n";
+import { useIdeaTranslation } from "../hooks/useIdeaTranslation";
+import { detectLanguage } from "../langDetect";
 
 interface IdeaListProps {
   user: User;
@@ -31,10 +33,12 @@ interface GlobalIdeaData {
   createdBy: string;
   createdAt: any;
   updatedAt: any;
+  originalLang?: string;
+  translations?: Record<string, { title: string; content: string; staffComment?: string; }>;
 }
 
 const IdeaList = ({ user }: IdeaListProps) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [ideas, setIdeas] = useState<GlobalIdeaData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -48,6 +52,14 @@ const IdeaList = ({ user }: IdeaListProps) => {
   const [developmentPeriod, setDevelopmentPeriod] = useState("");
   
   const userRole = useUserRole(user);
+  const { 
+    getTranslatedContent, 
+    translateIdea, 
+    autoTranslateIdeas, 
+    isTranslating,
+    translationLang,
+    setTranslationLang
+  } = useIdeaTranslation<GlobalIdeaData>('globalIdeas');
 
   useEffect(() => {
     // Listen to global ideas
@@ -83,6 +95,13 @@ const IdeaList = ({ user }: IdeaListProps) => {
     }
   }, []);
 
+  // Auto-translate ideas when translation language changes or new ideas are loaded
+  useEffect(() => {
+    if (ideas.length > 0) {
+      autoTranslateIdeas(ideas);
+    }
+  }, [ideas, translationLang, autoTranslateIdeas]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("HandleSubmit called with data:", formData);
@@ -106,13 +125,19 @@ const IdeaList = ({ user }: IdeaListProps) => {
         console.log("Global idea updated successfully");
       } else {
         console.log("Creating new global idea...");
+        
+        // Detect language of the content
+        const detectedLang = await detectLanguage(formData.content);
+        
         const docRef = await addDoc(collection(db, "globalIdeas"), {
           title: formData.title,
           content: formData.content,
           status: 'unconfirmed',
           createdBy: user.uid,
           createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
+          originalLang: detectedLang || lang,
+          translations: detectedLang === lang ? { [lang]: { title: formData.title, content: formData.content } } : undefined
         });
         console.log("New global idea created with ID:", docRef.id);
       }
@@ -217,9 +242,37 @@ const IdeaList = ({ user }: IdeaListProps) => {
         <Link to="/" style={{ textDecoration: 'none', color: '#007bff' }}>
           {t("backToHome")}
         </Link>
-        <h1 style={{ margin: '0.5rem 0' }}>
-          {t("ideaMgmt")}
-        </h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.5rem 0' }}>
+          <h1 style={{ margin: 0 }}>
+            {t("ideaMgmt")}
+          </h1>
+          <select 
+            value={translationLang} 
+            onChange={(e) => setTranslationLang(e.target.value)} 
+            style={{ 
+              height: 32, 
+              fontSize: "1rem", 
+              borderRadius: 12, 
+              border: "1px solid #ccc", 
+              padding: "0 8px",
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            {[
+              ["en", "English"],
+              ["ja", "日本語"],
+              ["zh", "中文"],
+              ["ko", "한국어"],
+              ["es", "Español"],
+              ["fr", "Français"],
+            ].map(([code, label]) => (
+              <option key={code} value={code as string}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           onClick={() => setShowForm(true)}
           style={{
@@ -338,18 +391,33 @@ const IdeaList = ({ user }: IdeaListProps) => {
             {t("noIdeas")}
           </div>
         ) : (
-          ideas.map((idea) => (
+          ideas.map((idea) => {
+            const translatedContent = getTranslatedContent(idea);
+            return (
             <div
               key={idea.id}
               style={{
                 border: '1px solid #ddd',
                 borderRadius: '8px',
                 padding: '1.5rem',
-                backgroundColor: '#f9f9f9'
+                backgroundColor: '#f9f9f9',
+                position: 'relative'
               }}
             >
+              {isTranslating(idea.id) && (
+                <div style={{
+                  position: 'absolute',
+                  top: '0.5rem',
+                  right: '0.5rem',
+                  fontSize: '0.8rem',
+                  color: '#666',
+                  fontStyle: 'italic'
+                }}>
+                  翻訳中...
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                <h3 style={{ margin: 0, color: '#333' }}>{idea.title}</h3>
+                <h3 style={{ margin: 0, color: '#333' }}>{translatedContent.title}</h3>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   {canEditIdea(idea) && (
                     <button
@@ -383,6 +451,22 @@ const IdeaList = ({ user }: IdeaListProps) => {
                       {t("delete")}
                     </button>
                   )}
+                  {!isTranslating(idea.id) && idea.originalLang !== translationLang && (
+                    <button
+                      onClick={() => translateIdea(idea)}
+                      style={{
+                        backgroundColor: '#17a2b8',
+                        color: 'white',
+                        border: 'none',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem'
+                      }}
+                    >
+                      翻訳
+                    </button>
+                  )}
                 </div>
               </div>
               
@@ -392,7 +476,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
               
               <div style={{ marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
                 <strong>{t("content")}:</strong><br />
-                {idea.content}
+                {translatedContent.content}
               </div>
               
               <div style={{ marginBottom: '1rem' }}>
@@ -410,10 +494,10 @@ const IdeaList = ({ user }: IdeaListProps) => {
                 </span>
               </div>
               
-              {idea.staffComment && (
+              {translatedContent.staffComment && (
                 <div style={{ marginBottom: '1rem' }}>
                   <strong>{t("adminComment")}</strong><br />
-                  {idea.staffComment}
+                  {translatedContent.staffComment}
                 </div>
               )}
               
@@ -484,7 +568,8 @@ const IdeaList = ({ user }: IdeaListProps) => {
                 </div>
               )}
             </div>
-          ))
+          );
+          })
         )}
       </div>
     </div>

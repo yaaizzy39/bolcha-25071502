@@ -17,13 +17,15 @@ import type { User } from "firebase/auth";
 import type { ProjectIdeaData, IdeaStatus, UserRole, ProjectData } from "../types";
 import useUserRole from "../hooks/useUserRole";
 import { useI18n } from "../i18n";
+import { useIdeaTranslation } from "../hooks/useIdeaTranslation";
+import { detectLanguage } from "../langDetect";
 
 interface ProjectIdeasProps {
   user: User;
 }
 
 const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { projectId } = useParams<{ projectId: string }>();
   const [ideas, setIdeas] = useState<ProjectIdeaData[]>([]);
   const [project, setProject] = useState<ProjectData | null>(null);
@@ -39,6 +41,14 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   const [developmentPeriod, setDevelopmentPeriod] = useState("");
   
   const userRole = useUserRole(user);
+  const { 
+    getTranslatedContent, 
+    translateIdea, 
+    autoTranslateIdeas, 
+    isTranslating,
+    translationLang,
+    setTranslationLang
+  } = useIdeaTranslation<ProjectIdeaData>('projectIdeas');
 
   useEffect(() => {
     if (!projectId) return;
@@ -95,6 +105,13 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     }
   }, [projectId]);
 
+  // Auto-translate ideas when translation language changes or new ideas are loaded
+  useEffect(() => {
+    if (ideas.length > 0) {
+      autoTranslateIdeas(ideas);
+    }
+  }, [ideas, translationLang, autoTranslateIdeas]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("HandleSubmit called with data:", formData);
@@ -119,6 +136,10 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         console.log("Project idea updated successfully");
       } else {
         console.log("Creating new project idea...");
+        
+        // Detect language of the content
+        const detectedLang = await detectLanguage(formData.content);
+        
         const docRef = await addDoc(collection(db, "projectIdeas"), {
           title: formData.title,
           content: formData.content,
@@ -126,7 +147,9 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
           createdBy: user.uid,
           projectId: projectId,
           createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
+          originalLang: detectedLang || lang,
+          translations: detectedLang === lang ? { [lang]: { title: formData.title, content: formData.content } } : undefined
         });
         console.log("New project idea created with ID:", docRef.id);
       }
@@ -231,9 +254,37 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         <Link to="/projects" style={{ textDecoration: 'none', color: '#007bff' }}>
           {t("backToProjects")}
         </Link>
-        <h1 style={{ margin: '0.5rem 0' }}>
-          {project?.name || t("project")} - {t("ideaMgmt")}
-        </h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.5rem 0' }}>
+          <h1 style={{ margin: 0 }}>
+            {project?.name || t("project")} - {t("ideaMgmt")}
+          </h1>
+          <select 
+            value={translationLang} 
+            onChange={(e) => setTranslationLang(e.target.value)} 
+            style={{ 
+              height: 32, 
+              fontSize: "1rem", 
+              borderRadius: 12, 
+              border: "1px solid #ccc", 
+              padding: "0 8px",
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            {[
+              ["en", "English"],
+              ["ja", "日本語"],
+              ["zh", "中文"],
+              ["ko", "한국어"],
+              ["es", "Español"],
+              ["fr", "Français"],
+            ].map(([code, label]) => (
+              <option key={code} value={code as string}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
         {project?.description && (
           <p style={{ color: '#666', margin: '0.5rem 0 1rem 0' }}>
             {project.description}
@@ -359,18 +410,33 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
             <p>{t("postFirstIdea")}</p>
           </div>
         ) : (
-          ideas.map((idea) => (
+          ideas.map((idea) => {
+            const translatedContent = getTranslatedContent(idea);
+            return (
             <div
               key={idea.id}
               style={{
                 border: '1px solid #ddd',
                 borderRadius: '8px',
                 padding: '1.5rem',
-                backgroundColor: '#f9f9f9'
+                backgroundColor: '#f9f9f9',
+                position: 'relative'
               }}
             >
+              {isTranslating(idea.id) && (
+                <div style={{
+                  position: 'absolute',
+                  top: '0.5rem',
+                  right: '0.5rem',
+                  fontSize: '0.8rem',
+                  color: '#666',
+                  fontStyle: 'italic'
+                }}>
+                  翻訳中...
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                <h3 style={{ margin: 0, color: '#333' }}>{idea.title}</h3>
+                <h3 style={{ margin: 0, color: '#333' }}>{translatedContent.title}</h3>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   {canEditIdea(idea) && (
                     <button
@@ -404,6 +470,22 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                       {t("delete")}
                     </button>
                   )}
+                  {!isTranslating(idea.id) && idea.originalLang !== translationLang && (
+                    <button
+                      onClick={() => translateIdea(idea)}
+                      style={{
+                        backgroundColor: '#17a2b8',
+                        color: 'white',
+                        border: 'none',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem'
+                      }}
+                    >
+                      翻訳
+                    </button>
+                  )}
                 </div>
               </div>
               
@@ -413,7 +495,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               
               <div style={{ marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
                 <strong>{t("content")}:</strong><br />
-                {idea.content}
+                {translatedContent.content}
               </div>
               
               <div style={{ marginBottom: '1rem' }}>
@@ -431,10 +513,10 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                 </span>
               </div>
               
-              {idea.staffComment && (
+              {translatedContent.staffComment && (
                 <div style={{ marginBottom: '1rem' }}>
                   <strong>{t("adminComment")}</strong><br />
-                  {idea.staffComment}
+                  {translatedContent.staffComment}
                 </div>
               )}
               
@@ -505,7 +587,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                 </div>
               )}
             </div>
-          ))
+          );
+          })
         )}
       </div>
     </div>
