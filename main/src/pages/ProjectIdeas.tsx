@@ -264,6 +264,22 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
           console.log("Translation update successful");
         }
         
+        // Auto-translate the staff comment to other languages
+        if (comment.trim()) {
+          console.log("Auto-translating staff comment...");
+          // Create a temporary idea object with the new comment for translation
+          const updatedIdea = {
+            ...idea,
+            staffComment: comment,
+            translations: idea?.translations || {}
+          };
+          
+          // Trigger translation for the updated idea
+          setTimeout(() => {
+            translateIdea(updatedIdea as ProjectIdeaData);
+          }, 1000); // Small delay to ensure Firestore update is complete
+        }
+        
       } catch (basicError) {
         console.error("Basic update failed:", basicError);
         throw basicError;
@@ -585,8 +601,30 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               
               {translatedContent.staffComment && (
                 <div style={{ marginBottom: '1rem' }}>
-                  <strong>{t("adminComment")}</strong><br />
-                  {translatedContent.staffComment}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <strong>{t("adminComment")}</strong><br />
+                      {translatedContent.staffComment}
+                    </div>
+                    {!isTranslating(idea.id) && idea.originalLang !== translationLang && idea.staffComment && (
+                      <button
+                        onClick={() => translateIdea(idea)}
+                        style={{
+                          backgroundColor: '#17a2b8',
+                          color: 'white',
+                          border: 'none',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          marginLeft: '0.5rem'
+                        }}
+                        title="運営コメントを翻訳"
+                      >
+                        翻訳
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
               
