@@ -205,16 +205,80 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
 
   const handleStatusUpdate = async (ideaId: string, status: IdeaStatus, comment: string, period: string) => {
     try {
-      await updateDoc(doc(db, "projectIdeas", ideaId), {
+      console.log("=== handleStatusUpdate START ===");
+      console.log("Parameters:", { ideaId, status, comment, period });
+      console.log("User role:", userRole);
+      console.log("User UID:", user.uid);
+      console.log("User email:", user.email);
+      
+      // Always check user role directly from Firestore for debugging
+      console.log("Fetching user role directly from Firestore...");
+      
+      try {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        const userData = userDoc.data();
+        console.log("User document from Firestore:", userData);
+        console.log("User exists in Firestore:", userDoc.exists());
+        
+        if (!userDoc.exists()) {
+          alert("ユーザードキュメントがFirestoreに存在しません。管理者に連絡してください。");
+          return;
+        }
+        
+        if (!userData || (userData.role !== 'staff' && userData.role !== 'admin')) {
+          alert(`権限エラー: 運営操作には'staff'または'admin'ロールが必要です。現在のロール: ${userData?.role || 'undefined'}`);
+          return;
+        }
+        
+        console.log("Permission check passed. User role:", userData.role);
+        
+      } catch (roleError) {
+        console.error("Failed to fetch user role:", roleError);
+        alert("ユーザーロールの確認に失敗しました: " + roleError.message);
+        return;
+      }
+      
+      // First try with minimal update data to test permissions
+      const basicUpdateData = {
         status,
         staffComment: comment,
         developmentPeriod: period,
         updatedAt: serverTimestamp()
-      });
+      };
+      
+      console.log("Basic update data:", basicUpdateData);
+      
+      try {
+        await updateDoc(doc(db, "projectIdeas", ideaId), basicUpdateData);
+        console.log("Basic update successful");
+        
+        // If basic update worked, now try to update translations if needed
+        const idea = ideas.find(i => i.id === ideaId);
+        if (idea?.translations && comment.trim()) {
+          console.log("Updating translation for language:", lang);
+          const translationUpdateData = {
+            [`translations.${lang}.staffComment`]: comment
+          };
+          
+          await updateDoc(doc(db, "projectIdeas", ideaId), translationUpdateData);
+          console.log("Translation update successful");
+        }
+        
+      } catch (basicError) {
+        console.error("Basic update failed:", basicError);
+        throw basicError;
+      }
+      
       setStaffComment("");
       setDevelopmentPeriod("");
+      console.log("=== handleStatusUpdate SUCCESS ===");
+      
     } catch (error) {
+      console.error("=== handleStatusUpdate ERROR ===");
       console.error("Error updating status:", error);
+      console.error("Error code:", error.code);
+      console.error("Error message:", error.message);
+      alert(`エラーが発生しました: ${error.message}`);
     }
   };
 
@@ -563,6 +627,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                         borderRadius: '4px',
                         border: '1px solid #ddd'
                       }}
+                      key={`${idea.id}-comment`}
                     />
                     <input
                       type="text"

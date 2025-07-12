@@ -85,7 +85,7 @@ service cloud.firestore {
       allow update: if request.auth != null && 
                    (isAdmin() || 
                     resource.data.createdBy == request.auth.uid ||
-                    (isAdminOrStaff() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'staffComment', 'updatedAt'])));
+                    isAdminOrStaff());
       allow delete: if request.auth != null && 
                    (isAdmin() || resource.data.createdBy == request.auth.uid);
     }
@@ -98,7 +98,7 @@ service cloud.firestore {
       allow update: if request.auth != null && 
                    (isAdmin() || 
                     resource.data.createdBy == request.auth.uid ||
-                    (isAdminOrStaff() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'staffComment', 'updatedAt'])));
+                    isAdminOrStaff());
       allow delete: if request.auth != null && 
                    (isAdmin() || resource.data.createdBy == request.auth.uid);
     }
@@ -122,7 +122,7 @@ service cloud.firestore {
       allow update: if request.auth != null && 
                    (isAdmin() || 
                     resource.data.createdBy == request.auth.uid ||
-                    (isAdminOrStaff() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'staffComment', 'updatedAt'])));
+                    isAdminOrStaff());
       allow delete: if request.auth != null && 
                    (isAdmin() || resource.data.createdBy == request.auth.uid);
     }

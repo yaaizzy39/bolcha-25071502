@@ -187,16 +187,39 @@ const IdeaList = ({ user }: IdeaListProps) => {
 
   const handleStatusUpdate = async (ideaId: string, status: IdeaStatus, comment: string, period: string) => {
     try {
-      await updateDoc(doc(db, "globalIdeas", ideaId), {
+      console.log("handleStatusUpdate called:", { ideaId, status, comment, period, userRole });
+      
+      const updateData = {
         status,
         staffComment: comment,
         developmentPeriod: period,
         updatedAt: serverTimestamp()
-      });
+      };
+      
+      // If there are existing translations, update the staffComment in current language translation
+      const idea = ideas.find(i => i.id === ideaId);
+      console.log("Found idea:", idea);
+      console.log("Current language:", lang);
+      console.log("Idea translations:", idea?.translations);
+      
+      if (idea?.translations && comment.trim()) {
+        console.log("Adding translation update for staffComment");
+        // Always update the translation for the current UI language
+        updateData[`translations.${lang}.staffComment`] = comment;
+      }
+      
+      console.log("Update data:", updateData);
+      
+      await updateDoc(doc(db, "globalIdeas", ideaId), updateData);
+      console.log("Update successful");
+      
       setStaffComment("");
       setDevelopmentPeriod("");
     } catch (error) {
       console.error("Error updating status:", error);
+      console.error("Error code:", error.code);
+      console.error("Error message:", error.message);
+      alert(`エラーが発生しました: ${error.message}`);
     }
   };
 
@@ -538,6 +561,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
                         borderRadius: '4px',
                         border: '1px solid #ddd'
                       }}
+                      key={`${idea.id}-comment`}
                     />
                     <input
                       type="text"
