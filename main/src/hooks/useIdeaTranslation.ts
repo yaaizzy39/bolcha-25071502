@@ -75,7 +75,10 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
       hasTranslations: !!idea.translations,
       translationKeys: idea.translations ? Object.keys(idea.translations) : [],
       hasTargetTranslation: !!idea.translations?.[translationLang],
-      hasLocalTranslation: !!localTranslations[idea.id]?.[translationLang]
+      hasLocalTranslation: !!localTranslations[idea.id]?.[translationLang],
+      originalStaffComment: idea.staffComment,
+      translatedStaffCommentInFirestore: idea.translations?.[translationLang]?.staffComment,
+      translatedStaffCommentInLocal: localTranslations[idea.id]?.[translationLang]?.staffComment
     });
     
     // Check local translations first (for when Firestore fails)

@@ -75,6 +75,8 @@ const IdeaList = ({ user }: IdeaListProps) => {
         snapshot.forEach((doc) => {
           const data = doc.data() as GlobalIdeaData;
           console.log("Global idea data:", data);
+          console.log("Staff comment for idea", doc.id, ":", data.staffComment);
+          console.log("Translations for idea", doc.id, ":", data.translations);
           ideasData.push({
             id: doc.id,
             ...data
@@ -196,7 +198,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
         updatedAt: serverTimestamp()
       };
       
-      // If there are existing translations, update the staffComment in current language translation
+      // Update translations for current language and ensure consistency
       const idea = ideas.find(i => i.id === ideaId);
       console.log("Found idea:", idea);
       console.log("Current language:", lang);
@@ -206,6 +208,18 @@ const IdeaList = ({ user }: IdeaListProps) => {
         console.log("Adding translation update for staffComment");
         // Always update the translation for the current UI language
         updateData[`translations.${lang}.staffComment`] = comment;
+        
+        // If current language is the original language, ensure consistency
+        if (lang === idea.originalLang) {
+          console.log("Updating original language translation consistency");
+          // Update all existing translation languages to maintain consistency
+          const existingLangs = Object.keys(idea.translations);
+          for (const existingLang of existingLangs) {
+            if (existingLang !== lang) {
+              updateData[`translations.${existingLang}.staffComment`] = comment;
+            }
+          }
+        }
       }
       
       console.log("Update data:", updateData);

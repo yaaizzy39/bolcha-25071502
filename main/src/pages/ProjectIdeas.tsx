@@ -83,6 +83,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         snapshot.forEach((doc) => {
           const data = doc.data() as ProjectIdeaData;
           console.log("Project idea data:", data);
+          console.log("Staff comment for idea", doc.id, ":", data.staffComment);
+          console.log("Translations for idea", doc.id, ":", data.translations);
           if (data.projectId === projectId) {
             ideasData.push({
               id: doc.id,
@@ -252,16 +254,35 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         await updateDoc(doc(db, "projectIdeas", ideaId), basicUpdateData);
         console.log("Basic update successful");
         
-        // If basic update worked, now try to update translations if needed
+        // Update translations for current language immediately
         const idea = ideas.find(i => i.id === ideaId);
         if (idea?.translations && comment.trim()) {
-          console.log("Updating translation for language:", lang);
+          console.log("Updating translation for current language:", lang);
           const translationUpdateData = {
             [`translations.${lang}.staffComment`]: comment
           };
           
           await updateDoc(doc(db, "projectIdeas", ideaId), translationUpdateData);
-          console.log("Translation update successful");
+          console.log("Translation update successful for language:", lang);
+        }
+        
+        // Update all existing translation languages with the new comment
+        if (idea?.translations && comment.trim()) {
+          const existingLangs = Object.keys(idea.translations);
+          console.log("Updating translations for all existing languages:", existingLangs);
+          
+          for (const existingLang of existingLangs) {
+            if (existingLang !== lang) {
+              // Don't overwrite, just ensure the original language has the new comment
+              if (existingLang === idea.originalLang) {
+                const originalLangUpdate = {
+                  [`translations.${existingLang}.staffComment`]: comment
+                };
+                await updateDoc(doc(db, "projectIdeas", ideaId), originalLangUpdate);
+                console.log("Updated original language translation:", existingLang);
+              }
+            }
+          }
         }
         
         // Auto-translate the staff comment to other languages
