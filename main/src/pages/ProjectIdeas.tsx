@@ -181,6 +181,39 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               }
             }
             
+            // Always check development period separately (can be in different language from original)
+            if (idea.developmentPeriod) {
+              // Check the original development period language
+              const originalPeriodIsEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test(idea.developmentPeriod.trim());
+              const originalPeriodIsJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(idea.developmentPeriod.trim());
+              
+              // Check if we need translation based on original development period language vs target language
+              const needsPeriodTranslation = 
+                (translationLang === 'ja' && originalPeriodIsEnglish && !originalPeriodIsJapanese) ||
+                (translationLang === 'en' && originalPeriodIsJapanese && !originalPeriodIsEnglish);
+              
+              if (needsPeriodTranslation) {
+                // Check if translation already exists and is correct
+                if (!existingTranslation?.developmentPeriod) {
+                  needsTranslation = true;
+                  missingParts.push('developmentPeriod');
+                } else {
+                  // Check if existing translation is in the correct language
+                  const translatedIsEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test(existingTranslation.developmentPeriod.trim());
+                  const translatedIsJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(existingTranslation.developmentPeriod.trim());
+                  
+                  const translationIsCorrect = 
+                    (translationLang === 'ja' && translatedIsJapanese) ||
+                    (translationLang === 'en' && translatedIsEnglish);
+                  
+                  if (!translationIsCorrect) {
+                    needsTranslation = true;
+                    missingParts.push('developmentPeriod (incorrect translation)');
+                  }
+                }
+              }
+            }
+            
             if (needsTranslation) {
               try {
                 const { translateText } = await import('../translation');
@@ -207,6 +240,14 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                   const translatedComment = await translateText(idea.staffComment, translationLang);
                   if (translatedComment && translatedComment !== idea.staffComment) {
                     translationData.staffComment = translatedComment;
+                  }
+                }
+                
+                // Translate development period if needed
+                if (missingParts.some(part => part.includes('developmentPeriod'))) {
+                  const translatedPeriod = await translateText(idea.developmentPeriod, translationLang);
+                  if (translatedPeriod && translatedPeriod !== idea.developmentPeriod) {
+                    translationData.developmentPeriod = translatedPeriod;
                   }
                 }
                 
@@ -750,9 +791,9 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                 </div>
               )}
               
-              {idea.developmentPeriod && (
+              {translatedContent.developmentPeriod && (
                 <div style={{ marginBottom: '1rem' }}>
-                  <strong>{t("developmentPeriod")}</strong> {idea.developmentPeriod}
+                  <strong>{t("developmentPeriod")}</strong> {translatedContent.developmentPeriod}
                 </div>
               )}
               

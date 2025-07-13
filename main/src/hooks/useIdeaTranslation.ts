@@ -12,8 +12,9 @@ interface BaseTranslatableIdea {
   title: string;
   content: string;
   staffComment?: string;
+  developmentPeriod?: string;
   originalLang?: string;
-  translations?: Record<string, { title: string; content: string; staffComment?: string; }>;
+  translations?: Record<string, { title: string; content: string; staffComment?: string; developmentPeriod?: string; }>;
 }
 
 interface TranslationState {
@@ -128,7 +129,8 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
       return {
         title: idea.title,
         content: idea.content,
-        staffComment: displayStaffComment
+        staffComment: displayStaffComment,
+        developmentPeriod: idea.developmentPeriod
       };
     }
     
@@ -136,7 +138,8 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
     const combinedTranslation = {
       title: localTranslation?.title || firestoreTranslation?.title || idea.title,
       content: localTranslation?.content || firestoreTranslation?.content || idea.content,
-      staffComment: localTranslation?.staffComment || firestoreTranslation?.staffComment || idea.staffComment
+      staffComment: localTranslation?.staffComment || firestoreTranslation?.staffComment || idea.staffComment,
+      developmentPeriod: localTranslation?.developmentPeriod || firestoreTranslation?.developmentPeriod || idea.developmentPeriod
     };
     
     if (localTranslation || firestoreTranslation) {
@@ -149,7 +152,8 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
     return {
       title: idea.title,
       content: idea.content,
-      staffComment: idea.staffComment
+      staffComment: idea.staffComment,
+      developmentPeriod: idea.developmentPeriod
     };
   };
 
