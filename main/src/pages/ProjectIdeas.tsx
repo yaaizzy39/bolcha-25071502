@@ -433,8 +433,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
           }
         }
         
-        // Auto-translate the staff comment to ALL languages
-        if (comment.trim()) {
+        // Auto-translate the staff comment and development period to ALL languages
+        if (comment.trim() || period.trim()) {
           clearTranslationCache(ideaId);
           
           setTimeout(async () => {
@@ -442,6 +442,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
             const updatedIdea = {
               ...ideaToUpdate,
               staffComment: comment,
+              developmentPeriod: period,
               originalLang: ideaToUpdate?.originalLang || 'ja',
               translations: {}
             };
@@ -498,6 +499,39 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   // Set development period for a specific idea
   const setDevelopmentPeriodForIdea = (ideaId: string, period: string) => {
     setDevelopmentPeriods(prev => ({ ...prev, [ideaId]: period }));
+  };
+
+  // Get localized text for the selected translation language
+  const getLocalizedText = (key: string): string => {
+    // Simple translation map for common terms
+    const translations: Record<string, Record<string, string>> = {
+      'developmentPeriod': {
+        'en': 'Development Period:',
+        'ja': '開発期間:',
+        'zh': '开发周期:',
+        'ko': '개발 기간:',
+        'es': 'Período de Desarrollo:',
+        'fr': 'Période de Développement:'
+      },
+      'adminComment': {
+        'en': 'Admin Comment',
+        'ja': '運営コメント',
+        'zh': '管理员评论',
+        'ko': '관리자 댓글',
+        'es': 'Comentario del Administrador',
+        'fr': 'Commentaire Administrateur'
+      },
+      'adminJudgment': {
+        'en': 'Admin Judgment',
+        'ja': '運営判定',
+        'zh': '管理员判断',
+        'ko': '관리자 판정',
+        'es': 'Juicio del Administrador',
+        'fr': 'Jugement Administrateur'
+      }
+    };
+    
+    return translations[key]?.[translationLang] || t(key);
   };
 
   const getStatusText = (status: IdeaStatus) => {
@@ -766,7 +800,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               </div>
               
               <div style={{ marginBottom: '1rem' }}>
-                <strong>{t("adminJudgment")}</strong>{' '}
+                <strong>{getLocalizedText("adminJudgment")}</strong>{' '}
                 <span
                   style={{
                     backgroundColor: getStatusColor(idea.status),
@@ -784,7 +818,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                 <div style={{ marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1 }}>
-                      <strong>{t("adminComment")}</strong><br />
+                      <strong>{getLocalizedText("adminComment")}</strong><br />
                       {translatedContent.staffComment}
                     </div>
                   </div>
@@ -793,7 +827,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               
               {translatedContent.developmentPeriod && (
                 <div style={{ marginBottom: '1rem' }}>
-                  <strong>{t("developmentPeriod")}</strong> {translatedContent.developmentPeriod}
+                  <strong>{getLocalizedText("developmentPeriod")}</strong> {translatedContent.developmentPeriod}
                 </div>
               )}
               

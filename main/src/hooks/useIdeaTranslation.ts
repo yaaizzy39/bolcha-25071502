@@ -490,12 +490,12 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
     });
   };
 
-  // Translate staff comment to all supported languages
+  // Translate staff comment and development period to all supported languages
   const translateStaffCommentToAllLanguages = async (idea: T): Promise<void> => {
-    if (!idea.staffComment) return;
+    if (!idea.staffComment && !idea.developmentPeriod) return;
     
     const targetLanguages = ['ja', 'en', 'zh', 'ko', 'es', 'fr'];
-    const translationsToCreate: Record<string, { title: string; content: string; staffComment: string }> = {};
+    const translationsToCreate: Record<string, { title: string; content: string; staffComment?: string; developmentPeriod?: string }> = {};
     
     for (const targetLang of targetLanguages) {
       if (targetLang === idea.originalLang) {
@@ -503,23 +503,49 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
         translationsToCreate[targetLang] = {
           title: idea.title,
           content: idea.content,
-          staffComment: idea.staffComment
+          ...(idea.staffComment && { staffComment: idea.staffComment }),
+          ...(idea.developmentPeriod && { developmentPeriod: idea.developmentPeriod })
         };
-      } else if (!idea.translations?.[targetLang]?.staffComment) {
+      } else if (!idea.translations?.[targetLang]?.staffComment || 
+                 (idea.developmentPeriod && !idea.translations?.[targetLang]?.developmentPeriod)) {
         // Need to translate to this language
         try {
-          const [translatedTitle, translatedContent, translatedStaffComment] = await Promise.all([
+          const translationPromises = [
             idea.translations?.[targetLang]?.title ? Promise.resolve(idea.translations[targetLang].title) : translateText(idea.title, targetLang),
-            idea.translations?.[targetLang]?.content ? Promise.resolve(idea.translations[targetLang].content) : translateText(idea.content, targetLang),
-            translateText(idea.staffComment, targetLang)
-          ]);
+            idea.translations?.[targetLang]?.content ? Promise.resolve(idea.translations[targetLang].content) : translateText(idea.content, targetLang)
+          ];
+
+          // Add staff comment translation if needed
+          if (idea.staffComment) {
+            translationPromises.push(translateText(idea.staffComment, targetLang));
+          }
+
+          // Add development period translation if needed
+          if (idea.developmentPeriod) {
+            translationPromises.push(translateText(idea.developmentPeriod, targetLang));
+          }
+
+          const results = await Promise.all(translationPromises);
+          let translatedTitle = results[0];
+          let translatedContent = results[1];
+          let translatedStaffComment = idea.staffComment ? results[2] : undefined;
+          let translatedDevelopmentPeriod = idea.developmentPeriod ? results[idea.staffComment ? 3 : 2] : undefined;
           
-          if (translatedStaffComment) {
-            translationsToCreate[targetLang] = {
-              title: translatedTitle || idea.title,
-              content: translatedContent || idea.content,
-              staffComment: translatedStaffComment
-            };
+          const translationData: any = {
+            title: translatedTitle || idea.title,
+            content: translatedContent || idea.content
+          };
+
+          if (idea.staffComment && translatedStaffComment) {
+            translationData.staffComment = translatedStaffComment;
+          }
+
+          if (idea.developmentPeriod && translatedDevelopmentPeriod) {
+            translationData.developmentPeriod = translatedDevelopmentPeriod;
+          }
+
+          if (Object.keys(translationData).length > 2) { // More than just title and content
+            translationsToCreate[targetLang] = translationData;
           }
         } catch (error) {
           console.error(`Failed to translate to ${targetLang}:`, error);
