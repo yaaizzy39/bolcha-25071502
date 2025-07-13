@@ -11,6 +11,7 @@ export interface UserPreferences {
   lang?: string;
   enterToSend?: boolean;
   role?: UserRole;
+  timezone?: string;
 }
 
 export interface FirestoreTimestamp {

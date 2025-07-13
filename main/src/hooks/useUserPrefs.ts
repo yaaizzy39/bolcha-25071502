@@ -7,9 +7,17 @@ export const useUserPrefs = (uid: string) => {
   const [prefs, setPrefs] = useState<UserPreferences>(() => {
     try {
       const saved = localStorage.getItem("chat_prefs");
-      return saved ? JSON.parse(saved) : { side: "right", showOriginal: true };
+      return saved ? JSON.parse(saved) : { 
+        side: "right", 
+        showOriginal: true, 
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone 
+      };
     } catch {
-      return { side: "right", showOriginal: true };
+      return { 
+        side: "right", 
+        showOriginal: true, 
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone 
+      };
     }
   });
 

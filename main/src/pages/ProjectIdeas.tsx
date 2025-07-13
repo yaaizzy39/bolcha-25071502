@@ -19,6 +19,7 @@ import useUserRole from "../hooks/useUserRole";
 import { useI18n } from "../i18n";
 import { useIdeaTranslation } from "../hooks/useIdeaTranslation";
 import { detectLanguage } from "../langDetect";
+import { useUserPrefs } from "../hooks/useUserPrefs";
 
 interface ProjectIdeasProps {
   user: User;
@@ -43,6 +44,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   const [refreshCounter, setRefreshCounter] = useState(0);
   
   const userRole = useUserRole(user);
+  const { prefs } = useUserPrefs(user.uid);
+  
   const { 
     getTranslatedContent, 
     translateIdea,
@@ -57,6 +60,29 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     translationLang,
     setTranslationLang
   } = useIdeaTranslation<ProjectIdeaData>('projectIdeas');
+
+  // Format date with timezone and minutes precision
+  const formatDate = (timestamp: any, showTime: boolean = true) => {
+    if (!timestamp) return '';
+    
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const timezone = prefs.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: timezone
+    };
+    
+    if (showTime) {
+      options.hour = '2-digit';
+      options.minute = '2-digit';
+      options.hour12 = false;
+    }
+    
+    return new Intl.DateTimeFormat(lang === 'ja' ? 'ja-JP' : 'en-US', options).format(date);
+  };
 
   useEffect(() => {
     if (!projectId) return;
@@ -598,6 +624,22 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         'ko': '관리자 판정',
         'es': 'Juicio del Administrador',
         'fr': 'Jugement Administrateur'
+      },
+      'lastUpdated': {
+        'en': 'Last Updated:',
+        'ja': '最終更新:',
+        'zh': '最后更新:',
+        'ko': '최종 업데이트:',
+        'es': 'Última Actualización:',
+        'fr': 'Dernière Mise à Jour:'
+      },
+      'postedAt': {
+        'en': 'Posted:',
+        'ja': '投稿日:',
+        'zh': '发布日期:',
+        'ko': '게시일:',
+        'es': 'Publicado:',
+        'fr': 'Publié:'
       }
     };
     
@@ -861,7 +903,14 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               </div>
               
               <div style={{ marginBottom: '1rem' }}>
-                <strong>{t("postedAt")}</strong> {idea.createdAt?.toDate ? idea.createdAt.toDate().toLocaleDateString() : t("unknown")}
+                <div style={{ marginBottom: '0.25rem' }}>
+                  <strong>{getLocalizedText("postedAt")}</strong> {formatDate(idea.createdAt) || t("unknown")}
+                </div>
+                {idea.updatedAt && idea.updatedAt !== idea.createdAt && (
+                  <div style={{ fontSize: '0.9rem', color: '#666' }}>
+                    <strong>{getLocalizedText("lastUpdated")}</strong> {formatDate(idea.updatedAt) || t("unknown")}
+                  </div>
+                )}
               </div>
               
               <div style={{ marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
