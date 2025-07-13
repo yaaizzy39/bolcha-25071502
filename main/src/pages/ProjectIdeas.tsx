@@ -37,7 +37,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     content: ""
   });
   const [staffComment, setStaffComment] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState<IdeaStatus>('unconfirmed');
+  const [selectedStatuses, setSelectedStatuses] = useState<Record<string, IdeaStatus>>({});
   const [developmentPeriod, setDevelopmentPeriod] = useState("");
   const [refreshCounter, setRefreshCounter] = useState(0);
   
@@ -97,6 +97,13 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         });
         setIdeas(ideasData);
         setLoading(false);
+        
+        // Update selected statuses to match current idea statuses
+        const statusUpdates: Record<string, IdeaStatus> = {};
+        ideasData.forEach(idea => {
+          statusUpdates[idea.id] = idea.status;
+        });
+        setSelectedStatuses(prev => ({ ...prev, ...statusUpdates }));
       }, (error) => {
         console.error("Error listening to project ideas:", error);
         setLoading(false);
@@ -120,37 +127,96 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
           let translationCount = 0;
           
           for (const idea of ideas) {
-            // Check if staff comment needs translation or retranslation
-            const existingTranslation = idea.translations?.[translationLang]?.staffComment;
+            // Check if idea needs translation (title, content, or staff comment)
+            const existingTranslation = idea.translations?.[translationLang];
             let needsTranslation = false;
+            let missingParts = [];
             
-            if (idea.staffComment) {
-              if (!existingTranslation) {
-                // No translation exists
+            // Skip if this is the original language (unless checking staff comment separately)
+            if (idea.originalLang !== translationLang) {
+              // Different language - check title and content
+              if (!existingTranslation?.title) {
                 needsTranslation = true;
-              } else {
-                // Translation exists - check if it's in the wrong language
-                const isEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test(existingTranslation.trim());
-                const isJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(existingTranslation.trim());
-                
-                if (translationLang === 'ja' && isEnglish && !isJapanese) {
+                missingParts.push('title');
+              }
+              if (!existingTranslation?.content) {
+                needsTranslation = true;
+                missingParts.push('content');
+              }
+            }
+            
+            // Always check staff comment separately (can be in different language from original)
+            if (idea.staffComment) {
+              // Check the original staff comment language
+              const originalStaffCommentIsEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test(idea.staffComment.trim());
+              const originalStaffCommentIsJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(idea.staffComment.trim());
+              
+              // Check if we need translation based on original staff comment language vs target language
+              const needsStaffCommentTranslation = 
+                (translationLang === 'ja' && originalStaffCommentIsEnglish && !originalStaffCommentIsJapanese) ||
+                (translationLang === 'en' && originalStaffCommentIsJapanese && !originalStaffCommentIsEnglish);
+              
+              if (needsStaffCommentTranslation) {
+                // Check if translation already exists and is correct
+                if (!existingTranslation?.staffComment) {
                   needsTranslation = true;
-                } else if (translationLang === 'en' && isJapanese && !isEnglish) {
-                  needsTranslation = true;
+                  missingParts.push('staffComment');
+                } else {
+                  // Check if existing translation is in the correct language
+                  const translatedIsEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test(existingTranslation.staffComment.trim());
+                  const translatedIsJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(existingTranslation.staffComment.trim());
+                  
+                  const translationIsCorrect = 
+                    (translationLang === 'ja' && translatedIsJapanese) ||
+                    (translationLang === 'en' && translatedIsEnglish);
+                  
+                  if (!translationIsCorrect) {
+                    needsTranslation = true;
+                    missingParts.push('staffComment (incorrect translation)');
+                  }
                 }
               }
             }
             
             if (needsTranslation) {
               try {
-                // Direct translation without complex validation
                 const { translateText } = await import('../translation');
-                const translatedComment = await translateText(idea.staffComment, translationLang);
+                const translationData: any = {};
                 
-                if (translatedComment && translatedComment !== idea.staffComment) {
-                  // Save directly to Firestore
+                // Translate title if needed
+                if (missingParts.includes('title')) {
+                  const translatedTitle = await translateText(idea.title, translationLang);
+                  if (translatedTitle && translatedTitle !== idea.title) {
+                    translationData.title = translatedTitle;
+                  }
+                }
+                
+                // Translate content if needed
+                if (missingParts.includes('content')) {
+                  const translatedContent = await translateText(idea.content, translationLang);
+                  if (translatedContent && translatedContent !== idea.content) {
+                    translationData.content = translatedContent;
+                  }
+                }
+                
+                // Translate staff comment if needed
+                if (missingParts.some(part => part.includes('staffComment'))) {
+                  const translatedComment = await translateText(idea.staffComment, translationLang);
+                  if (translatedComment && translatedComment !== idea.staffComment) {
+                    translationData.staffComment = translatedComment;
+                  }
+                }
+                
+                // Save translation to Firestore if we have any translations
+                if (Object.keys(translationData).length > 0) {
+                  // Preserve existing translations
+                  const fullTranslationData = {
+                    ...existingTranslation,
+                    ...translationData
+                  };
+                  
                   await updateDoc(doc(db, "projectIdeas", idea.id), {
-                    [`translations.${translationLang}.staffComment`]: translatedComment
+                    [`translations.${translationLang}`]: fullTranslationData
                   });
                   
                   translationCount++;
@@ -292,6 +358,9 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
       try {
         await updateDoc(doc(db, "projectIdeas", ideaId), basicUpdateData);
         
+        // Update the selected status to reflect the change
+        setSelectedStatusForIdea(ideaId, status);
+        
         // Update translations for current language immediately
         const idea = ideas.find(i => i.id === ideaId);
         if (idea?.translations && comment.trim()) {
@@ -365,6 +434,16 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
 
   const canManageStatus = () => {
     return userRole === 'admin' || userRole === 'staff';
+  };
+
+  // Get selected status for a specific idea (defaults to current idea status)
+  const getSelectedStatus = (ideaId: string, currentStatus: IdeaStatus): IdeaStatus => {
+    return selectedStatuses[ideaId] ?? currentStatus;
+  };
+
+  // Set selected status for a specific idea
+  const setSelectedStatusForIdea = (ideaId: string, status: IdeaStatus) => {
+    setSelectedStatuses(prev => ({ ...prev, [ideaId]: status }));
   };
 
   const getStatusText = (status: IdeaStatus) => {
@@ -671,8 +750,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                     <select
-                      value={selectedStatus}
-                      onChange={(e) => setSelectedStatus(e.target.value as IdeaStatus)}
+                      value={getSelectedStatus(idea.id, idea.status)}
+                      onChange={(e) => setSelectedStatusForIdea(idea.id, e.target.value as IdeaStatus)}
                       style={{
                         padding: '0.25rem',
                         borderRadius: '4px',
@@ -710,7 +789,10 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                       }}
                     />
                     <button
-                      onClick={() => handleStatusUpdate(idea.id, selectedStatus, staffComment, developmentPeriod)}
+                      onClick={() => {
+                        const currentSelectedStatus = getSelectedStatus(idea.id, idea.status);
+                        handleStatusUpdate(idea.id, currentSelectedStatus, staffComment, developmentPeriod);
+                      }}
                       style={{
                         backgroundColor: '#17a2b8',
                         color: 'white',
