@@ -38,7 +38,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   });
   const [staffComment, setStaffComment] = useState("");
   const [selectedStatuses, setSelectedStatuses] = useState<Record<string, IdeaStatus>>({});
-  const [developmentPeriod, setDevelopmentPeriod] = useState("");
+  const [developmentPeriods, setDevelopmentPeriods] = useState<Record<string, string>>({});
   const [refreshCounter, setRefreshCounter] = useState(0);
   
   const userRole = useUserRole(user);
@@ -98,12 +98,15 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         setIdeas(ideasData);
         setLoading(false);
         
-        // Update selected statuses to match current idea statuses
+        // Update selected statuses and development periods to match current idea values
         const statusUpdates: Record<string, IdeaStatus> = {};
+        const periodUpdates: Record<string, string> = {};
         ideasData.forEach(idea => {
           statusUpdates[idea.id] = idea.status;
+          periodUpdates[idea.id] = idea.developmentPeriod || '';
         });
         setSelectedStatuses(prev => ({ ...prev, ...statusUpdates }));
+        setDevelopmentPeriods(prev => ({ ...prev, ...periodUpdates }));
       }, (error) => {
         console.error("Error listening to project ideas:", error);
         setLoading(false);
@@ -358,8 +361,9 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
       try {
         await updateDoc(doc(db, "projectIdeas", ideaId), basicUpdateData);
         
-        // Update the selected status to reflect the change
+        // Update the selected status and development period to reflect the change
         setSelectedStatusForIdea(ideaId, status);
+        setDevelopmentPeriodForIdea(ideaId, period);
         
         // Update translations for current language immediately
         const idea = ideas.find(i => i.id === ideaId);
@@ -416,7 +420,6 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
       }
       
       setStaffComment("");
-      setDevelopmentPeriod("");
       
     } catch (error) {
       console.error("Error updating status:", error);
@@ -444,6 +447,16 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   // Set selected status for a specific idea
   const setSelectedStatusForIdea = (ideaId: string, status: IdeaStatus) => {
     setSelectedStatuses(prev => ({ ...prev, [ideaId]: status }));
+  };
+
+  // Get development period for a specific idea (defaults to current idea period)
+  const getDevelopmentPeriod = (ideaId: string, currentPeriod: string): string => {
+    return developmentPeriods[ideaId] ?? currentPeriod ?? '';
+  };
+
+  // Set development period for a specific idea
+  const setDevelopmentPeriodForIdea = (ideaId: string, period: string) => {
+    setDevelopmentPeriods(prev => ({ ...prev, [ideaId]: period }));
   };
 
   const getStatusText = (status: IdeaStatus) => {
@@ -778,8 +791,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                     />
                     <input
                       type="text"
-                      value={developmentPeriod}
-                      onChange={(e) => setDevelopmentPeriod(e.target.value)}
+                      value={getDevelopmentPeriod(idea.id, idea.developmentPeriod || '')}
+                      onChange={(e) => setDevelopmentPeriodForIdea(idea.id, e.target.value)}
                       placeholder={t("developmentPeriodPlaceholder")}
                       style={{
                         width: '100px',
@@ -791,7 +804,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                     <button
                       onClick={() => {
                         const currentSelectedStatus = getSelectedStatus(idea.id, idea.status);
-                        handleStatusUpdate(idea.id, currentSelectedStatus, staffComment, developmentPeriod);
+                        const currentDevelopmentPeriod = getDevelopmentPeriod(idea.id, idea.developmentPeriod || '');
+                        handleStatusUpdate(idea.id, currentSelectedStatus, staffComment, currentDevelopmentPeriod);
                       }}
                       style={{
                         backgroundColor: '#17a2b8',
