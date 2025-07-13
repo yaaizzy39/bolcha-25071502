@@ -39,6 +39,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   const [staffComment, setStaffComment] = useState("");
   const [selectedStatuses, setSelectedStatuses] = useState<Record<string, IdeaStatus>>({});
   const [developmentPeriods, setDevelopmentPeriods] = useState<Record<string, string>>({});
+  const [editingPeriods, setEditingPeriods] = useState<Record<string, boolean>>({});
   const [refreshCounter, setRefreshCounter] = useState(0);
   
   const userRole = useUserRole(user);
@@ -98,15 +99,14 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         setIdeas(ideasData);
         setLoading(false);
         
-        // Update selected statuses and development periods to match current idea values
+        // Update selected statuses to match current idea values
         const statusUpdates: Record<string, IdeaStatus> = {};
-        const periodUpdates: Record<string, string> = {};
         ideasData.forEach(idea => {
           statusUpdates[idea.id] = idea.status;
-          periodUpdates[idea.id] = idea.developmentPeriod || '';
         });
         setSelectedStatuses(prev => ({ ...prev, ...statusUpdates }));
-        setDevelopmentPeriods(prev => ({ ...prev, ...periodUpdates }));
+        
+        // Don't automatically update development periods here - let translation handle it
       }, (error) => {
         console.error("Error listening to project ideas:", error);
         setLoading(false);
@@ -295,6 +295,16 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     }
   }, [ideas, translationLang]);
 
+  // Reset development period input fields when translation language changes
+  useEffect(() => {
+    // Only clear editing states when language changes, preserve manual values
+    setEditingPeriods({});
+    // Force re-render to show updated translations
+    setTimeout(() => {
+      setRefreshCounter(prev => prev + 1);
+    }, 100);
+  }, [translationLang]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -406,6 +416,13 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         setSelectedStatusForIdea(ideaId, status);
         setDevelopmentPeriodForIdea(ideaId, period);
         
+        // Force immediate translation check for development period if it was updated
+        if (period.trim()) {
+          setTimeout(() => {
+            setRefreshCounter(prev => prev + 1);
+          }, 500);
+        }
+        
         // Update translations for current language immediately
         const idea = ideas.find(i => i.id === ideaId);
         if (idea?.translations && comment.trim()) {
@@ -439,12 +456,40 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
           
           setTimeout(async () => {
             const ideaToUpdate = ideas.find(i => i.id === ideaId);
+            
+            // Detect the language of the new content
+            let contentOriginalLang = ideaToUpdate?.originalLang || 'ja';
+            
+            // If staff comment is being updated, detect its language
+            if (comment.trim()) {
+              const commentIsEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test(comment.trim());
+              const commentIsJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(comment.trim());
+              
+              if (commentIsEnglish && !commentIsJapanese) {
+                contentOriginalLang = 'en';
+              } else if (commentIsJapanese) {
+                contentOriginalLang = 'ja';
+              }
+            }
+            
+            // If development period is being updated, detect its language
+            if (period.trim()) {
+              const periodIsEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test(period.trim());
+              const periodIsJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(period.trim());
+              
+              if (periodIsEnglish && !periodIsJapanese) {
+                contentOriginalLang = 'en';
+              } else if (periodIsJapanese) {
+                contentOriginalLang = 'ja';
+              }
+            }
+            
             const updatedIdea = {
               ...ideaToUpdate,
               staffComment: comment,
               developmentPeriod: period,
-              originalLang: ideaToUpdate?.originalLang || 'ja',
-              translations: {}
+              originalLang: contentOriginalLang,
+              translations: ideaToUpdate?.translations || {} // Preserve existing translations
             };
             
             try {
@@ -462,6 +507,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
       }
       
       setStaffComment("");
+      // Clear editing state for this idea
+      setEditingPeriods(prev => ({ ...prev, [ideaId]: false }));
       
     } catch (error) {
       console.error("Error updating status:", error);
@@ -491,14 +538,37 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     setSelectedStatuses(prev => ({ ...prev, [ideaId]: status }));
   };
 
-  // Get development period for a specific idea (defaults to current idea period)
-  const getDevelopmentPeriod = (ideaId: string, currentPeriod: string): string => {
-    return developmentPeriods[ideaId] ?? currentPeriod ?? '';
+  // Get development period for a specific idea
+  const getDevelopmentPeriod = (ideaId: string, translatedContent: any, originalPeriod?: string): string => {
+    // If user is currently editing this field, use the editing value
+    if (editingPeriods[ideaId] && developmentPeriods[ideaId] !== undefined) {
+      return developmentPeriods[ideaId];
+    }
+    
+    // If we have manual value but not editing (e.g., after form submission), use manual value
+    if (developmentPeriods[ideaId] !== undefined && !editingPeriods[ideaId]) {
+      return developmentPeriods[ideaId];
+    }
+    
+    // Otherwise, use translated content if available, then original value
+    return translatedContent.developmentPeriod || originalPeriod || '';
   };
 
   // Set development period for a specific idea
   const setDevelopmentPeriodForIdea = (ideaId: string, period: string) => {
     setDevelopmentPeriods(prev => ({ ...prev, [ideaId]: period }));
+    setEditingPeriods(prev => ({ ...prev, [ideaId]: true }));
+  };
+
+  // Start editing a development period field
+  const startEditingPeriod = (ideaId: string, currentValue: string) => {
+    setDevelopmentPeriods(prev => ({ ...prev, [ideaId]: currentValue }));
+    setEditingPeriods(prev => ({ ...prev, [ideaId]: true }));
+  };
+
+  // Stop editing a development period field
+  const stopEditingPeriod = (ideaId: string) => {
+    setEditingPeriods(prev => ({ ...prev, [ideaId]: false }));
   };
 
   // Get localized text for the selected translation language
@@ -866,9 +936,12 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                     />
                     <input
                       type="text"
-                      value={getDevelopmentPeriod(idea.id, idea.developmentPeriod || '')}
+                      value={getDevelopmentPeriod(idea.id, translatedContent, idea.developmentPeriod)}
                       onChange={(e) => setDevelopmentPeriodForIdea(idea.id, e.target.value)}
+                      onFocus={() => startEditingPeriod(idea.id, getDevelopmentPeriod(idea.id, translatedContent, idea.developmentPeriod))}
+                      onBlur={() => stopEditingPeriod(idea.id)}
                       placeholder={t("developmentPeriodPlaceholder")}
+                      key={`${idea.id}-period-${translationLang}-${refreshCounter}`}
                       style={{
                         width: '100px',
                         padding: '0.25rem',
@@ -879,7 +952,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                     <button
                       onClick={() => {
                         const currentSelectedStatus = getSelectedStatus(idea.id, idea.status);
-                        const currentDevelopmentPeriod = getDevelopmentPeriod(idea.id, idea.developmentPeriod || '');
+                        const currentDevelopmentPeriod = getDevelopmentPeriod(idea.id, translatedContent, idea.developmentPeriod);
                         handleStatusUpdate(idea.id, currentSelectedStatus, staffComment, currentDevelopmentPeriod);
                       }}
                       style={{
