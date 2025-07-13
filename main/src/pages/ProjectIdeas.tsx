@@ -39,12 +39,19 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   const [staffComment, setStaffComment] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<IdeaStatus>('unconfirmed');
   const [developmentPeriod, setDevelopmentPeriod] = useState("");
+  const [refreshCounter, setRefreshCounter] = useState(0);
   
   const userRole = useUserRole(user);
   const { 
     getTranslatedContent, 
-    translateIdea, 
-    autoTranslateIdeas, 
+    translateIdea,
+    forceTranslateIdea,
+    forceRetranslateIdea,
+    clearFirestoreTranslation,
+    translateStaffCommentToAllLanguages,
+    autoTranslateIdeas,
+    ensureTranslationsExist,
+    clearTranslationCache,
     isTranslating,
     translationLang,
     setTranslationLang
@@ -107,10 +114,93 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     }
   }, [projectId]);
 
-  // Auto-translate ideas when translation language changes or new ideas are loaded
+  // Safe automatic translation on page load and language change
   useEffect(() => {
     if (ideas.length > 0) {
-      autoTranslateIdeas(ideas);
+      console.log(`🔄 IDEAS LOADED/LANGUAGE CHANGED - Starting safe auto-translation to ${translationLang}`);
+      
+      // Use the same direct translation approach that worked with the manual button
+      const runSafeAutoTranslation = async () => {
+        try {
+          let translationCount = 0;
+          
+          for (const idea of ideas) {
+            // Check if staff comment needs translation or retranslation
+            const existingTranslation = idea.translations?.[translationLang]?.staffComment;
+            let needsTranslation = false;
+            
+            if (idea.staffComment) {
+              if (!existingTranslation) {
+                // No translation exists
+                needsTranslation = true;
+                console.log(`❌ Missing translation for idea ${idea.id} staffComment: "${idea.staffComment}"`);
+              } else {
+                // Translation exists - check if it's in the wrong language
+                const isEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test(existingTranslation.trim());
+                const isJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(existingTranslation.trim());
+                
+                if (translationLang === 'ja' && isEnglish && !isJapanese) {
+                  needsTranslation = true;
+                  console.log(`❌ Wrong language for idea ${idea.id}: expected Japanese but got "${existingTranslation}"`);
+                } else if (translationLang === 'en' && isJapanese && !isEnglish) {
+                  needsTranslation = true;
+                  console.log(`❌ Wrong language for idea ${idea.id}: expected English but got "${existingTranslation}"`);
+                }
+              }
+            }
+            
+            if (needsTranslation) {
+              console.log(`🔄 Auto-translating staffComment for idea ${idea.id}`);
+              
+              try {
+                // Direct translation without complex validation
+                const { translateText } = await import('../translation');
+                const translatedComment = await translateText(idea.staffComment, translationLang);
+                
+                console.log(`Translation result: "${idea.staffComment}" -> "${translatedComment}"`);
+                
+                if (translatedComment && translatedComment !== idea.staffComment) {
+                  // Save directly to Firestore
+                  await updateDoc(doc(db, "projectIdeas", idea.id), {
+                    [`translations.${translationLang}.staffComment`]: translatedComment
+                  });
+                  
+                  translationCount++;
+                  console.log(`✅ Auto-translated staffComment for idea ${idea.id}: "${translatedComment}"`);
+                  
+                  // Small delay between translations to avoid overwhelming the API
+                  if (translationCount < 5) { // Limit to 5 translations per load
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                  } else {
+                    console.log(`⏸️ Auto-translation limit reached (5), stopping`);
+                    break;
+                  }
+                } else {
+                  console.log(`⚠️ Translation returned same text for idea ${idea.id}, skipping`);
+                }
+              } catch (error) {
+                console.error(`❌ Auto-translation failed for idea ${idea.id}:`, error);
+              }
+            }
+          }
+          
+          if (translationCount > 0) {
+            setRefreshCounter(prev => prev + 1);
+            console.log(`🎉 Auto-translation completed: ${translationCount} staff comments translated`);
+          } else {
+            console.log(`✅ No auto-translation needed - all staff comments already translated`);
+          }
+        } catch (error) {
+          console.error("💥 Auto-translation failed:", error);
+        }
+      };
+      
+      // Add a delay to prevent rapid re-execution and let Firestore data settle
+      const timeoutId = setTimeout(() => {
+        runSafeAutoTranslation();
+      }, 1500);
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [ideas, translationLang]);
 
@@ -285,20 +375,41 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
           }
         }
         
-        // Auto-translate the staff comment to other languages
+        // Auto-translate the staff comment to ALL languages
         if (comment.trim()) {
-          console.log("Auto-translating staff comment...");
-          // Create a temporary idea object with the new comment for translation
-          const updatedIdea = {
-            ...idea,
-            staffComment: comment,
-            translations: idea?.translations || {}
-          };
+          console.log("Auto-translating staff comment to all languages. Comment:", comment);
           
-          // Trigger translation for the updated idea
-          setTimeout(() => {
-            translateIdea(updatedIdea as ProjectIdeaData);
-          }, 1000); // Small delay to ensure Firestore update is complete
+          // Clear translation cache first
+          clearTranslationCache(ideaId);
+          
+          // Wait a bit for Firestore to reflect the staffComment update, then translate to all languages
+          setTimeout(async () => {
+            console.log("Starting multi-language translation for updated staffComment");
+            
+            // Create idea object with new staffComment for multi-language translation
+            const ideaToUpdate = ideas.find(i => i.id === ideaId);
+            const updatedIdea = {
+              ...ideaToUpdate,
+              staffComment: comment, // Use the comment parameter directly
+              originalLang: ideaToUpdate?.originalLang || 'ja',
+              translations: {} // Clear to force new translation
+            };
+            
+            console.log("About to translate staff comment to all languages:", {
+              ideaId,
+              staffComment: updatedIdea.staffComment,
+              originalLang: updatedIdea.originalLang
+            });
+            
+            try {
+              // Translate to all supported languages
+              await translateStaffCommentToAllLanguages(updatedIdea as ProjectIdeaData);
+              console.log("Multi-language translation completed, refreshing UI");
+              setRefreshCounter(prev => prev + 1);
+            } catch (error) {
+              console.error("Multi-language translation failed:", error);
+            }
+          }, 2000); // Wait 2 seconds for Firestore to update
         }
         
       } catch (basicError) {
@@ -367,7 +478,13 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
           </h1>
           <select 
             value={translationLang} 
-            onChange={(e) => setTranslationLang(e.target.value)} 
+            onChange={(e) => {
+              const newLang = e.target.value;
+              console.log(`🔄 MANUAL LANGUAGE CHANGE: ${translationLang} -> ${newLang}`);
+              setTranslationLang(newLang);
+              
+              // The useEffect will handle the translation check automatically
+            }} 
             style={{ 
               height: 32, 
               fontSize: "1rem", 
@@ -397,19 +514,115 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
             {project.description}
           </p>
         )}
-        <button
-          onClick={() => setShowForm(true)}
-          style={{
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            padding: '0.5rem 1rem',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          {t("newIdea")}
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            onClick={() => setShowForm(true)}
+            style={{
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            {t("newIdea")}
+          </button>
+          
+          {/* Debug buttons - only show in development */}
+          {import.meta.env.DEV && (
+            <>
+              <button
+                onClick={() => {
+                  console.log("🔧 MANUAL TRANSLATION TRIGGER");
+                  if (ideas.length > 0) {
+                    ensureTranslationsExist(ideas).then(() => {
+                      setRefreshCounter(prev => prev + 1);
+                    }).catch(console.error);
+                  }
+                }}
+                style={{
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem'
+                }}
+              >
+                🔄 翻訳チェック
+              </button>
+              <button
+                onClick={async () => {
+                  console.log("🧪 TESTING TRANSLATION API");
+                  const { translateText } = await import('../translation');
+                  
+                  try {
+                    console.log("Testing basic translation...");
+                    const testResult1 = await translateText("Hello, this is a test", "ja");
+                    console.log("✅ Basic test result:", testResult1);
+                    
+                    console.log("Testing problematic text...");
+                    const testResult2 = await translateText("The coin is best", "ja");
+                    console.log("✅ Problematic text result:", testResult2);
+                    
+                    alert(`基本テスト: "${testResult1}"\n問題のテキスト: "${testResult2}"`);
+                  } catch (error) {
+                    console.error("❌ Translation API test failed:", error);
+                    alert(`翻訳API テスト失敗: ${error.message}`);
+                  }
+                }}
+                style={{
+                  backgroundColor: '#6f42c1',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem'
+                }}
+              >
+                🧪 API テスト
+              </button>
+              <button
+                onClick={async () => {
+                  console.log("🔧 DIRECT STAFF COMMENT TEST");
+                  const { translateText } = await import('../translation');
+                  
+                  const testTexts = [
+                    "The coin is best",
+                    "i fly", 
+                    "good idea",
+                    "これは良いアイデアです"
+                  ];
+                  
+                  for (const text of testTexts) {
+                    try {
+                      const result = await translateText(text, "ja");
+                      console.log(`"${text}" -> "${result}"`);
+                    } catch (error) {
+                      console.error(`Failed to translate "${text}":`, error);
+                    }
+                  }
+                  
+                  alert("翻訳テスト完了 - コンソールを確認してください");
+                }}
+                style={{
+                  backgroundColor: '#e83e8c',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem'
+                }}
+              >
+                🔧 運営コメントテスト
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Form Modal */}
@@ -519,6 +732,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         ) : (
           ideas.map((idea) => {
             const translatedContent = getTranslatedContent(idea);
+            // Force re-evaluation when refreshCounter changes
+            const _refreshTrigger = refreshCounter;
             return (
             <div
               key={idea.id}
@@ -577,9 +792,15 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                       {t("delete")}
                     </button>
                   )}
-                  {!isTranslating(idea.id) && idea.originalLang !== translationLang && (
+                  {/* Debug translation button - only show in development */}
+                  {import.meta.env.DEV && !isTranslating(idea.id) && (
                     <button
-                      onClick={() => translateIdea(idea)}
+                      onClick={() => {
+                        console.log(`🔧 Manual force translate for idea ${idea.id}`);
+                        forceTranslateIdea(idea).then(() => {
+                          setRefreshCounter(prev => prev + 1);
+                        }).catch(console.error);
+                      }}
                       style={{
                         backgroundColor: '#17a2b8',
                         color: 'white',
@@ -590,7 +811,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                         fontSize: '0.8rem'
                       }}
                     >
-                      翻訳
+                      🔄 強制翻訳
                     </button>
                   )}
                 </div>
@@ -627,24 +848,6 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                       <strong>{t("adminComment")}</strong><br />
                       {translatedContent.staffComment}
                     </div>
-                    {!isTranslating(idea.id) && idea.originalLang !== translationLang && idea.staffComment && (
-                      <button
-                        onClick={() => translateIdea(idea)}
-                        style={{
-                          backgroundColor: '#17a2b8',
-                          color: 'white',
-                          border: 'none',
-                          padding: '0.25rem 0.5rem',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '0.8rem',
-                          marginLeft: '0.5rem'
-                        }}
-                        title="運営コメントを翻訳"
-                      >
-                        翻訳
-                      </button>
-                    )}
                   </div>
                 </div>
               )}
