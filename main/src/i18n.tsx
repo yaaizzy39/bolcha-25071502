@@ -62,6 +62,10 @@ const translations: Record<UILang, Record<string, string>> = {
     roomAutoDeleteInfo: "This room will be automatically deleted {hours} hours after the last post.",
     confirmDeleteRoom: "Are you sure you want to delete this room \"{roomName}\"? This action cannot be undone.",
     confirmDeleteRoomGeneric: "Are you sure you want to delete this room? This action cannot be undone.",
+    deleteIdeaTitle: "Delete Idea",
+    deleteIdeaMessage: "Are you sure you want to delete this idea? This action cannot be undone.",
+    deleteButton: "Delete",
+    cancelButton: "Cancel",
     // ChatRoom.tsx
     deletedUser: "[Deleted User]",
     // Common UI
@@ -169,6 +173,10 @@ const translations: Record<UILang, Record<string, string>> = {
     roomAutoDeleteInfo: "このルームは最終投稿から{hours}時間後に自動で削除されます。",
     confirmDeleteRoom: "本当にこのルーム「{roomName}」を削除しますか？この操作は取り消せません。",
     confirmDeleteRoomGeneric: "本当にこのルームを削除しますか？この操作は取り消せません。",
+    deleteIdeaTitle: "アイデアを削除",
+    deleteIdeaMessage: "本当にこのアイデアを削除しますか？この操作は取り消せません。",
+    deleteButton: "削除する",
+    cancelButton: "キャンセル",
     // ChatRoom.tsx
     deletedUser: "[削除されたユーザー]",
     // Common UI

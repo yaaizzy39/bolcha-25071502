@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { 
   collection, 
@@ -9,7 +9,8 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  serverTimestamp
+  serverTimestamp,
+  getDoc
 } from "firebase/firestore";
 import { db } from "../firebase";
 import type { User } from "firebase/auth";
@@ -18,6 +19,7 @@ import useUserRole from "../hooks/useUserRole";
 import { useI18n } from "../i18n";
 import { useIdeaTranslation } from "../hooks/useIdeaTranslation";
 import { detectLanguage } from "../langDetect";
+import ConfirmModal from "../components/ConfirmModal";
 
 interface IdeaListProps {
   user: User;
@@ -51,6 +53,8 @@ const IdeaList = ({ user }: IdeaListProps) => {
   const [staffComment, setStaffComment] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<IdeaStatus>('unconfirmed');
   const [developmentPeriod, setDevelopmentPeriod] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [ideaToDelete, setIdeaToDelete] = useState<string | null>(null);
   
   const userRole = useUserRole(user);
   const { 
@@ -228,15 +232,29 @@ const IdeaList = ({ user }: IdeaListProps) => {
     setShowForm(true);
   };
 
-  const handleDelete = async (ideaId: string) => {
-    if (!confirm(t("deleteIdeaConfirm"))) return;
+  const handleDeleteClick = useCallback((ideaId: string) => {
+    setIdeaToDelete(ideaId);
+    setDeleteConfirmOpen(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!ideaToDelete) return;
 
     try {
-      await deleteDoc(doc(db, "globalIdeas", ideaId));
+      await deleteDoc(doc(db, "globalIdeas", ideaToDelete));
+      setDeleteConfirmOpen(false);
+      setIdeaToDelete(null);
     } catch (error) {
       console.error("Error deleting global idea:", error);
+      setDeleteConfirmOpen(false);
+      setIdeaToDelete(null);
     }
-  };
+  }, [ideaToDelete]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteConfirmOpen(false);
+    setIdeaToDelete(null);
+  }, []);
 
   const handleStatusUpdate = async (ideaId: string, status: IdeaStatus, comment: string, period: string) => {
     try {
@@ -635,7 +653,11 @@ const IdeaList = ({ user }: IdeaListProps) => {
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   {canEditIdea(idea) && (
                     <button
-                      onClick={() => handleEdit(idea)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleEdit(idea);
+                      }}
                       style={{
                         backgroundColor: '#ffc107',
                         color: 'black',
@@ -651,7 +673,11 @@ const IdeaList = ({ user }: IdeaListProps) => {
                   )}
                   {canDeleteIdea(idea) && (
                     <button
-                      onClick={() => handleDelete(idea.id)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDeleteClick(idea.id);
+                      }}
                       style={{
                         backgroundColor: '#dc3545',
                         color: 'white',
@@ -667,7 +693,11 @@ const IdeaList = ({ user }: IdeaListProps) => {
                   )}
                   {!isTranslating(idea.id) && idea.originalLang !== translationLang && (
                     <button
-                      onClick={() => translateIdea(idea)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        translateIdea(idea);
+                      }}
                       style={{
                         backgroundColor: '#17a2b8',
                         color: 'white',
@@ -809,6 +839,17 @@ const IdeaList = ({ user }: IdeaListProps) => {
           })
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        open={deleteConfirmOpen}
+        title={t("deleteIdeaTitle")}
+        message={t("deleteIdeaMessage")}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        confirmText={t("deleteButton")}
+        cancelText={t("cancelButton")}
+      />
     </div>
   );
 };

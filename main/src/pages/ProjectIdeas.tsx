@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { 
   collection, 
@@ -18,6 +18,7 @@ import type { ProjectIdeaData, IdeaStatus, UserRole, ProjectData } from "../type
 import useUserRole from "../hooks/useUserRole";
 import { useI18n } from "../i18n";
 import { useIdeaTranslation } from "../hooks/useIdeaTranslation";
+import ConfirmModal from "../components/ConfirmModal";
 import { detectLanguage } from "../langDetect";
 import { useUserPrefs } from "../hooks/useUserPrefs";
 
@@ -44,6 +45,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   const [developmentPeriods, setDevelopmentPeriods] = useState<Record<string, string>>({});
   const [editingPeriods, setEditingPeriods] = useState<Record<string, boolean>>({});
   const [refreshCounter, setRefreshCounter] = useState(0);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [ideaToDelete, setIdeaToDelete] = useState<string | null>(null);
   
   const userRole = useUserRole(user);
   const { prefs } = useUserPrefs(user.uid);
@@ -517,15 +520,29 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     setShowForm(true);
   };
 
-  const handleDelete = async (ideaId: string) => {
-    if (!confirm(t("deleteIdeaConfirm"))) return;
+  const handleDeleteClick = useCallback((ideaId: string) => {
+    setIdeaToDelete(ideaId);
+    setDeleteConfirmOpen(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!ideaToDelete) return;
 
     try {
-      await deleteDoc(doc(db, "projectIdeas", ideaId));
+      await deleteDoc(doc(db, "projectIdeas", ideaToDelete));
+      setDeleteConfirmOpen(false);
+      setIdeaToDelete(null);
     } catch (error) {
       console.error("Error deleting project idea:", error);
+      setDeleteConfirmOpen(false);
+      setIdeaToDelete(null);
     }
-  };
+  }, [ideaToDelete]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteConfirmOpen(false);
+    setIdeaToDelete(null);
+  }, []);
 
   const handleStatusUpdate = async (ideaId: string, status: IdeaStatus, comment: string, period: string) => {
     try {
@@ -1140,7 +1157,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                   )}
                   {canDeleteIdea(idea) && (
                     <button
-                      onClick={() => handleDelete(idea.id)}
+                      onClick={() => handleDeleteClick(idea.id)}
                       style={{
                         backgroundColor: '#dc3545',
                         color: 'white',
@@ -1284,6 +1301,17 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
           })
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        open={deleteConfirmOpen}
+        title={t("deleteIdeaTitle")}
+        message={t("deleteIdeaMessage")}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        confirmText={t("deleteButton")}
+        cancelText={t("cancelButton")}
+      />
     </div>
   );
 };
