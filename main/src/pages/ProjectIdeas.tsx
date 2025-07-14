@@ -256,7 +256,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         </Link>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.5rem 0' }}>
           <h1 style={{ margin: 0 }}>
-            {project?.name || t("project")} - {t("ideaMgmt")}
+            {project?.name || t("project")}
           </h1>
           <select 
             value={translationLang} 
