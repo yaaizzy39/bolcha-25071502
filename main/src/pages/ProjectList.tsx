@@ -9,11 +9,12 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  serverTimestamp
+  serverTimestamp,
+  getDocs
 } from "firebase/firestore";
 import { db } from "../firebase";
 import type { User } from "firebase/auth";
-import type { ProjectData, UserRole } from "../types";
+import type { ProjectData, UserRole, UserPreferences } from "../types";
 import useUserRole from "../hooks/useUserRole";
 import { useI18n } from "../i18n";
 
@@ -31,8 +32,39 @@ const ProjectList = ({ user }: ProjectListProps) => {
     name: "",
     description: ""
   });
+  const [availableUsers, setAvailableUsers] = useState<Array<{uid: string, displayName: string, nickname?: string}>>([]);
+  const [selectedMembers, setSelectedMembers] = useState<{[userId: string]: 'staff' | 'user'}>({});
   
   const userRole = useUserRole(user);
+
+  // Fetch available users for member selection
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const usersSnapshot = await getDocs(collection(db, "users"));
+        const userProfilesSnapshot = await getDocs(collection(db, "userProfiles"));
+        
+        const users: Array<{uid: string, displayName: string, nickname?: string}> = [];
+        
+        usersSnapshot.forEach((doc) => {
+          const userData = doc.data() as UserPreferences;
+          const userProfileData = userProfilesSnapshot.docs.find(p => p.id === doc.id)?.data();
+          
+          users.push({
+            uid: doc.id,
+            displayName: userData.displayName || userData.email || 'Unknown User',
+            nickname: userProfileData?.nickname
+          });
+        });
+        
+        setAvailableUsers(users);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
+    };
+    
+    fetchUsers();
+  }, []);
 
   useEffect(() => {
     try {
@@ -47,10 +79,18 @@ const ProjectList = ({ user }: ProjectListProps) => {
         snapshot.forEach((doc) => {
           const data = doc.data() as ProjectData;
           console.log("Project data:", data);
-          projectsData.push({
-            id: doc.id,
-            ...data
-          });
+          
+          // Filter projects based on user role and membership
+          const isAdmin = userRole === 'admin';
+          const isMember = data.members && data.members[user.uid];
+          const isCreator = data.createdBy === user.uid;
+          
+          if (isAdmin || isMember || isCreator) {
+            projectsData.push({
+              id: doc.id,
+              ...data
+            });
+          }
         });
         setProjects(projectsData);
         setLoading(false);
@@ -65,7 +105,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
       setLoading(false);
       return () => {};
     }
-  }, []);
+  }, [userRole, user.uid]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +131,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
         await updateDoc(doc(db, "projects", editingProject.id), {
           name: formData.name,
           description: formData.description,
+          members: selectedMembers,
           updatedAt: serverTimestamp()
         });
         console.log("Project updated successfully");
@@ -100,6 +141,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
           name: formData.name,
           description: formData.description,
           createdBy: user.uid,
+          members: selectedMembers,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
@@ -107,6 +149,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
       }
 
       setFormData({ name: "", description: "" });
+      setSelectedMembers({});
       setShowForm(false);
       setEditingProject(null);
       console.log("Form reset and closed");
@@ -136,6 +179,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
       name: project.name,
       description: project.description || ""
     });
+    setSelectedMembers(project.members || {});
     setShowForm(true);
   };
 
@@ -207,6 +251,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
             setShowForm(false);
             setEditingProject(null);
             setFormData({ name: "", description: "" });
+            setSelectedMembers({});
           }}
         >
           <div 
@@ -262,6 +307,131 @@ const ProjectList = ({ user }: ProjectListProps) => {
                   }}
                 />
               </div>
+              
+              {/* Member Management Section */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                  {userRole === 'admin' ? (
+                    <>メンバー管理 / Member Management</>
+                  ) : (
+                    <>プロジェクトメンバー / Project Members</>
+                  )}
+                </label>
+                
+                {/* Current Members List */}
+                {Object.keys(selectedMembers).length > 0 && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#666' }}>
+                      現在のメンバー / Current Members:
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {Object.entries(selectedMembers).map(([userId, role]) => {
+                        const userInfo = availableUsers.find(u => u.uid === userId);
+                        return (
+                          <div key={userId} style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            padding: '0.5rem',
+                            backgroundColor: '#f8f9fa',
+                            borderRadius: '4px',
+                            border: '1px solid #e9ecef'
+                          }}>
+                            <span style={{ fontSize: '0.9rem' }}>
+                              {userInfo?.nickname || userInfo?.displayName || 'Unknown User'}
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              {userRole === 'admin' && (
+                                <select
+                                  value={role}
+                                  onChange={(e) => setSelectedMembers(prev => ({
+                                    ...prev,
+                                    [userId]: e.target.value as 'staff' | 'user'
+                                  }))}
+                                  style={{
+                                    padding: '0.25rem',
+                                    fontSize: '0.8rem',
+                                    border: '1px solid #ccc',
+                                    borderRadius: '4px'
+                                  }}
+                                >
+                                  <option value="user">一般参加者 / User</option>
+                                  <option value="staff">運営 / Staff</option>
+                                </select>
+                              )}
+                              {userRole !== 'admin' && (
+                                <span style={{ fontSize: '0.8rem', color: '#666' }}>
+                                  {role === 'staff' ? '運営 / Staff' : '一般参加者 / User'}
+                                </span>
+                              )}
+                              {userRole === 'admin' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedMembers(prev => {
+                                      const newMembers = { ...prev };
+                                      delete newMembers[userId];
+                                      return newMembers;
+                                    });
+                                  }}
+                                  style={{
+                                    backgroundColor: '#dc3545',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.8rem'
+                                  }}
+                                >
+                                  削除 / Remove
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Add New Member */}
+                {userRole === 'admin' && (
+                  <div>
+                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#666' }}>
+                      メンバーを追加 / Add Member:
+                    </h4>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {availableUsers
+                        .filter(user => !selectedMembers[user.uid])
+                        .map(user => (
+                          <button
+                            key={user.uid}
+                            type="button"
+                            onClick={() => {
+                              setSelectedMembers(prev => ({
+                                ...prev,
+                                [user.uid]: 'user'
+                              }));
+                            }}
+                            style={{
+                              backgroundColor: '#007bff',
+                              color: 'white',
+                              border: 'none',
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.8rem'
+                            }}
+                          >
+                            + {user.nickname || user.displayName}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button
                   type="submit"
@@ -282,6 +452,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
                     setShowForm(false);
                     setEditingProject(null);
                     setFormData({ name: "", description: "" });
+                    setSelectedMembers({});
                   }}
                   style={{
                     backgroundColor: '#6c757d',

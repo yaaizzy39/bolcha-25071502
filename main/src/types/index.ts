@@ -63,6 +63,9 @@ export interface ProjectData {
   createdBy: string;
   createdAt: FirestoreTimestamp;
   updatedAt: FirestoreTimestamp;
+  members?: {
+    [userId: string]: 'staff' | 'user';
+  };
 }
 
 export interface ProjectIdeaData {

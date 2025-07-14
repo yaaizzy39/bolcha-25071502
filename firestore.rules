@@ -116,14 +116,33 @@ service cloud.firestore {
 
     /* ---------- projectIdeas コレクション（プロジェクト別） ---------- */
     match /projectIdeas/{ideaId} {
-      allow read: if request.auth != null;
+      // Helper function to check project membership
+      function isProjectMember(projectId) {
+        return isAdmin() || 
+               exists(/databases/$(db)/documents/projects/$(projectId)) &&
+               (get(/databases/$(db)/documents/projects/$(projectId)).data.createdBy == request.auth.uid ||
+                (request.auth.uid in get(/databases/$(db)/documents/projects/$(projectId)).data.keys() &&
+                 get(/databases/$(db)/documents/projects/$(projectId)).data.get('members', {}).get(request.auth.uid, null) != null));
+      }
+      
+      // Helper function to check if user has staff role in project
+      function isProjectStaff(projectId) {
+        return isAdmin() ||
+               (exists(/databases/$(db)/documents/projects/$(projectId)) &&
+                get(/databases/$(db)/documents/projects/$(projectId)).data.get('members', {}).get(request.auth.uid, null) == 'staff');
+      }
+      
+      allow read: if request.auth != null && isProjectMember(resource.data.projectId);
       allow create: if request.auth != null && 
-                   request.auth.uid == request.resource.data.createdBy;
+                   request.auth.uid == request.resource.data.createdBy &&
+                   isProjectMember(request.resource.data.projectId);
       allow update: if request.auth != null && 
+                   isProjectMember(resource.data.projectId) &&
                    (isAdmin() || 
                     resource.data.createdBy == request.auth.uid ||
-                    isAdminOrStaff());
+                    isProjectStaff(resource.data.projectId));
       allow delete: if request.auth != null && 
+                   isProjectMember(resource.data.projectId) &&
                    (isAdmin() || resource.data.createdBy == request.auth.uid);
     }
   }

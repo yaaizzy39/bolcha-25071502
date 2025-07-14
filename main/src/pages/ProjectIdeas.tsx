@@ -86,6 +86,27 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     return new Intl.DateTimeFormat(lang === 'ja' ? 'ja-JP' : 'en-US', options).format(date);
   };
 
+  // Check if user has access to this project
+  const hasProjectAccess = () => {
+    if (!project) return false;
+    const isAdmin = userRole === 'admin';
+    const isMember = project.members && project.members[user.uid];
+    const isCreator = project.createdBy === user.uid;
+    return isAdmin || isMember || isCreator;
+  };
+
+  // Get user's role within this project
+  const getProjectUserRole = (): UserRole => {
+    if (userRole === 'admin') return 'admin';
+    if (!project?.members) return userRole;
+    
+    const projectRole = project.members[user.uid];
+    if (projectRole === 'staff') return 'staff';
+    if (projectRole === 'user') return 'user';
+    
+    return userRole;
+  };
+
   useEffect(() => {
     if (!projectId) return;
 
@@ -94,10 +115,28 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
       try {
         const projectDoc = await getDoc(doc(db, "projects", projectId));
         if (projectDoc.exists()) {
-          setProject({
+          const projectData = {
             id: projectDoc.id,
             ...projectDoc.data()
-          } as ProjectData);
+          } as ProjectData;
+          
+          setProject(projectData);
+          
+          // Check if user has access to this project
+          const isAdmin = userRole === 'admin';
+          const isMember = projectData.members && projectData.members[user.uid];
+          const isCreator = projectData.createdBy === user.uid;
+          
+          if (!isAdmin && !isMember && !isCreator) {
+            // User doesn't have access, redirect or show error
+            alert("このプロジェクトにアクセスする権限がありません / You don't have access to this project");
+            window.location.href = '/projects';
+            return;
+          }
+        } else {
+          alert("プロジェクトが見つかりません / Project not found");
+          window.location.href = '/projects';
+          return;
         }
       } catch (error) {
         console.error("Error fetching project:", error);
@@ -626,15 +665,18 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   };
 
   const canEditIdea = (idea: ProjectIdeaData) => {
-    return userRole === 'admin' || idea.createdBy === user.uid;
+    const projectRole = getProjectUserRole();
+    return projectRole === 'admin' || idea.createdBy === user.uid;
   };
 
   const canDeleteIdea = (idea: ProjectIdeaData) => {
-    return userRole === 'admin' || idea.createdBy === user.uid;
+    const projectRole = getProjectUserRole();
+    return projectRole === 'admin' || idea.createdBy === user.uid;
   };
 
   const canManageStatus = () => {
-    return userRole === 'admin' || userRole === 'staff';
+    const projectRole = getProjectUserRole();
+    return projectRole === 'admin' || projectRole === 'staff';
   };
 
   // Get selected status for a specific idea (defaults to current idea status)
@@ -849,19 +891,21 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              onClick={() => setShowForm(true)}
-              style={{
-                backgroundColor: '#007bff',
-                color: 'white',
-                border: 'none',
-                padding: '0.5rem 1rem',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              {t("newIdea")}
-            </button>
+            {hasProjectAccess() && (
+              <button
+                onClick={() => setShowForm(true)}
+                style={{
+                  backgroundColor: '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                {t("newIdea")}
+              </button>
+            )}
             <button
               onClick={downloadCSV}
               style={{
