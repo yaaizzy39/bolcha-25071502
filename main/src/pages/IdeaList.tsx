@@ -552,7 +552,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1 }}>
                       <strong style={{ color: '#6e283c' }}>{t("adminComment")}</strong><br />
-                      <span style={{ color: '#333' }}>{translatedContent.staffComment}</span>
+                      <span style={{ color: '#333', whiteSpace: 'pre-wrap' }}>{translatedContent.staffComment}</span>
                     </div>
                     {!isTranslating(idea.id) && idea.originalLang !== translationLang && idea.staffComment && (
                       <button

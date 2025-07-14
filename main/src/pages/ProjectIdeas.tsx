@@ -974,7 +974,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1 }}>
                       <strong style={{ color: '#6e283c' }}>{getLocalizedText("adminComment")}</strong><br />
-                      <span style={{ color: '#333' }}>{translatedContent.staffComment}</span>
+                      <span style={{ color: '#333', whiteSpace: 'pre-wrap' }}>{translatedContent.staffComment}</span>
                     </div>
                   </div>
                 </div>
@@ -1006,8 +1006,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                       <option value="approved">{t("approved")}</option>
                       <option value="rejected">{t("rejected")}</option>
                     </select>
-                    <input
-                      type="text"
+                    <textarea
                       value={getStaffComment(idea.id, translatedContent, idea.staffComment)}
                       onChange={(e) => setStaffCommentForIdea(idea.id, e.target.value)}
                       onFocus={() => startEditingComment(idea.id, getStaffComment(idea.id, translatedContent, idea.staffComment))}
@@ -1017,7 +1016,11 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                         flex: 1,
                         padding: '0.25rem',
                         borderRadius: '4px',
-                        border: '1px solid #ddd'
+                        border: '1px solid #ddd',
+                        minHeight: '2.5rem',
+                        resize: 'vertical',
+                        fontFamily: 'inherit',
+                        fontSize: 'inherit'
                       }}
                       key={`${idea.id}-comment-${translationLang}-${refreshCounter}`}
                     />
