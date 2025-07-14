@@ -346,6 +346,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
     // CSV headers
     const headers = [
       'ID',
+      'Nickname',
       'Title',
       'Content', 
       'Status',
@@ -362,6 +363,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
       const translatedContent = getTranslatedContent(idea);
       return [
         idea.id,
+        `"${userProfiles[idea.createdBy]?.nickname || 'Unknown User'}"`,
         `"${(translatedContent.title || '').replace(/"/g, '""')}"`,
         `"${(translatedContent.content || '').replace(/"/g, '""')}"`,
         getStatusText(idea.status),
