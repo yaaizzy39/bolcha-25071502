@@ -673,7 +673,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <Link to="/projects" style={{ textDecoration: 'none', color: '#007bff' }}>
+        <Link to="/projects" style={{ textDecoration: 'none', color: '#6e283c' }}>
           {t("backToProjects")}
         </Link>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.5rem 0' }}>
@@ -904,22 +904,22 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               
               <div style={{ marginBottom: '1rem' }}>
                 <div style={{ marginBottom: '0.25rem' }}>
-                  <strong>{getLocalizedText("postedAt")}</strong> {formatDate(idea.createdAt) || t("unknown")}
+                  <strong style={{ color: '#6e283c' }}>{getLocalizedText("postedAt")}</strong> <span style={{ color: '#666' }}>{formatDate(idea.createdAt) || t("unknown")}</span>
                 </div>
                 {idea.updatedAt && idea.updatedAt !== idea.createdAt && (
-                  <div style={{ fontSize: '0.9rem', color: '#666' }}>
-                    <strong>{getLocalizedText("lastUpdated")}</strong> {formatDate(idea.updatedAt) || t("unknown")}
+                  <div style={{ fontSize: '0.9rem' }}>
+                    <strong style={{ color: '#6e283c' }}>{getLocalizedText("lastUpdated")}</strong> <span style={{ color: '#666' }}>{formatDate(idea.updatedAt) || t("unknown")}</span>
                   </div>
                 )}
               </div>
               
               <div style={{ marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
-                <strong>{t("content")}:</strong><br />
-                {translatedContent.content}
+                <strong style={{ color: '#6e283c' }}>{t("content")}:</strong><br />
+                <span style={{ color: '#333' }}>{translatedContent.content}</span>
               </div>
               
               <div style={{ marginBottom: '1rem' }}>
-                <strong>{getLocalizedText("adminJudgment")}</strong>{' '}
+                <strong style={{ color: '#6e283c' }}>{getLocalizedText("adminJudgment")}</strong>{' '}
                 <span
                   style={{
                     backgroundColor: getStatusColor(idea.status),
@@ -937,8 +937,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                 <div style={{ marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1 }}>
-                      <strong>{getLocalizedText("adminComment")}</strong><br />
-                      {translatedContent.staffComment}
+                      <strong style={{ color: '#6e283c' }}>{getLocalizedText("adminComment")}</strong><br />
+                      <span style={{ color: '#333' }}>{translatedContent.staffComment}</span>
                     </div>
                   </div>
                 </div>
@@ -946,14 +946,14 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               
               {translatedContent.developmentPeriod && (
                 <div style={{ marginBottom: '1rem' }}>
-                  <strong>{getLocalizedText("developmentPeriod")}</strong> {translatedContent.developmentPeriod}
+                  <strong style={{ color: '#6e283c' }}>{getLocalizedText("developmentPeriod")}</strong> <span style={{ color: '#333' }}>{translatedContent.developmentPeriod}</span>
                 </div>
               )}
               
 {canManageStatus() && (
                 <div style={{ borderTop: '1px solid #ddd', paddingTop: '1rem' }}>
                   <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>{t("adminOperations")}</strong>
+                    <strong style={{ color: '#6e283c' }}>{t("adminOperations")}</strong>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                     <select

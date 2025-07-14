@@ -292,7 +292,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <Link to="/" style={{ textDecoration: 'none', color: '#007bff' }}>
+        <Link to="/" style={{ textDecoration: 'none', color: '#6e283c' }}>
           {t("backToHome")}
         </Link>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.5rem 0' }}>
@@ -524,16 +524,16 @@ const IdeaList = ({ user }: IdeaListProps) => {
               </div>
               
               <div style={{ marginBottom: '1rem' }}>
-                <strong>{t("postedAt")}</strong> {idea.createdAt?.toDate ? idea.createdAt.toDate().toLocaleDateString() : t("unknown")}
+                <strong style={{ color: '#6e283c' }}>{t("postedAt")}</strong> <span style={{ color: '#666' }}>{idea.createdAt?.toDate ? idea.createdAt.toDate().toLocaleDateString() : t("unknown")}</span>
               </div>
               
               <div style={{ marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
-                <strong>{t("content")}:</strong><br />
-                {translatedContent.content}
+                <strong style={{ color: '#6e283c' }}>{t("content")}:</strong><br />
+                <span style={{ color: '#333' }}>{translatedContent.content}</span>
               </div>
               
               <div style={{ marginBottom: '1rem' }}>
-                <strong>{t("adminJudgment")}</strong>{' '}
+                <strong style={{ color: '#6e283c' }}>{t("adminJudgment")}</strong>{' '}
                 <span
                   style={{
                     backgroundColor: getStatusColor(idea.status),
@@ -551,8 +551,8 @@ const IdeaList = ({ user }: IdeaListProps) => {
                 <div style={{ marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1 }}>
-                      <strong>{t("adminComment")}</strong><br />
-                      {translatedContent.staffComment}
+                      <strong style={{ color: '#6e283c' }}>{t("adminComment")}</strong><br />
+                      <span style={{ color: '#333' }}>{translatedContent.staffComment}</span>
                     </div>
                     {!isTranslating(idea.id) && idea.originalLang !== translationLang && idea.staffComment && (
                       <button
@@ -578,14 +578,14 @@ const IdeaList = ({ user }: IdeaListProps) => {
               
               {idea.developmentPeriod && (
                 <div style={{ marginBottom: '1rem' }}>
-                  <strong>{t("developmentPeriod")}</strong> {idea.developmentPeriod}
+                  <strong style={{ color: '#6e283c' }}>{t("developmentPeriod")}</strong> <span style={{ color: '#333' }}>{idea.developmentPeriod}</span>
                 </div>
               )}
               
 {canManageStatus() && (
                 <div style={{ borderTop: '1px solid #ddd', paddingTop: '1rem' }}>
                   <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>{t("adminOperations")}</strong>
+                    <strong style={{ color: '#6e283c' }}>{t("adminOperations")}</strong>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                     <select
