@@ -702,6 +702,64 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     }
   };
 
+  // CSV download function
+  const downloadCSV = () => {
+    if (ideas.length === 0) {
+      alert(t('noDataToExport') || 'No data to export');
+      return;
+    }
+
+    // CSV headers
+    const headers = [
+      'ID',
+      'Title',
+      'Content', 
+      'Status',
+      'Created By',
+      'Created At',
+      'Updated At',
+      'Staff Comment',
+      'Development Period',
+      'Original Language'
+    ];
+
+    // Convert ideas to CSV rows
+    const csvRows = ideas.map(idea => {
+      const translatedContent = getTranslatedContent(idea);
+      return [
+        idea.id,
+        `"${(translatedContent.title || '').replace(/"/g, '""')}"`,
+        `"${(translatedContent.content || '').replace(/"/g, '""')}"`,
+        getStatusText(idea.status),
+        idea.createdBy || '',
+        formatDate(idea.createdAt, true) || '',
+        formatDate(idea.updatedAt, true) || '',
+        `"${(translatedContent.staffComment || '').replace(/"/g, '""')}"`,
+        `"${(translatedContent.developmentPeriod || '').replace(/"/g, '""')}"`,
+        idea.originalLang || ''
+      ].join(',');
+    });
+
+    // Combine headers and rows
+    const csvContent = [headers.join(','), ...csvRows].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      const projectName = project?.name || 'project';
+      const timestamp = new Date().toISOString().slice(0, 10);
+      link.setAttribute('download', `${projectName}_ideas_${timestamp}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   const getStatusColor = (status: IdeaStatus) => {
     switch (status) {
       case 'unconfirmed': return '#6c757d';
@@ -733,19 +791,34 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
           </p>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-          <button
-            onClick={() => setShowForm(true)}
-            style={{
-              backgroundColor: '#007bff',
-              color: 'white',
-              border: 'none',
-              padding: '0.5rem 1rem',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            {t("newIdea")}
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              onClick={() => setShowForm(true)}
+              style={{
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                padding: '0.5rem 1rem',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              {t("newIdea")}
+            </button>
+            <button
+              onClick={downloadCSV}
+              style={{
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                padding: '0.5rem 1rem',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              {lang === 'en' ? 'Download CSV' : 'CSV ダウンロード'}
+            </button>
+          </div>
           <select 
             value={translationLang} 
             onChange={(e) => {
