@@ -514,7 +514,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               ...ideaToUpdate,
               staffComment: comment,
               developmentPeriod: period,
-              originalLang: contentOriginalLang,
+              // Don't change originalLang - preserve the original idea's language
               translations: ideaToUpdate?.translations || {} // Preserve existing translations
             };
             
@@ -685,6 +685,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
             onChange={(e) => {
               const newLang = e.target.value;
               setTranslationLang(newLang);
+              console.log(`Translation language changed to: ${newLang}`);
             }} 
             style={{ 
               height: 32, 

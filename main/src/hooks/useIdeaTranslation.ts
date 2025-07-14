@@ -42,6 +42,13 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
   useEffect(() => {
     localStorage.setItem(`idea_translation_lang_${collectionName}`, translationLang);
   }, [translationLang, collectionName]);
+
+  // Don't auto-sync with UI language - let user control translation language independently
+  // useEffect(() => {
+  //   if (translationLang !== uiLang) {
+  //     setTranslationLang(uiLang);
+  //   }
+  // }, [uiLang]);
   const [translationState, setTranslationState] = useState<TranslationState>({
     translating: new Set(),
     translatedIds: new Set()
@@ -94,45 +101,30 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
     const localTranslation = localTranslations[idea.id]?.[translationLang];
     const firestoreTranslation = idea.translations?.[translationLang];
     
-    // For same original language, handle staff comment language detection
-    if (idea.originalLang === translationLang) {
-      console.log(`Same language (${translationLang}) - checking staffComment separately`);
+    // For different languages, prioritize translations
+    if (idea.originalLang !== translationLang) {
+      console.log(`Different language (${idea.originalLang} -> ${translationLang}) - looking for translation`);
       
-      // Use original title and content
-      let displayStaffComment = idea.staffComment;
-      
-      // Check if staffComment translation exists
-      const translatedStaffComment = localTranslation?.staffComment || firestoreTranslation?.staffComment;
-      
-      if (translatedStaffComment) {
-        console.log(`Found translated staffComment: "${translatedStaffComment}"`);
-        displayStaffComment = translatedStaffComment;
-      } else if (idea.staffComment) {
-        // Check if staffComment is in a different language
-        const isLikelyEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test(idea.staffComment.trim());
-        const isLikelyJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(idea.staffComment.trim());
-        
-        console.log(`StaffComment language detection:`, {
-          staffComment: idea.staffComment,
-          isLikelyEnglish,
-          isLikelyJapanese,
-          translationLang
-        });
-        
-        // If we need Japanese but staffComment looks English, show a placeholder indicating translation is needed
-        if (translationLang === 'ja' && isLikelyEnglish && !isLikelyJapanese) {
-          console.log(`⚠️ StaffComment is English but user wants Japanese - keeping original for now`);
-          displayStaffComment = idea.staffComment; // Will be translated by ensureTranslationsExist
-        }
+      // Use translation if available, otherwise fall back to original
+      if (localTranslation || firestoreTranslation) {
+        console.log(`Found translation for different language`);
+        return {
+          title: localTranslation?.title || firestoreTranslation?.title || idea.title,
+          content: localTranslation?.content || firestoreTranslation?.content || idea.content,
+          staffComment: localTranslation?.staffComment || firestoreTranslation?.staffComment || idea.staffComment,
+          developmentPeriod: localTranslation?.developmentPeriod || firestoreTranslation?.developmentPeriod || idea.developmentPeriod
+        };
       }
-      
-      return {
-        title: idea.title,
-        content: idea.content,
-        staffComment: displayStaffComment,
-        developmentPeriod: idea.developmentPeriod
-      };
     }
+    
+    // Same language or no translation available - use original content
+    console.log(`Same language (${translationLang}) or no translation - using original content`);
+    return {
+      title: idea.title,
+      content: idea.content,
+      staffComment: idea.staffComment,
+      developmentPeriod: idea.developmentPeriod
+    };
     
     // Different original language - combine available translations
     const combinedTranslation = {
@@ -164,14 +156,28 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
       return false;
     }
     
-    // If original language matches current translation language, no need
-    if (idea.originalLang === translationLang) {
-      return false;
-    }
-    
     // Check if we have complete translation (including staffComment if it exists)
     const existingTranslation = idea.translations?.[translationLang] || localTranslations[idea.id]?.[translationLang];
     
+    // For same original language, only check if we need staff comment translation
+    if (idea.originalLang === translationLang) {
+      // If we have no translation data for this language, we might need translation
+      if (!existingTranslation) {
+        // Check if the idea was originally created in a different language and we need translations
+        if (idea.translations && Object.keys(idea.translations).length > 0) {
+          return true; // Has translations for other languages, should have one for this too
+        }
+        return false; // No translations exist, this is original content
+      }
+      
+      // If there's a staffComment but no translated staffComment, we need translation
+      if (idea.staffComment && !existingTranslation.staffComment) {
+        return true;
+      }
+      return false;
+    }
+    
+    // Different language - check for missing translations
     if (existingTranslation) {
       // If there's a staffComment but no translated staffComment, we need translation
       if (idea.staffComment && !existingTranslation.staffComment) {
