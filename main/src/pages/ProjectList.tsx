@@ -77,6 +77,12 @@ const ProjectList = ({ user }: ProjectListProps) => {
       return;
     }
 
+    // Check if user is admin for new project creation
+    if (!editingProject && userRole !== 'admin') {
+      alert(t("onlyAdminCanCreateProject") || "Only administrators can create new projects");
+      return;
+    }
+
     console.log("Starting project creation...");
     
     try {
@@ -165,19 +171,21 @@ const ProjectList = ({ user }: ProjectListProps) => {
         <h1 style={{ margin: '0.5rem 0' }}>
           {t("projectManagement")}
         </h1>
-        <button
-          onClick={() => setShowForm(true)}
-          style={{
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            padding: '0.5rem 1rem',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          {t("newProject")}
-        </button>
+        {userRole === 'admin' && (
+          <button
+            onClick={() => setShowForm(true)}
+            style={{
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            {t("newProject")}
+          </button>
+        )}
       </div>
 
       {/* Form Modal */}

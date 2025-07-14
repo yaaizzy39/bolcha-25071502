@@ -24,7 +24,9 @@
       "Bash(npm start)",
       "Bash(npm run:*)",
       "Bash(firebase use:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(realpath:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }
