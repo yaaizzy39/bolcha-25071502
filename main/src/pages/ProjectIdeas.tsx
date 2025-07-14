@@ -342,10 +342,40 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     
     try {
       if (editingIdea) {
-        await updateDoc(doc(db, "projectIdeas", editingIdea.id), {
+        // Detect language of the updated content
+        const detectedLang = await detectLanguage(formData.content);
+        
+        const updateData = {
           title: formData.title,
           content: formData.content,
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
+          originalLang: detectedLang || lang
+        };
+        
+        // Update translations for all existing languages
+        const translationUpdates: any = {};
+        
+        // Update the original language translation
+        translationUpdates[`translations.${detectedLang || lang}`] = {
+          title: formData.title,
+          content: formData.content,
+          // Preserve existing staff comment and development period if they exist
+          ...(editingIdea.translations?.[detectedLang || lang]?.staffComment && { staffComment: editingIdea.translations[detectedLang || lang].staffComment }),
+          ...(editingIdea.translations?.[detectedLang || lang]?.developmentPeriod && { developmentPeriod: editingIdea.translations[detectedLang || lang].developmentPeriod })
+        };
+        
+        // Clear other language translations since content changed
+        if (editingIdea.translations) {
+          Object.keys(editingIdea.translations).forEach(langKey => {
+            if (langKey !== (detectedLang || lang)) {
+              translationUpdates[`translations.${langKey}`] = null;
+            }
+          });
+        }
+        
+        await updateDoc(doc(db, "projectIdeas", editingIdea.id), {
+          ...updateData,
+          ...translationUpdates
         });
       } else {
         
@@ -368,7 +398,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
           (docData as any).translations = { [lang]: { title: formData.title, content: formData.content } };
         }
 
-        const docRef = await addDoc(collection(db, "projectIdeas"), docData);
+        await addDoc(collection(db, "projectIdeas"), docData);
       }
 
       setFormData({ title: "", content: "" });
