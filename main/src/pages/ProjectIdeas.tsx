@@ -220,13 +220,13 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               
               if (needsPeriodTranslation) {
                 // Check if translation already exists and is correct
-                if (!existingTranslation?.developmentPeriod) {
+                if (!(existingTranslation as any)?.developmentPeriod) {
                   needsTranslation = true;
                   missingParts.push('developmentPeriod');
                 } else {
                   // Check if existing translation is in the correct language
-                  const translatedIsEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test(existingTranslation.developmentPeriod.trim());
-                  const translatedIsJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(existingTranslation.developmentPeriod.trim());
+                  const translatedIsEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test((existingTranslation as any).developmentPeriod.trim());
+                  const translatedIsJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test((existingTranslation as any).developmentPeriod.trim());
                   
                   const translationIsCorrect = 
                     (translationLang === 'ja' && translatedIsJapanese) ||
@@ -363,7 +363,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
 
         // Only add translations field if we have translations to add
         if (detectedLang === lang) {
-          docData.translations = { [lang]: { title: formData.title, content: formData.content } };
+          (docData as any).translations = { [lang]: { title: formData.title, content: formData.content } };
         }
 
         const docRef = await addDoc(collection(db, "projectIdeas"), docData);

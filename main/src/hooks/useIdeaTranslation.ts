@@ -101,29 +101,24 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
     const localTranslation = localTranslations[idea.id]?.[translationLang];
     const firestoreTranslation = idea.translations?.[translationLang];
     
-    // For different languages, prioritize translations
-    if (idea.originalLang !== translationLang) {
-      console.log(`Different language (${idea.originalLang} -> ${translationLang}) - looking for translation`);
-      
-      // Use translation if available, otherwise fall back to original
-      if (localTranslation || firestoreTranslation) {
-        console.log(`Found translation for different language`);
-        return {
-          title: localTranslation?.title || firestoreTranslation?.title || idea.title,
-          content: localTranslation?.content || firestoreTranslation?.content || idea.content,
-          staffComment: localTranslation?.staffComment || firestoreTranslation?.staffComment || idea.staffComment,
-          developmentPeriod: localTranslation?.developmentPeriod || firestoreTranslation?.developmentPeriod || idea.developmentPeriod
-        };
-      }
+    // Check if we have translation data available
+    if (localTranslation || firestoreTranslation) {
+      console.log(`Found translation data - using translated content`);
+      return {
+        title: localTranslation?.title || firestoreTranslation?.title || idea.title,
+        content: localTranslation?.content || firestoreTranslation?.content || idea.content,
+        staffComment: localTranslation?.staffComment || firestoreTranslation?.staffComment || idea.staffComment,
+        developmentPeriod: (localTranslation as any)?.developmentPeriod || (firestoreTranslation as any)?.developmentPeriod || (idea as any).developmentPeriod
+      };
     }
     
-    // Same language or no translation available - use original content
-    console.log(`Same language (${translationLang}) or no translation - using original content`);
+    // No translation available - use original content
+    console.log(`No translation available for ${translationLang} - using original content`);
     return {
       title: idea.title,
       content: idea.content,
       staffComment: idea.staffComment,
-      developmentPeriod: idea.developmentPeriod
+      developmentPeriod: (idea as any).developmentPeriod
     };
     
     // Different original language - combine available translations
@@ -131,7 +126,7 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
       title: localTranslation?.title || firestoreTranslation?.title || idea.title,
       content: localTranslation?.content || firestoreTranslation?.content || idea.content,
       staffComment: localTranslation?.staffComment || firestoreTranslation?.staffComment || idea.staffComment,
-      developmentPeriod: localTranslation?.developmentPeriod || firestoreTranslation?.developmentPeriod || idea.developmentPeriod
+      developmentPeriod: (localTranslation as any)?.developmentPeriod || (firestoreTranslation as any)?.developmentPeriod || (idea as any).developmentPeriod
     };
     
     if (localTranslation || firestoreTranslation) {
@@ -500,79 +495,55 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
   const translateStaffCommentToAllLanguages = async (idea: T): Promise<void> => {
     if (!idea.staffComment && !idea.developmentPeriod) return;
     
-    const targetLanguages = ['ja', 'en', 'zh', 'ko', 'es', 'fr'];
-    const translationsToCreate: Record<string, { title: string; content: string; staffComment?: string; developmentPeriod?: string }> = {};
+    console.log('🔄 Translating staff comment to all languages for idea:', idea.id);
+    console.log('Staff comment:', idea.staffComment);
+    console.log('Development period:', idea.developmentPeriod);
+    
+    const targetLanguages = ['ja', 'en'];
     
     for (const targetLang of targetLanguages) {
-      if (targetLang === idea.originalLang) {
-        // For original language, use original content
-        translationsToCreate[targetLang] = {
-          title: idea.title,
-          content: idea.content,
-          ...(idea.staffComment && { staffComment: idea.staffComment }),
-          ...(idea.developmentPeriod && { developmentPeriod: idea.developmentPeriod })
+      console.log(`Translating to ${targetLang}`);
+      
+      try {
+        const existingTranslation = idea.translations?.[targetLang] || {};
+        const newTranslation: any = {
+          title: (existingTranslation as any)?.title || idea.title,
+          content: (existingTranslation as any)?.content || idea.content
         };
-      } else if (!idea.translations?.[targetLang]?.staffComment || 
-                 (idea.developmentPeriod && !idea.translations?.[targetLang]?.developmentPeriod)) {
-        // Need to translate to this language
-        try {
-          const translationPromises = [
-            idea.translations?.[targetLang]?.title ? Promise.resolve(idea.translations[targetLang].title) : translateText(idea.title, targetLang),
-            idea.translations?.[targetLang]?.content ? Promise.resolve(idea.translations[targetLang].content) : translateText(idea.content, targetLang)
-          ];
-
-          // Add staff comment translation if needed
-          if (idea.staffComment) {
-            translationPromises.push(translateText(idea.staffComment, targetLang));
+        
+        // Always translate staff comment if it exists
+        if (idea.staffComment) {
+          console.log(`Translating staff comment to ${targetLang}`);
+          const translatedComment = await translateText(idea.staffComment, targetLang);
+          if (translatedComment) {
+            newTranslation.staffComment = translatedComment;
           }
-
-          // Add development period translation if needed
-          if (idea.developmentPeriod) {
-            translationPromises.push(translateText(idea.developmentPeriod, targetLang));
-          }
-
-          const results = await Promise.all(translationPromises);
-          let translatedTitle = results[0];
-          let translatedContent = results[1];
-          let translatedStaffComment = idea.staffComment ? results[2] : undefined;
-          let translatedDevelopmentPeriod = idea.developmentPeriod ? results[idea.staffComment ? 3 : 2] : undefined;
-          
-          const translationData: any = {
-            title: translatedTitle || idea.title,
-            content: translatedContent || idea.content
-          };
-
-          if (idea.staffComment && translatedStaffComment) {
-            translationData.staffComment = translatedStaffComment;
-          }
-
-          if (idea.developmentPeriod && translatedDevelopmentPeriod) {
-            translationData.developmentPeriod = translatedDevelopmentPeriod;
-          }
-
-          if (Object.keys(translationData).length > 2) { // More than just title and content
-            translationsToCreate[targetLang] = translationData;
-          }
-        } catch (error) {
-          console.error(`Failed to translate to ${targetLang}:`, error);
         }
+        
+        // Always translate development period if it exists
+        if (idea.developmentPeriod) {
+          console.log(`Translating development period to ${targetLang}`);
+          const translatedPeriod = await translateText(idea.developmentPeriod, targetLang);
+          if (translatedPeriod) {
+            newTranslation.developmentPeriod = translatedPeriod;
+          }
+        }
+        
+        // Update Firestore with translation
+        await updateDoc(doc(db, collectionName, idea.id), {
+          [`translations.${targetLang}`]: newTranslation
+        });
+        
+        console.log(`✅ Successfully updated translation for ${targetLang}`);
+        
+        // Small delay between language translations
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.log(`❌ Failed to translate to ${targetLang}:`, error);
       }
     }
     
-    // Update Firestore with all translations
-    if (Object.keys(translationsToCreate).length > 0) {
-      try {
-        const updateData: Record<string, any> = {};
-        Object.entries(translationsToCreate).forEach(([lang, translation]) => {
-          updateData[`translations.${lang}`] = translation;
-        });
-        
-        await updateDoc(doc(db, collectionName, idea.id), updateData);
-        console.log(`Multi-language translation completed for idea ${idea.id}`, translationsToCreate);
-      } catch (error) {
-        console.error('Failed to update multi-language translations:', error);
-      }
-    }
+    console.log('✅ Completed translating staff comment to all languages');
   };
 
   // Clear translation cache for a specific idea
