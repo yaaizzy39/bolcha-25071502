@@ -37,7 +37,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     title: "",
     content: ""
   });
-  const [staffComment, setStaffComment] = useState("");
+  const [staffComments, setStaffComments] = useState<Record<string, string>>({});
+  const [editingComments, setEditingComments] = useState<Record<string, boolean>>({});
   const [selectedStatuses, setSelectedStatuses] = useState<Record<string, IdeaStatus>>({});
   const [developmentPeriods, setDevelopmentPeriods] = useState<Record<string, string>>({});
   const [editingPeriods, setEditingPeriods] = useState<Record<string, boolean>>({});
@@ -321,10 +322,11 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     }
   }, [ideas, translationLang]);
 
-  // Reset development period input fields when translation language changes
+  // Reset input field editing states when translation language changes
   useEffect(() => {
     // Only clear editing states when language changes, preserve manual values
     setEditingPeriods({});
+    setEditingComments({});
     // Force re-render to show updated translations
     setTimeout(() => {
       setRefreshCounter(prev => prev + 1);
@@ -532,8 +534,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         throw basicError;
       }
       
-      setStaffComment("");
-      // Clear editing state for this idea
+      // Clear editing states for this idea
+      setEditingComments(prev => ({ ...prev, [ideaId]: false }));
       setEditingPeriods(prev => ({ ...prev, [ideaId]: false }));
       
     } catch (error) {
@@ -580,10 +582,32 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     return translatedContent.developmentPeriod || originalPeriod || '';
   };
 
+  // Get staff comment for a specific idea
+  const getStaffComment = (ideaId: string, translatedContent: any, originalComment?: string): string => {
+    // If user is currently editing this field, use the editing value
+    if (editingComments[ideaId] && staffComments[ideaId] !== undefined) {
+      return staffComments[ideaId];
+    }
+    
+    // If we have manual value but not editing (e.g., after form submission), use manual value
+    if (staffComments[ideaId] !== undefined && !editingComments[ideaId]) {
+      return staffComments[ideaId];
+    }
+    
+    // Otherwise, use translated content if available, then original value
+    return translatedContent.staffComment || originalComment || '';
+  };
+
   // Set development period for a specific idea
   const setDevelopmentPeriodForIdea = (ideaId: string, period: string) => {
     setDevelopmentPeriods(prev => ({ ...prev, [ideaId]: period }));
     setEditingPeriods(prev => ({ ...prev, [ideaId]: true }));
+  };
+
+  // Set staff comment for a specific idea
+  const setStaffCommentForIdea = (ideaId: string, comment: string) => {
+    setStaffComments(prev => ({ ...prev, [ideaId]: comment }));
+    setEditingComments(prev => ({ ...prev, [ideaId]: true }));
   };
 
   // Start editing a development period field
@@ -595,6 +619,17 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   // Stop editing a development period field
   const stopEditingPeriod = (ideaId: string) => {
     setEditingPeriods(prev => ({ ...prev, [ideaId]: false }));
+  };
+
+  // Start editing a staff comment field
+  const startEditingComment = (ideaId: string, currentValue: string) => {
+    setStaffComments(prev => ({ ...prev, [ideaId]: currentValue }));
+    setEditingComments(prev => ({ ...prev, [ideaId]: true }));
+  };
+
+  // Stop editing a staff comment field
+  const stopEditingComment = (ideaId: string) => {
+    setEditingComments(prev => ({ ...prev, [ideaId]: false }));
   };
 
   // Get localized text for the selected translation language
@@ -973,8 +1008,10 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                     </select>
                     <input
                       type="text"
-                      value={staffComment}
-                      onChange={(e) => setStaffComment(e.target.value)}
+                      value={getStaffComment(idea.id, translatedContent, idea.staffComment)}
+                      onChange={(e) => setStaffCommentForIdea(idea.id, e.target.value)}
+                      onFocus={() => startEditingComment(idea.id, getStaffComment(idea.id, translatedContent, idea.staffComment))}
+                      onBlur={() => stopEditingComment(idea.id)}
                       placeholder={t("adminCommentPlaceholder")}
                       style={{
                         flex: 1,
@@ -982,7 +1019,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                         borderRadius: '4px',
                         border: '1px solid #ddd'
                       }}
-                      key={`${idea.id}-comment`}
+                      key={`${idea.id}-comment-${translationLang}-${refreshCounter}`}
                     />
                     <input
                       type="text"
@@ -1002,8 +1039,9 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                     <button
                       onClick={() => {
                         const currentSelectedStatus = getSelectedStatus(idea.id, idea.status);
+                        const currentStaffComment = getStaffComment(idea.id, translatedContent, idea.staffComment);
                         const currentDevelopmentPeriod = getDevelopmentPeriod(idea.id, translatedContent, idea.developmentPeriod);
-                        handleStatusUpdate(idea.id, currentSelectedStatus, staffComment, currentDevelopmentPeriod);
+                        handleStatusUpdate(idea.id, currentSelectedStatus, currentStaffComment, currentDevelopmentPeriod);
                       }}
                       style={{
                         backgroundColor: '#17a2b8',
