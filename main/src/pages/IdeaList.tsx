@@ -377,8 +377,12 @@ const IdeaList = ({ user }: IdeaListProps) => {
     // Combine headers and rows
     const csvContent = [headers.join(','), ...csvRows].join('\n');
 
+    // Add BOM for Excel compatibility with Japanese characters
+    const BOM = '\uFEFF';
+    const csvWithBOM = BOM + csvContent;
+
     // Create and download file
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvWithBOM], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     
     if (link.download !== undefined) {
