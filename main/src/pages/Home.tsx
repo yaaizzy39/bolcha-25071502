@@ -7,7 +7,7 @@ interface HomeProps {
 }
 
 const Home = ({ user }: HomeProps) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   
   return (
     <div style={{ 
@@ -103,11 +103,17 @@ const Home = ({ user }: HomeProps) => {
         padding: '1rem',
         backgroundColor: '#f8f9fa',
         borderRadius: '8px',
-        fontSize: '0.9rem',
-        color: '#666'
+        fontSize: '0.8rem',
+        color: '#888',
+        textAlign: 'left',
+        lineHeight: '1.4'
       }}>
         <p style={{ margin: 0 }}>
-          {t("loggedInAs")}<strong>{user.displayName || user.email}</strong>
+          {lang === 'en' ? (
+            "This app is a test version. The creator cannot take responsibility for any issues that may arise from using this app. Additionally, automatic translation is not perfect, so please respond with an open mind even if the content is translated in a way that may be offensive."
+          ) : (
+            "このアプリはテスト版です。このアプリを使用して万が一問題が生じても作成者は責任をとれません。また、自動翻訳は完ぺきではありませんので、気分を害する内容に翻訳されたとしても、広い心でご対応ください。"
+          )}
         </p>
       </div>
     </div>
