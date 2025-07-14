@@ -34,7 +34,29 @@ const defaultPrefs: UserPreferences = {
   textColor: "#000000",
   backgroundColor: "#f5f5f5",
   enterToSend: false,
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 };
+
+// Common timezones for the dropdown
+const commonTimezones = [
+  'UTC',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'Europe/London',
+  'Europe/Berlin',
+  'Europe/Paris',
+  'Europe/Moscow',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Asia/Bangkok',
+  'Asia/Shanghai',
+  'Asia/Tokyo',
+  'Asia/Seoul',
+  'Australia/Sydney',
+  'Pacific/Auckland'
+];
 
 export default function Profile({ user, needsNickname, onSaved }: Props) {
   const navigate = useNavigate();
@@ -113,6 +135,9 @@ export default function Profile({ user, needsNickname, onSaved }: Props) {
     }
     if (updatedPrefs.side) {
       privateData.side = updatedPrefs.side;
+    }
+    if (updatedPrefs.timezone) {
+      privateData.timezone = updatedPrefs.timezone;
     }
     
     await setDoc(doc(db, "users", user.uid), privateData, { merge: true });
@@ -259,6 +284,27 @@ export default function Profile({ user, needsNickname, onSaved }: Props) {
         >
           <option value="en">{t("english")}</option>
           <option value="ja">{t("japanese")}</option>
+        </select>
+      </div>
+
+      <div style={{ marginBottom: "1rem" }}>
+        <label>{uiLang === 'ja' ? 'タイムゾーン' : 'Timezone'}</label>
+        <br />
+        <select
+          value={prefs.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}
+          onChange={(e) => setPrefs((p) => ({ ...p, timezone: e.target.value }))}
+          style={{ padding: "0.5rem", borderRadius: "8px", border: "1px solid #ddd", width: "100%" }}
+        >
+          {commonTimezones.map(tz => (
+            <option key={tz} value={tz}>
+              {tz} ({new Intl.DateTimeFormat(uiLang === 'ja' ? 'ja-JP' : 'en-US', {
+                timeZone: tz,
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+              }).format(new Date())})
+            </option>
+          ))}
         </select>
       </div>
 

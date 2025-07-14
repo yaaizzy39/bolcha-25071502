@@ -75,6 +75,8 @@ const IdeaList = ({ user }: IdeaListProps) => {
         snapshot.forEach((doc) => {
           const data = doc.data() as GlobalIdeaData;
           console.log("Global idea data:", data);
+          console.log("Staff comment for idea", doc.id, ":", data.staffComment);
+          console.log("Translations for idea", doc.id, ":", data.translations);
           ideasData.push({
             id: doc.id,
             ...data
@@ -187,16 +189,67 @@ const IdeaList = ({ user }: IdeaListProps) => {
 
   const handleStatusUpdate = async (ideaId: string, status: IdeaStatus, comment: string, period: string) => {
     try {
-      await updateDoc(doc(db, "globalIdeas", ideaId), {
+      console.log("handleStatusUpdate called:", { ideaId, status, comment, period, userRole });
+      
+      const updateData = {
         status,
         staffComment: comment,
         developmentPeriod: period,
         updatedAt: serverTimestamp()
-      });
+      };
+      
+      // Update translations for current language and ensure consistency
+      const idea = ideas.find(i => i.id === ideaId);
+      console.log("Found idea:", idea);
+      console.log("Current language:", lang);
+      console.log("Idea translations:", idea?.translations);
+      
+      if (idea?.translations && comment.trim()) {
+        console.log("Adding translation update for staffComment");
+        // Always update the translation for the current UI language
+        updateData[`translations.${lang}.staffComment`] = comment;
+        
+        // If current language is the original language, ensure consistency
+        if (lang === idea.originalLang) {
+          console.log("Updating original language translation consistency");
+          // Update all existing translation languages to maintain consistency
+          const existingLangs = Object.keys(idea.translations);
+          for (const existingLang of existingLangs) {
+            if (existingLang !== lang) {
+              updateData[`translations.${existingLang}.staffComment`] = comment;
+            }
+          }
+        }
+      }
+      
+      console.log("Update data:", updateData);
+      
+      await updateDoc(doc(db, "globalIdeas", ideaId), updateData);
+      console.log("Update successful");
+      
+      // Auto-translate the staff comment to other languages
+      if (comment.trim()) {
+        console.log("Auto-translating staff comment...");
+        // Create a temporary idea object with the new comment for translation
+        const updatedIdea = {
+          ...idea,
+          staffComment: comment,
+          translations: idea?.translations || {}
+        };
+        
+        // Trigger translation for the updated idea
+        setTimeout(() => {
+          translateIdea(updatedIdea as GlobalIdeaData);
+        }, 1000); // Small delay to ensure Firestore update is complete
+      }
+      
       setStaffComment("");
       setDevelopmentPeriod("");
     } catch (error) {
       console.error("Error updating status:", error);
+      console.error("Error code:", error.code);
+      console.error("Error message:", error.message);
+      alert(`エラーが発生しました: ${error.message}`);
     }
   };
 
@@ -496,8 +549,30 @@ const IdeaList = ({ user }: IdeaListProps) => {
               
               {translatedContent.staffComment && (
                 <div style={{ marginBottom: '1rem' }}>
-                  <strong>{t("adminComment")}</strong><br />
-                  {translatedContent.staffComment}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <strong>{t("adminComment")}</strong><br />
+                      {translatedContent.staffComment}
+                    </div>
+                    {!isTranslating(idea.id) && idea.originalLang !== translationLang && idea.staffComment && (
+                      <button
+                        onClick={() => translateIdea(idea)}
+                        style={{
+                          backgroundColor: '#17a2b8',
+                          color: 'white',
+                          border: 'none',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          marginLeft: '0.5rem'
+                        }}
+                        title="運営コメントを翻訳"
+                      >
+                        翻訳
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
               
@@ -538,6 +613,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
                         borderRadius: '4px',
                         border: '1px solid #ddd'
                       }}
+                      key={`${idea.id}-comment`}
                     />
                     <input
                       type="text"
