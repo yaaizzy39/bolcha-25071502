@@ -732,8 +732,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         `"${(translatedContent.content || '').replace(/"/g, '""')}"`,
         getStatusText(idea.status),
         idea.createdBy || '',
-        formatDate(idea.createdAt, true) || '',
-        formatDate(idea.updatedAt, true) || '',
+        `"${formatDate(idea.createdAt, true) || ''}"`,
+        `"${formatDate(idea.updatedAt, true) || ''}"`,
         `"${(translatedContent.staffComment || '').replace(/"/g, '""')}"`,
         `"${(translatedContent.developmentPeriod || '').replace(/"/g, '""')}"`,
         idea.originalLang || ''

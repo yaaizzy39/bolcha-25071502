@@ -300,6 +300,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
       'Status',
       'Created By',
       'Created At',
+      'Updated At',
       'Staff Comment',
       'Development Period',
       'Original Language'
@@ -314,7 +315,8 @@ const IdeaList = ({ user }: IdeaListProps) => {
         `"${(translatedContent.content || '').replace(/"/g, '""')}"`,
         getStatusText(idea.status),
         idea.createdBy || '',
-        idea.createdAt?.toDate ? idea.createdAt.toDate().toLocaleDateString() : '',
+        `"${idea.createdAt?.toDate ? idea.createdAt.toDate().toLocaleDateString() : ''}"`,
+        `"${idea.updatedAt?.toDate ? idea.updatedAt.toDate().toLocaleDateString() : ''}"`,
         `"${(translatedContent.staffComment || '').replace(/"/g, '""')}"`,
         `"${(idea.developmentPeriod || '').replace(/"/g, '""')}"`,
         idea.originalLang || ''
