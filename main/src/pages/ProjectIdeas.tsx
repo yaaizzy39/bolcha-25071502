@@ -722,10 +722,30 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         <Link to="/projects" style={{ textDecoration: 'none', color: '#6e283c' }}>
           {t("backToProjects")}
         </Link>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.5rem 0' }}>
+        <div style={{ margin: '0.5rem 0' }}>
           <h1 style={{ margin: 0 }}>
             {project?.name || t("project")}
           </h1>
+        </div>
+        {project?.description && (
+          <p style={{ color: '#666', margin: '0.5rem 0 1rem 0' }}>
+            {project.description}
+          </p>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+          <button
+            onClick={() => setShowForm(true)}
+            style={{
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            {t("newIdea")}
+          </button>
           <select 
             value={translationLang} 
             onChange={(e) => {
@@ -756,26 +776,6 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               </option>
             ))}
           </select>
-        </div>
-        {project?.description && (
-          <p style={{ color: '#666', margin: '0.5rem 0 1rem 0' }}>
-            {project.description}
-          </p>
-        )}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={() => setShowForm(true)}
-            style={{
-              backgroundColor: '#007bff',
-              color: 'white',
-              border: 'none',
-              padding: '0.5rem 1rem',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            {t("newIdea")}
-          </button>
         </div>
       </div>
 
