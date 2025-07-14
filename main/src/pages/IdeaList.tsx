@@ -41,6 +41,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
   const { t, lang } = useI18n();
   const [ideas, setIdeas] = useState<GlobalIdeaData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userProfiles, setUserProfiles] = useState<Record<string, { nickname: string; avatar: string }>>({});
   const [showForm, setShowForm] = useState(false);
   const [editingIdea, setEditingIdea] = useState<GlobalIdeaData | null>(null);
   const [formData, setFormData] = useState({
@@ -84,6 +85,10 @@ const IdeaList = ({ user }: IdeaListProps) => {
         });
         setIdeas(ideasData);
         setLoading(false);
+        
+        // Fetch user profiles for idea creators
+        const uniqueUserIds = [...new Set(ideasData.map(idea => idea.createdBy).filter(Boolean))];
+        fetchUserProfiles(uniqueUserIds);
       }, (error) => {
         console.error("Error listening to global ideas:", error);
         setLoading(false);
@@ -96,6 +101,52 @@ const IdeaList = ({ user }: IdeaListProps) => {
       return () => {};
     }
   }, []);
+
+  // Function to fetch user profiles
+  const fetchUserProfiles = async (userIds: string[]) => {
+    const profiles: Record<string, { nickname: string; avatar: string }> = {};
+    
+    for (const userId of userIds) {
+      if (userId && !userProfiles[userId]) {
+        try {
+          // Fetch public profile data from userProfiles collection
+          const userProfileDoc = await getDoc(doc(db, "userProfiles", userId));
+          // Fetch private data from users collection for fallback displayName
+          const userDoc = await getDoc(doc(db, "users", userId));
+          
+          let nickname = 'Unknown User';
+          let photoURL = '';
+          
+          if (userProfileDoc.exists()) {
+            const profileData = userProfileDoc.data();
+            nickname = profileData.nickname || nickname;
+            photoURL = profileData.photoURL || '';
+          }
+          
+          // Fallback to displayName from users collection if no nickname
+          if (nickname === 'Unknown User' && userDoc.exists()) {
+            const userData = userDoc.data();
+            nickname = userData.displayName || 'Unknown User';
+          }
+          
+          profiles[userId] = {
+            nickname,
+            avatar: photoURL
+          };
+        } catch (error) {
+          console.error(`Error fetching user profile for ${userId}:`, error);
+          profiles[userId] = {
+            nickname: 'Unknown User',
+            avatar: ''
+          };
+        }
+      }
+    }
+    
+    if (Object.keys(profiles).length > 0) {
+      setUserProfiles(prev => ({ ...prev, ...profiles }));
+    }
+  };
 
   // Auto-translate ideas when translation language changes or new ideas are loaded
   useEffect(() => {
@@ -540,7 +591,41 @@ const IdeaList = ({ user }: IdeaListProps) => {
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                <h3 style={{ margin: 0, color: '#333' }}>{translatedContent.title}</h3>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ margin: 0, color: '#333' }}>{translatedContent.title}</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    {userProfiles[idea.createdBy]?.avatar ? (
+                      <img 
+                        src={userProfiles[idea.createdBy].avatar} 
+                        alt="Avatar"
+                        style={{
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                          background: '#eee'
+                        }}
+                        onError={(e) => {
+                          e.currentTarget.src = "data:image/svg+xml,%3csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100' height='100' fill='%23ddd'/%3e%3ctext x='50' y='50' font-size='40' text-anchor='middle' dy='.3em' fill='%23999'%3e?</text%3e%3c/svg%3e";
+                        }}
+                      />
+                    ) : (
+                      <img 
+                        src={"data:image/svg+xml,%3csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100' height='100' fill='%23ddd'/%3e%3ctext x='50' y='50' font-size='40' text-anchor='middle' dy='.3em' fill='%23999'%3e" + (userProfiles[idea.createdBy]?.nickname?.[0]?.toUpperCase() || '?') + "%3c/text%3e%3c/svg%3e"}
+                        alt="Default Avatar"
+                        style={{
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          background: '#eee'
+                        }}
+                      />
+                    )}
+                    <span style={{ fontSize: '0.9rem', color: '#666' }}>
+                      {userProfiles[idea.createdBy]?.nickname || 'Loading...'}
+                    </span>
+                  </div>
+                </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   {canEditIdea(idea) && (
                     <button
