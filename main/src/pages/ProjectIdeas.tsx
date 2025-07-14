@@ -632,53 +632,34 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     setEditingComments(prev => ({ ...prev, [ideaId]: false }));
   };
 
-  // Get localized text for the selected translation language
+  // Get localized text for UI elements (only Japanese/English based on user's language preference)
   const getLocalizedText = (key: string): string => {
-    // Simple translation map for common terms
+    // Simple translation map for common terms - only Japanese and English for UI
     const translations: Record<string, Record<string, string>> = {
       'developmentPeriod': {
         'en': 'Development Period:',
-        'ja': '開発期間:',
-        'zh': '开发周期:',
-        'ko': '개발 기간:',
-        'es': 'Período de Desarrollo:',
-        'fr': 'Période de Développement:'
+        'ja': '開発期間:'
       },
       'adminComment': {
         'en': 'Admin Comment',
-        'ja': '運営コメント',
-        'zh': '管理员评论',
-        'ko': '관리자 댓글',
-        'es': 'Comentario del Administrador',
-        'fr': 'Commentaire Administrateur'
+        'ja': '運営コメント'
       },
       'adminJudgment': {
         'en': 'Admin Judgment',
-        'ja': '運営判定',
-        'zh': '管理员判断',
-        'ko': '관리자 판정',
-        'es': 'Juicio del Administrador',
-        'fr': 'Jugement Administrateur'
+        'ja': '運営判定'
       },
       'lastUpdated': {
         'en': 'Last Updated:',
-        'ja': '最終更新:',
-        'zh': '最后更新:',
-        'ko': '최종 업데이트:',
-        'es': 'Última Actualización:',
-        'fr': 'Dernière Mise à Jour:'
+        'ja': '最終更新:'
       },
       'postedAt': {
         'en': 'Posted:',
-        'ja': '投稿日:',
-        'zh': '发布日期:',
-        'ko': '게시일:',
-        'es': 'Publicado:',
-        'fr': 'Publié:'
+        'ja': '投稿日:'
       }
     };
     
-    return translations[key]?.[translationLang] || t(key);
+    // Use UI language (lang) instead of translation language for UI elements
+    return translations[key]?.[lang] || t(key);
   };
 
   const getStatusText = (status: IdeaStatus) => {
