@@ -21,6 +21,7 @@ import { useIdeaTranslation } from "../hooks/useIdeaTranslation";
 import ConfirmModal from "../components/ConfirmModal";
 import { detectLanguage } from "../langDetect";
 import { useUserPrefs } from "../hooks/useUserPrefs";
+import { IconDownload } from "../components/icons";
 
 interface ProjectIdeasProps {
   user: User;
@@ -923,21 +924,19 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                 {t("newIdea")}
               </button>
             )}
-            <button
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div
               onClick={downloadCSV}
               style={{
-                backgroundColor: '#28a745',
-                color: 'white',
-                border: 'none',
-                padding: '0.5rem 1rem',
-                borderRadius: '4px',
-                cursor: 'pointer'
+                display: 'inline-block',
+                position: 'relative'
               }}
+              title={lang === 'en' ? 'Download CSV' : 'CSV ダウンロード'}
             >
-              {lang === 'en' ? 'Download CSV' : 'CSV ダウンロード'}
-            </button>
-          </div>
-          <select 
+              <IconDownload />
+            </div>
+            <select 
             value={translationLang} 
             onChange={(e) => {
               const newLang = e.target.value;
@@ -967,6 +966,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               </option>
             ))}
           </select>
+          </div>
         </div>
       </div>
 

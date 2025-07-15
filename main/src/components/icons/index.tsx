@@ -51,3 +51,33 @@ export const IconHeart = ({ filled }: { filled: boolean }) => (
     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
   </svg>
 );
+
+export const IconDownload = ({ size = 25 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 -2 24 24"
+    fill="none"
+    style={{
+      backgroundColor: '#28a745',
+      borderRadius: '40%',
+      padding: '4px',
+      cursor: 'pointer'
+    }}
+  >
+    <path
+      d="M7 10l5 7 5-7"
+      stroke="white"
+      strokeWidth="6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M12 15V5"
+      stroke="white"
+      strokeWidth="5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);

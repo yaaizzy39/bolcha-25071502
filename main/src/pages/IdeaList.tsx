@@ -20,6 +20,7 @@ import { useI18n } from "../i18n";
 import { useIdeaTranslation } from "../hooks/useIdeaTranslation";
 import { detectLanguage } from "../langDetect";
 import ConfirmModal from "../components/ConfirmModal";
+import { IconDownload } from "../components/icons";
 
 interface IdeaListProps {
   user: User;
@@ -431,7 +432,18 @@ const IdeaList = ({ user }: IdeaListProps) => {
           <h1 style={{ margin: 0 }}>
             {t("ideaMgmt")}
           </h1>
-          <select 
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div
+              onClick={downloadCSV}
+              style={{
+                display: 'inline-block',
+                position: 'relative'
+              }}
+              title={lang === 'en' ? 'Download CSV' : 'CSV ダウンロード'}
+            >
+              <IconDownload />
+            </div>
+            <select 
             value={translationLang} 
             onChange={(e) => setTranslationLang(e.target.value)} 
             style={{ 
@@ -457,6 +469,7 @@ const IdeaList = ({ user }: IdeaListProps) => {
               </option>
             ))}
           </select>
+          </div>
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -470,19 +483,6 @@ const IdeaList = ({ user }: IdeaListProps) => {
           }}
         >
           {t("newIdea")}
-        </button>
-        <button
-          onClick={downloadCSV}
-          style={{
-            backgroundColor: '#28a745',
-            color: 'white',
-            border: 'none',
-            padding: '0.5rem 1rem',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          {lang === 'en' ? 'Download CSV' : 'CSV ダウンロード'}
         </button>
       </div>
 
