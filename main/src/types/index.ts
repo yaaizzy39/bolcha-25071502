@@ -53,7 +53,7 @@ export interface IdeaData {
   updatedAt: FirestoreTimestamp;
   roomId: string;
   originalLang?: string;
-  translations?: Record<string, { title: string; content: string; staffComment?: string; }>;
+  translations?: Record<string, { title: string; content: string; staffComment?: string; developmentPeriod?: string; }>;
 }
 
 export interface ProjectData {
@@ -80,5 +80,5 @@ export interface ProjectIdeaData {
   updatedAt: FirestoreTimestamp;
   projectId: string;
   originalLang?: string;
-  translations?: Record<string, { title: string; content: string; staffComment?: string; }>;
+  translations?: Record<string, { title: string; content: string; staffComment?: string; developmentPeriod?: string; }>;
 }
