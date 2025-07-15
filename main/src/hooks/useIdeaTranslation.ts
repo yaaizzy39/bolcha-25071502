@@ -85,17 +85,20 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
 
   // Get translated content for display with enhanced fallback logic
   const getTranslatedContent = (idea: T) => {
-    console.log(`getTranslatedContent for idea ${idea.id}:`, {
-      translationLang,
-      originalLang: idea.originalLang,
-      hasTranslations: !!idea.translations,
-      translationKeys: idea.translations ? Object.keys(idea.translations) : [],
-      hasTargetTranslation: !!idea.translations?.[translationLang],
-      hasLocalTranslation: !!localTranslations[idea.id]?.[translationLang],
-      originalStaffComment: idea.staffComment,
-      translatedStaffCommentInFirestore: idea.translations?.[translationLang]?.staffComment,
-      translatedStaffCommentInLocal: localTranslations[idea.id]?.[translationLang]?.staffComment
-    });
+    // Only log in development mode to reduce console spam
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`getTranslatedContent for idea ${idea.id}:`, {
+        translationLang,
+        originalLang: idea.originalLang,
+        hasTranslations: !!idea.translations,
+        translationKeys: idea.translations ? Object.keys(idea.translations) : [],
+        hasTargetTranslation: !!idea.translations?.[translationLang],
+        hasLocalTranslation: !!localTranslations[idea.id]?.[translationLang],
+        originalStaffComment: idea.staffComment,
+        translatedStaffCommentInFirestore: idea.translations?.[translationLang]?.staffComment,
+        translatedStaffCommentInLocal: localTranslations[idea.id]?.[translationLang]?.staffComment
+      });
+    }
     
     // Check local translations first (for when Firestore fails)
     const localTranslation = localTranslations[idea.id]?.[translationLang];
@@ -103,7 +106,9 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
     
     // Check if we have translation data available
     if (localTranslation || firestoreTranslation) {
-      console.log(`Found translation data - using translated content`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Found translation data - using translated content`);
+      }
       return {
         title: localTranslation?.title || firestoreTranslation?.title || idea.title,
         content: localTranslation?.content || firestoreTranslation?.content || idea.content,
@@ -113,7 +118,9 @@ export function useIdeaTranslation<T extends BaseTranslatableIdea>(collectionNam
     }
     
     // No translation available - use original content
-    console.log(`No translation available for ${translationLang} - using original content`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`No translation available for ${translationLang} - using original content`);
+    }
     return {
       title: idea.title,
       content: idea.content,

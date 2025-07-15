@@ -242,23 +242,29 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   };
 
   // Safe automatic translation on page load and language change
+  const [translatedIdeasSet, setTranslatedIdeasSet] = useState<Set<string>>(new Set());
+  
   useEffect(() => {
-    if (ideas.length > 0) {
-      
-      // Use the same direct translation approach that worked with the manual button
+    if (ideas.length > 0 && translationLang) {
       const runSafeAutoTranslation = async () => {
         try {
           let translationCount = 0;
+          const newTranslatedIds = new Set(translatedIdeasSet);
           
           for (const idea of ideas) {
-            // Check if idea needs translation (title, content, or staff comment)
+            // Skip if already processed for this language
+            const ideaKey = `${idea.id}-${translationLang}`;
+            if (newTranslatedIds.has(ideaKey)) {
+              continue;
+            }
+            
+            // Check if idea needs translation
             const existingTranslation = idea.translations?.[translationLang];
             let needsTranslation = false;
             let missingParts = [];
             
-            // Skip if this is the original language (unless checking staff comment separately)
+            // Only translate if target language is different from original
             if (idea.originalLang !== translationLang) {
-              // Different language - check title and content
               if (!existingTranslation?.title) {
                 needsTranslation = true;
                 missingParts.push('title');
@@ -269,78 +275,23 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               }
             }
             
-            // Always check staff comment separately (can be in different language from original)
-            if (idea.staffComment) {
-              // Check the original staff comment language
-              const originalStaffCommentIsEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test(idea.staffComment.trim());
-              const originalStaffCommentIsJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(idea.staffComment.trim());
+            // Check staff comment separately
+            if (idea.staffComment && !existingTranslation?.staffComment) {
+              const isStaffCommentInTargetLang = translationLang === 'ja' 
+                ? /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(idea.staffComment)
+                : /^[a-zA-Z\s\.,!?'"0-9-]+$/.test(idea.staffComment);
               
-              // Check if we need translation based on original staff comment language vs target language
-              const needsStaffCommentTranslation = 
-                (translationLang === 'ja' && originalStaffCommentIsEnglish && !originalStaffCommentIsJapanese) ||
-                (translationLang === 'en' && originalStaffCommentIsJapanese && !originalStaffCommentIsEnglish);
-              
-              if (needsStaffCommentTranslation) {
-                // Check if translation already exists and is correct
-                if (!existingTranslation?.staffComment) {
-                  needsTranslation = true;
-                  missingParts.push('staffComment');
-                } else {
-                  // Check if existing translation is in the correct language
-                  const translatedIsEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test(existingTranslation.staffComment.trim());
-                  const translatedIsJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(existingTranslation.staffComment.trim());
-                  
-                  const translationIsCorrect = 
-                    (translationLang === 'ja' && translatedIsJapanese) ||
-                    (translationLang === 'en' && translatedIsEnglish);
-                  
-                  if (!translationIsCorrect) {
-                    needsTranslation = true;
-                    missingParts.push('staffComment (incorrect translation)');
-                  }
-                }
+              if (!isStaffCommentInTargetLang) {
+                needsTranslation = true;
+                missingParts.push('staffComment');
               }
             }
             
-            // Always check development period separately (can be in different language from original)
-            if (idea.developmentPeriod) {
-              // Check the original development period language
-              const originalPeriodIsEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test(idea.developmentPeriod.trim());
-              const originalPeriodIsJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(idea.developmentPeriod.trim());
-              
-              // Check if we need translation based on original development period language vs target language
-              const needsPeriodTranslation = 
-                (translationLang === 'ja' && originalPeriodIsEnglish && !originalPeriodIsJapanese) ||
-                (translationLang === 'en' && originalPeriodIsJapanese && !originalPeriodIsEnglish);
-              
-              if (needsPeriodTranslation) {
-                // Check if translation already exists and is correct
-                if (!(existingTranslation as any)?.developmentPeriod) {
-                  needsTranslation = true;
-                  missingParts.push('developmentPeriod');
-                } else {
-                  // Check if existing translation is in the correct language
-                  const translatedIsEnglish = /^[a-zA-Z\s\.,!?'"0-9-]+$/.test((existingTranslation as any).developmentPeriod.trim());
-                  const translatedIsJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test((existingTranslation as any).developmentPeriod.trim());
-                  
-                  const translationIsCorrect = 
-                    (translationLang === 'ja' && translatedIsJapanese) ||
-                    (translationLang === 'en' && translatedIsEnglish);
-                  
-                  if (!translationIsCorrect) {
-                    needsTranslation = true;
-                    missingParts.push('developmentPeriod (incorrect translation)');
-                  }
-                }
-              }
-            }
-            
-            if (needsTranslation) {
+            if (needsTranslation && translationCount < 3) { // Limit to 3 translations per batch
               try {
                 const { translateText } = await import('../translation');
                 const translationData: any = {};
                 
-                // Translate title if needed
                 if (missingParts.includes('title')) {
                   const translatedTitle = await translateText(idea.title, translationLang);
                   if (translatedTitle && translatedTitle !== idea.title) {
@@ -348,7 +299,6 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                   }
                 }
                 
-                // Translate content if needed
                 if (missingParts.includes('content')) {
                   const translatedContent = await translateText(idea.content, translationLang);
                   if (translatedContent && translatedContent !== idea.content) {
@@ -356,65 +306,66 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                   }
                 }
                 
-                // Translate staff comment if needed
-                if (missingParts.some(part => part.includes('staffComment'))) {
+                if (missingParts.includes('staffComment')) {
                   const translatedComment = await translateText(idea.staffComment, translationLang);
                   if (translatedComment && translatedComment !== idea.staffComment) {
                     translationData.staffComment = translatedComment;
                   }
                 }
                 
-                // Translate development period if needed
-                if (missingParts.some(part => part.includes('developmentPeriod'))) {
-                  const translatedPeriod = await translateText(idea.developmentPeriod, translationLang);
-                  if (translatedPeriod && translatedPeriod !== idea.developmentPeriod) {
-                    translationData.developmentPeriod = translatedPeriod;
-                  }
-                }
-                
-                // Save translation to Firestore if we have any translations
                 if (Object.keys(translationData).length > 0) {
-                  // Preserve existing translations
                   const fullTranslationData = {
                     ...existingTranslation,
                     ...translationData
                   };
                   
-                  await updateDoc(doc(db, "projectIdeas", idea.id), {
-                    [`translations.${translationLang}`]: fullTranslationData
-                  });
-                  
-                  translationCount++;
-                  
-                  // Small delay between translations to avoid overwhelming the API
-                  if (translationCount < 5) { // Limit to 5 translations per load
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                  } else {
-                    break;
+                  try {
+                    await updateDoc(doc(db, "projectIdeas", idea.id), {
+                      [`translations.${translationLang}`]: fullTranslationData
+                    });
+                    
+                    newTranslatedIds.add(ideaKey);
+                    translationCount++;
+                    
+                    // Short delay between translations
+                    if (translationCount < 3) {
+                      await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                  } catch (firestoreError: any) {
+                    if (firestoreError.code === 'permission-denied') {
+                      console.warn('Translation permission denied - skipping auto-translation');
+                      // Mark as processed to avoid repeated attempts
+                      newTranslatedIds.add(ideaKey);
+                      break;
+                    }
+                    console.error(`Firestore update failed for idea ${idea.id}:`, firestoreError);
                   }
                 }
               } catch (error) {
                 console.error(`Auto-translation failed for idea ${idea.id}:`, error);
+                // Mark as processed even on error to avoid infinite retry
+                newTranslatedIds.add(ideaKey);
               }
+            } else {
+              // Mark as processed if no translation needed
+              newTranslatedIds.add(ideaKey);
             }
           }
           
-          if (translationCount > 0) {
-            setRefreshCounter(prev => prev + 1);
-          }
+          setTranslatedIdeasSet(newTranslatedIds);
         } catch (error) {
           console.error("Auto-translation failed:", error);
         }
       };
       
-      // Add a delay to prevent rapid re-execution and let Firestore data settle
+      // Delay execution to prevent rapid re-execution
       const timeoutId = setTimeout(() => {
         runSafeAutoTranslation();
-      }, 1500);
+      }, 1000);
       
       return () => clearTimeout(timeoutId);
     }
-  }, [ideas, translationLang]);
+  }, [ideas, translationLang]); // Remove refreshCounter from dependencies
 
   // Reset input field editing states when translation language changes
   useEffect(() => {

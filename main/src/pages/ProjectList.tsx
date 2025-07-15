@@ -85,11 +85,25 @@ const ProjectList = ({ user }: ProjectListProps) => {
           const isMember = data.members && data.members[user.uid];
           const isCreator = data.createdBy === user.uid;
           
+          console.log(`Project ${doc.id} access check:`, {
+            isAdmin,
+            isMember,
+            isCreator,
+            userUid: user.uid,
+            members: data.members,
+            membersKeys: data.members ? Object.keys(data.members) : [],
+            memberValue: data.members ? data.members[user.uid] : 'no members object',
+            createdBy: data.createdBy,
+            userRole
+          });
+          
           if (isAdmin || isMember || isCreator) {
             projectsData.push({
               id: doc.id,
               ...data
             });
+          } else {
+            console.log(`Project ${doc.id} filtered out - no access`);
           }
         });
         setProjects(projectsData);
@@ -128,6 +142,7 @@ const ProjectList = ({ user }: ProjectListProps) => {
     try {
       if (editingProject) {
         console.log("Updating existing project:", editingProject.id);
+        console.log("Selected members to save:", selectedMembers);
         await updateDoc(doc(db, "projects", editingProject.id), {
           name: formData.name,
           description: formData.description,

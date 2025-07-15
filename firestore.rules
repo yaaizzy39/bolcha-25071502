@@ -119,9 +119,8 @@ service cloud.firestore {
       // Helper function to check project membership
       function isProjectMember(projectId) {
         return isAdmin() || 
-               exists(/databases/$(db)/documents/projects/$(projectId)) &&
-               (get(/databases/$(db)/documents/projects/$(projectId)).data.createdBy == request.auth.uid ||
-                (request.auth.uid in get(/databases/$(db)/documents/projects/$(projectId)).data.keys() &&
+               (exists(/databases/$(db)/documents/projects/$(projectId)) &&
+                (get(/databases/$(db)/documents/projects/$(projectId)).data.createdBy == request.auth.uid ||
                  get(/databases/$(db)/documents/projects/$(projectId)).data.get('members', {}).get(request.auth.uid, null) != null));
       }
       
@@ -141,6 +140,13 @@ service cloud.firestore {
                    (isAdmin() || 
                     resource.data.createdBy == request.auth.uid ||
                     isProjectStaff(resource.data.projectId));
+      
+      // Allow translations-only updates for project members
+      allow update: if request.auth != null &&
+                   isProjectMember(resource.data.projectId) &&
+                   request.resource.data.diff(resource.data)
+                           .affectedKeys()
+                           .hasOnly(['translations']);
       allow delete: if request.auth != null && 
                    isProjectMember(resource.data.projectId) &&
                    (isAdmin() || resource.data.createdBy == request.auth.uid);
