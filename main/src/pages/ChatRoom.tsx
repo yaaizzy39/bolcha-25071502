@@ -868,7 +868,6 @@ useEffect(() => {
       maxWidth: 1000,
       margin: "0 auto",
       width: "100%",
-      minHeight: "100vh",
       position: "relative",
       backgroundColor: prefs.backgroundColor || "#f5f5f5"
     }}>
@@ -956,10 +955,10 @@ useEffect(() => {
         ref={containerRef}
         style={{ 
           overflowY: "auto", 
-          padding: "0.5rem 0.25rem", 
+          padding: "1rem 0.25rem", 
           paddingBottom: 80,
           position: "relative", 
-          marginTop: autoDeleteWarning ? 100 : 95
+          marginTop: autoDeleteWarning ? 80 : 75
         }}
       >
         {(() => {
