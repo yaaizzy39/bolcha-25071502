@@ -24,6 +24,43 @@ import { detectLanguage } from "../langDetect";
 import { useUserPrefs } from "../hooks/useUserPrefs";
 import { IconDownload } from "../components/icons";
 
+// Like and Dislike icon components
+function LikeIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill={filled ? "#e0245e" : "none"}
+      stroke={filled ? "#e0245e" : "#666"}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ display: "inline-block", verticalAlign: "text-bottom" }}
+    >
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41 0.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+    </svg>
+  );
+}
+
+function DislikeIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill={filled ? "#657786" : "none"}
+      stroke={filled ? "#657786" : "#666"}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ display: "inline-block", verticalAlign: "text-bottom" }}
+    >
+      <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17" />
+    </svg>
+  );
+}
+
 interface ProjectIdeasProps {
   user: User;
 }
@@ -49,6 +86,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [ideaToDelete, setIdeaToDelete] = useState<string | null>(null);
+  const [hoveredIdea, setHoveredIdea] = useState<string | null>(null);
   
   const userRole = useUserRole(user);
   const { prefs } = useUserPrefs(user.uid);
@@ -633,6 +671,67 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     }
   };
 
+  // Handle like/dislike actions
+  const handleLike = async (ideaId: string) => {
+    try {
+      const ideaRef = doc(db, "projectIdeas", ideaId);
+      const idea = ideas.find(i => i.id === ideaId);
+      if (!idea) return;
+
+      const currentLikes = idea.likes || [];
+      const currentDislikes = idea.dislikes || [];
+      const hasLiked = currentLikes.includes(user.uid);
+      
+      let newLikes: string[];
+      let newDislikes = currentDislikes.filter(uid => uid !== user.uid); // Remove from dislikes
+      
+      if (hasLiked) {
+        // Remove like
+        newLikes = currentLikes.filter(uid => uid !== user.uid);
+      } else {
+        // Add like
+        newLikes = [...currentLikes, user.uid];
+      }
+
+      await updateDoc(ideaRef, {
+        likes: newLikes,
+        dislikes: newDislikes
+      });
+    } catch (error) {
+      console.error("Error updating like:", error);
+    }
+  };
+
+  const handleDislike = async (ideaId: string) => {
+    try {
+      const ideaRef = doc(db, "projectIdeas", ideaId);
+      const idea = ideas.find(i => i.id === ideaId);
+      if (!idea) return;
+
+      const currentLikes = idea.likes || [];
+      const currentDislikes = idea.dislikes || [];
+      const hasDisliked = currentDislikes.includes(user.uid);
+      
+      let newDislikes: string[];
+      let newLikes = currentLikes.filter(uid => uid !== user.uid); // Remove from likes
+      
+      if (hasDisliked) {
+        // Remove dislike
+        newDislikes = currentDislikes.filter(uid => uid !== user.uid);
+      } else {
+        // Add dislike
+        newDislikes = [...currentDislikes, user.uid];
+      }
+
+      await updateDoc(ideaRef, {
+        likes: newLikes,
+        dislikes: newDislikes
+      });
+    } catch (error) {
+      console.error("Error updating dislike:", error);
+    }
+  };
+
   const canEditIdea = (idea: ProjectIdeaData) => {
     const projectRole = getProjectUserRole();
     return projectRole === 'admin' || idea.createdBy === user.uid;
@@ -1033,6 +1132,8 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
             return (
             <div
               key={idea.id}
+              onMouseEnter={() => setHoveredIdea(idea.id)}
+              onMouseLeave={() => setHoveredIdea(null)}
               style={{
                 border: '1px solid #ddd',
                 borderRadius: '8px',
@@ -1129,8 +1230,52 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               </div>
               
               <div style={{ marginBottom: '1rem' }}>
-                <div style={{ marginBottom: '0.25rem' }}>
-                  <strong style={{ color: '#6e283c' }}>{getLocalizedText("postedAt")}</strong> <span style={{ color: '#666' }}>{formatDate(idea.createdAt) || t("unknown")}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                  <div>
+                    <strong style={{ color: '#6e283c' }}>{getLocalizedText("postedAt")}</strong> <span style={{ color: '#666' }}>{formatDate(idea.createdAt) || t("unknown")}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {/* Like button */}
+                    <span
+                      onClick={() => handleLike(idea.id)}
+                      style={{
+                        cursor: "pointer",
+                        fontSize: "0.9em",
+                        color: (idea.likes ?? []).includes(user.uid) ? "#e0245e" : "#888",
+                        opacity: (idea.likes && idea.likes.length > 0) || hoveredIdea === idea.id ? 1 : 0,
+                        pointerEvents: "auto",
+                        transition: "opacity 0.2s",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "2px",
+                      }}
+                    >
+                      <LikeIcon filled={(idea.likes ?? []).includes(user.uid)} />
+                      {idea.likes && idea.likes.length > 0 && (
+                        <span style={{ fontSize: "0.8em", color: "#555" }}>{idea.likes.length}</span>
+                      )}
+                    </span>
+                    {/* Dislike button */}
+                    <span
+                      onClick={() => handleDislike(idea.id)}
+                      style={{
+                        cursor: "pointer",
+                        fontSize: "0.9em",
+                        color: (idea.dislikes ?? []).includes(user.uid) ? "#657786" : "#888",
+                        opacity: (idea.dislikes && idea.dislikes.length > 0) || hoveredIdea === idea.id ? 1 : 0,
+                        pointerEvents: "auto",
+                        transition: "opacity 0.2s",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "2px",
+                      }}
+                    >
+                      <DislikeIcon filled={(idea.dislikes ?? []).includes(user.uid)} />
+                      {idea.dislikes && idea.dislikes.length > 0 && (
+                        <span style={{ fontSize: "0.8em", color: "#555" }}>{idea.dislikes.length}</span>
+                      )}
+                    </span>
+                  </div>
                 </div>
                 {idea.updatedAt && idea.updatedAt !== idea.createdAt && (
                   <div style={{ fontSize: '0.9rem' }}>

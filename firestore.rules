@@ -147,6 +147,13 @@ service cloud.firestore {
                    request.resource.data.diff(resource.data)
                            .affectedKeys()
                            .hasOnly(['translations']);
+      
+      // Allow likes and dislikes updates for project members
+      allow update: if request.auth != null &&
+                   isProjectMember(resource.data.projectId) &&
+                   request.resource.data.diff(resource.data)
+                           .affectedKeys()
+                           .hasOnly(['likes', 'dislikes']);
       allow delete: if request.auth != null && 
                    isProjectMember(resource.data.projectId) &&
                    (isAdmin() || resource.data.createdBy == request.auth.uid);

@@ -81,4 +81,6 @@ export interface ProjectIdeaData {
   projectId: string;
   originalLang?: string;
   translations?: Record<string, { title: string; content: string; staffComment?: string; developmentPeriod?: string; }>;
+  likes?: string[];
+  dislikes?: string[];
 }
