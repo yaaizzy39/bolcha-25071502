@@ -882,7 +882,9 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
       'Updated At',
       'Staff Comment',
       'Development Period',
-      'Original Language'
+      'Original Language',
+      'Likes Count',
+      'Dislikes Count'
     ];
 
     // Convert ideas to CSV rows
@@ -899,7 +901,9 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         `"${formatDate(idea.updatedAt, true) || ''}"`,
         `"${(translatedContent.staffComment || '').replace(/"/g, '""')}"`,
         `"${(translatedContent.developmentPeriod || '').replace(/"/g, '""')}"`,
-        idea.originalLang || ''
+        idea.originalLang || '',
+        (idea.likes || []).length,
+        (idea.dislikes || []).length
       ].join(',');
     });
 
