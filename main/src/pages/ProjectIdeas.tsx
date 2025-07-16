@@ -4,6 +4,7 @@ import {
   collection, 
   query, 
   orderBy, 
+  where,
   onSnapshot,
   addDoc,
   updateDoc,
@@ -153,6 +154,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     try {
       const q = query(
         collection(db, "projectIdeas"),
+        where("projectId", "==", projectId),
         orderBy("createdAt", "desc")
       );
 
@@ -160,12 +162,10 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         const ideasData: ProjectIdeaData[] = [];
         snapshot.forEach((doc) => {
           const data = doc.data() as ProjectIdeaData;
-          if (data.projectId === projectId) {
-            ideasData.push({
-              id: doc.id,
-              ...data
-            });
-          }
+          ideasData.push({
+            id: doc.id,
+            ...data
+          });
         });
         setIdeas(ideasData);
         setLoading(false);

@@ -26,7 +26,8 @@
       "Bash(firebase use:*)",
       "Bash(node:*)",
       "Bash(realpath:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(firebase firestore:rules:*)"
     ],
     "deny": []
   }
