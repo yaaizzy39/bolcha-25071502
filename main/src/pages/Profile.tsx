@@ -20,6 +20,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebase";
 import type { User } from "firebase/auth";
 import type { UserPreferences } from "../types";
+import useUserRole from "../hooks/useUserRole";
 
 interface Props {
   user: User;
@@ -65,6 +66,7 @@ export default function Profile({ user, needsNickname, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const [showNicknameWarning, setShowNicknameWarning] = useState(false);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const userRole = useUserRole(user);
 
   useEffect(() => {
     const load = async () => {
@@ -227,6 +229,22 @@ export default function Profile({ user, needsNickname, onSaved }: Props) {
           color: "#666"
         }}>
           {user.email || "No email"}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: "1rem" }}>
+        <label>{t("role")}</label>
+        <br />
+        <div style={{ 
+          padding: "0.5rem", 
+          marginTop: "0.25rem", 
+          borderRadius: "8px", 
+          border: "1px solid #ddd", 
+          backgroundColor: "#f8f9fa",
+          fontSize: "0.9rem",
+          color: "#666"
+        }}>
+          {userRole || "user"}
         </div>
       </div>
 
