@@ -17,7 +17,7 @@ export default function useIsAdmin(user: User | null): boolean {
       ref,
       (snap) => {
       const userData = snap.data();
-      setIsAdmin(userData?.isAdmin === true);
+      setIsAdmin(userData?.role === 'admin');
       },
       (err) => {
         if (err.code === 'permission-denied') {
