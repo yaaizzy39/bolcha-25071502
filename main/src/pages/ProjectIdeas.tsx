@@ -4,7 +4,6 @@ import {
   collection, 
   query, 
   orderBy, 
-  where,
   onSnapshot,
   addDoc,
   updateDoc,
@@ -192,7 +191,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     try {
       const q = query(
         collection(db, "projectIdeas"),
-        where("projectId", "==", projectId),
+        (require("firebase/firestore") as any).where("projectId", "==", projectId),
         orderBy("createdAt", "desc")
       );
 
