@@ -141,6 +141,12 @@ export default function Profile({ user, needsNickname, onSaved }: Props) {
     if (updatedPrefs.timezone) {
       privateData.timezone = updatedPrefs.timezone;
     }
+    if (typeof updatedPrefs.showOriginal === 'boolean') {
+      privateData.showOriginal = updatedPrefs.showOriginal;
+    }
+    if (typeof updatedPrefs.enterToSend === 'boolean') {
+      privateData.enterToSend = updatedPrefs.enterToSend;
+    }
     
     await setDoc(doc(db, "users", user.uid), privateData, { merge: true });
     

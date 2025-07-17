@@ -12,6 +12,8 @@ import {
   serverTimestamp,
   getDoc
 } from "firebase/firestore";
+// @ts-ignore - TypeScript issue with where import
+import { where } from "firebase/firestore";
 import { db } from "../firebase";
 import type { User } from "firebase/auth";
 import type { ProjectIdeaData, IdeaStatus, UserRole, ProjectData } from "../types";
@@ -191,7 +193,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
     try {
       const q = query(
         collection(db, "projectIdeas"),
-        (require("firebase/firestore") as any).where("projectId", "==", projectId),
+        where("projectId", "==", projectId),
         orderBy("createdAt", "desc")
       );
 
