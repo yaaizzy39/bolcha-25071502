@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import type { User } from "firebase/auth";
 import { useI18n } from "../i18n";
+import useUserRole from "../hooks/useUserRole";
+import { useIsProjectMember } from "../hooks/useIsProjectMember";
 
 interface HomeProps {
   user: User;
@@ -8,6 +10,10 @@ interface HomeProps {
 
 const Home = ({ user }: HomeProps) => {
   const { t, lang } = useI18n();
+  const userRole = useUserRole(user);
+  const { isProjectMember } = useIsProjectMember(user);
+  
+  const canAccessIdeas = userRole === 'admin' || isProjectMember;
   
   return (
     <div style={{ 
@@ -69,33 +75,35 @@ const Home = ({ user }: HomeProps) => {
         </Link>
 
         {/* アイデア管理 */}
-        <Link 
-          to="/ideas"
-          style={{
-            display: 'block',
-            padding: '2rem',
-            backgroundColor: '#28a745',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '12px',
-            boxShadow: '0 4px 12px rgba(40,167,69,0.3)',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#1e7e34';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#28a745';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💡</div>
-          <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.3rem' }}>{t("ideaManagement")}</h2>
-          <p style={{ margin: 0, opacity: 0.9 }}>
-            {t("ideaManagementDesc")}
-          </p>
-        </Link>
+        {canAccessIdeas && (
+          <Link 
+            to="/ideas"
+            style={{
+              display: 'block',
+              padding: '2rem',
+              backgroundColor: '#28a745',
+              color: 'white',
+              textDecoration: 'none',
+              borderRadius: '12px',
+              boxShadow: '0 4px 12px rgba(40,167,69,0.3)',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#1e7e34';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#28a745';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💡</div>
+            <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.3rem' }}>{t("ideaManagement")}</h2>
+            <p style={{ margin: 0, opacity: 0.9 }}>
+              {t("ideaManagementDesc")}
+            </p>
+          </Link>
+        )}
       </div>
 
       <div style={{ 
