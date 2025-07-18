@@ -8,7 +8,7 @@ import admin from 'firebase-admin';
 admin.initializeApp();
 
 // Replace with your GAS deployment ID via env or constant
-const GAS_BASE_URL = process.env.GAS_BASE_URL || 'https://script.google.com/macros/s/AKfycbwD3O1N6IQWW_07H6cWiqx8FN-5u1CAOTHb2wmky1c1tgmOT7bO-if08gE49p3zenVO8A/exec';
+const GAS_BASE_URL = process.env.GAS_BASE_URL;
 
 // v2 onRequest provides built-in CORS support
 export const translate = onRequest({ cors: true }, async (req, res) => {
