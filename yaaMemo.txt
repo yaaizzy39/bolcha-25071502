@@ -64,6 +64,12 @@ https://script.google.com/macros/s/AKfycbxStab6nvASmK3OaJaw29HGZptvRrtsYhdmzFUdi
 https://script.google.com/macros/s/AKfycbwvYsPuJbXNr6i_6GlCUlDA3AFny-FX3EZApJdibcmQLJv7rB6HnMEDmEeXbU7nef42Nw/exec
 https://script.google.com/macros/s/AKfycby_vbOoeOcthf2GOwWUwULrAZLIu0YktGN0mz48AUP5ESZtPjX0vcCX-PC8AtCsz3-1NQ/exec
 
+訂正後の翻訳API（25-7-18）
+https://script.google.com/macros/s/AKfycby8LneOVTItT7dQV_krFJ20wbrY_3aeUWSiKnHtFkNfWTTXW7NxEXd4tJs-ZkJ9nGAk/exec
+
+
+
+
 -------------------------------------------
 ## 2025-07-18 作業内容
 
