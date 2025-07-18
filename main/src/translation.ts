@@ -295,11 +295,21 @@ async function safeParse(res: Response): Promise<string | null> {
     try {
       // Prefer JSON parsing
       const obj = JSON.parse(txt);
-      const maybeText = obj.translatedText || obj.text || obj.translation || null;
-      if (typeof maybeText === "string") {
-        raw = maybeText;
+      
+      // Handle new API format with code field: {"code":200,"text":"こんにちは"}
+      if (obj.code === 200 && obj.text) {
+        raw = obj.text;
+      } else if (obj.code && obj.code !== 200) {
+        // Handle error responses with code field
+        return null;
       } else {
-        return maybeText;
+        // Handle original API format: {"text":"こんにちは"}
+        const maybeText = obj.translatedText || obj.text || obj.translation || null;
+        if (typeof maybeText === "string") {
+          raw = maybeText;
+        } else {
+          return maybeText;
+        }
       }
     } catch {
       // Fallback for non-JSON responses
