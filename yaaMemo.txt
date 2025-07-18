@@ -57,6 +57,11 @@ claude --model claude-sonnet-4-20250514
 
   --------------------------------------------------------------
 
+翻訳GAS API URL
 
+https://script.google.com/macros/s/AKfycbwD3O1N6IQWW_07H6cWiqx8FN-5u1CAOTHb2wmky1c1tgmOT7bO-if08gE49p3zenVO8A/exec
+https://script.google.com/macros/s/AKfycbxStab6nvASmK3OaJaw29HGZptvRrtsYhdmzFUdij8d5pEYWvI1shn2tivx4QquAsdr/exec
+https://script.google.com/macros/s/AKfycbwvYsPuJbXNr6i_6GlCUlDA3AFny-FX3EZApJdibcmQLJv7rB6HnMEDmEeXbU7nef42Nw/exec
+https://script.google.com/macros/s/AKfycby_vbOoeOcthf2GOwWUwULrAZLIu0YktGN0mz48AUP5ESZtPjX0vcCX-PC8AtCsz3-1NQ/exec
 
 

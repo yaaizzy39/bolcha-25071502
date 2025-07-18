@@ -7,7 +7,7 @@ const initialEndpoints = (import.meta.env.VITE_GAS_ENDPOINTS as string | undefin
   ?.split(/[, ]+/)
   .filter(Boolean) || [];
 
-const endpoints: string[] = [...initialEndpoints];
+const endpoints: {url: string, enabled: boolean}[] = initialEndpoints.map(url => ({ url, enabled: true }));
 
 import { db, auth } from "./firebase";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -52,10 +52,17 @@ if (!(globalThis as any).__TRAN_CFG_LISTENER__) {
       const data = snap.data();
       if (data && Array.isArray(data.gasEndpoints)) {
         if (data.gasEndpoints.length) {
-          endpoints.splice(0, endpoints.length, ...data.gasEndpoints.filter(Boolean));
+          // Handle both old format (string array) and new format (object array)
+          const gasEndpoints = data.gasEndpoints;
+          if (typeof gasEndpoints[0] === 'string') {
+            // Convert old format to new format
+            endpoints.splice(0, endpoints.length, ...gasEndpoints.map((url: string) => ({ url, enabled: true })));
+          } else {
+            endpoints.splice(0, endpoints.length, ...gasEndpoints);
+          }
           console.info("[translation] endpoints updated from Firestore", endpoints);
         } else {
-          endpoints.splice(0, endpoints.length, ...initialEndpoints);
+          endpoints.splice(0, endpoints.length, ...initialEndpoints.map(url => ({ url, enabled: true })));
           console.info("[translation] endpoints reset to .env list", endpoints);
         }
         primary = 0;
@@ -138,15 +145,16 @@ async function attemptTranslateRaw(
 }
 
 async function doTranslate(text: string, targetLang: string): Promise<string | null> {
-  if (!endpoints.length) {
+  const enabledEndpoints = endpoints.filter(ep => ep.enabled);
+  if (!enabledEndpoints.length) {
     return null;
   }
-  // Iterate over endpoints, starting with the current primary, until one succeeds
-  for (let i = 0; i < endpoints.length; i++) {
-    const idx = (primary + i) % endpoints.length;
-    const url = endpoints[idx];
+  // Iterate over enabled endpoints, starting with the current primary, until one succeeds
+  for (let i = 0; i < enabledEndpoints.length; i++) {
+    const idx = (primary + i) % enabledEndpoints.length;
+    const endpoint = enabledEndpoints[idx];
 
-    const maybe = await attemptTranslate(url, text, targetLang);
+    const maybe = await attemptTranslate(endpoint.url, text, targetLang);
     if (maybe !== null) {
       // Success → promote this index to be the primary
       primary = idx;
@@ -155,10 +163,10 @@ async function doTranslate(text: string, targetLang: string): Promise<string | n
     }
   }
 
-  // All endpoints failed this round
+  // All enabled endpoints failed this round
   failStreak += 1;
   if (failStreak >= FAIL_THRESHOLD) {
-    primary = (primary + 1) % endpoints.length; // shift to next endpoint
+    primary = (primary + 1) % enabledEndpoints.length; // shift to next endpoint
     failStreak = 0;
   }
   return null;
@@ -166,15 +174,16 @@ async function doTranslate(text: string, targetLang: string): Promise<string | n
 
 // Function specifically for translating individual lines (bypasses preserveBlankLines)
 async function doTranslateLine(text: string, targetLang: string): Promise<string | null> {
-  if (!endpoints.length) {
+  const enabledEndpoints = endpoints.filter(ep => ep.enabled);
+  if (!enabledEndpoints.length) {
     return null;
   }
-  // Iterate over endpoints, starting with the current primary, until one succeeds
-  for (let i = 0; i < endpoints.length; i++) {
-    const idx = (primary + i) % endpoints.length;
-    const url = endpoints[idx];
+  // Iterate over enabled endpoints, starting with the current primary, until one succeeds
+  for (let i = 0; i < enabledEndpoints.length; i++) {
+    const idx = (primary + i) % enabledEndpoints.length;
+    const endpoint = enabledEndpoints[idx];
 
-    const maybe = await attemptTranslateRaw(url, text, targetLang);
+    const maybe = await attemptTranslateRaw(endpoint.url, text, targetLang);
     if (maybe !== null) {
       // Success → promote this index to be the primary
       primary = idx;
@@ -183,10 +192,10 @@ async function doTranslateLine(text: string, targetLang: string): Promise<string
     }
   }
 
-  // All endpoints failed this round
+  // All enabled endpoints failed this round
   failStreak += 1;
   if (failStreak >= FAIL_THRESHOLD) {
-    primary = (primary + 1) % endpoints.length; // shift to next endpoint
+    primary = (primary + 1) % enabledEndpoints.length; // shift to next endpoint
     failStreak = 0;
   }
   return null;

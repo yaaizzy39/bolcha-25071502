@@ -13,7 +13,7 @@ export default function Admin({ user }: { user: User }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState(false);
-  const [gasList, setGasList] = useState<string[]>([]);
+  const [gasList, setGasList] = useState<{url: string, enabled: boolean}[]>([]);
   const [newUrl, setNewUrl] = useState("");
   const [rooms, setRooms] = useState<(RoomData & { id: string })[]>([]);
   // room delete modal state
@@ -55,7 +55,18 @@ export default function Admin({ user }: { user: User }) {
     const cfgRef = doc(db, "admin", "publicConfig");
     const unsub = onSnapshot(cfgRef, (snap) => {
       const data = snap.data();
-      setGasList(data?.gasEndpoints ?? []);
+      // Handle both old format (string array) and new format (object array)
+      const gasEndpoints = data?.gasEndpoints ?? [];
+      console.log('Firebase gasEndpoints:', gasEndpoints);
+      if (gasEndpoints.length > 0 && typeof gasEndpoints[0] === 'string') {
+        // Convert old format to new format
+        const converted = gasEndpoints.map((url: string) => ({ url, enabled: true }));
+        console.log('Converted to new format:', converted);
+        setGasList(converted);
+      } else {
+        console.log('Using gasEndpoints as is:', gasEndpoints);
+        setGasList(gasEndpoints);
+      }
       if (typeof data?.autoDeleteHours === 'number') {
         setAutoDeleteHours(data.autoDeleteHours);
       }
@@ -125,7 +136,7 @@ export default function Admin({ user }: { user: User }) {
     return unsub;
   }, [isAdmin]);
 
-  const saveGasList = async (list: string[]) => {
+  const saveGasList = async (list: {url: string, enabled: boolean}[]) => {
     const cfgRef = doc(db, "admin", "publicConfig");
     await setDoc(cfgRef, { gasEndpoints: list }, { merge: true });
   };
@@ -153,13 +164,34 @@ export default function Admin({ user }: { user: User }) {
 
   const addEndpoint = async () => {
     if (!newUrl.trim()) return;
-    const list = [...gasList, newUrl.trim()];
+    const list = [...gasList, { url: newUrl.trim(), enabled: true }];
     await saveGasList(list);
     setNewUrl("");
   };
 
   const removeEndpoint = async (idx: number) => {
     const list = gasList.filter((_, i) => i !== idx);
+    await saveGasList(list);
+  };
+
+  const toggleEndpoint = async (idx: number) => {
+    const list = gasList.map((item, i) => {
+      // Ensure item is properly formatted
+      let normalizedItem;
+      if (typeof item === 'string') {
+        normalizedItem = { url: item, enabled: true };
+      } else if (item && typeof item === 'object' && item.url) {
+        normalizedItem = { url: item.url, enabled: item.enabled !== false };
+      } else {
+        console.error('Invalid item format:', item);
+        return { url: '', enabled: false };
+      }
+
+      if (i === idx) {
+        return { ...normalizedItem, enabled: !normalizedItem.enabled };
+      }
+      return normalizedItem;
+    });
     await saveGasList(list);
   };
 
@@ -391,12 +423,27 @@ export default function Admin({ user }: { user: User }) {
       <section>
         <h3>GAS Endpoints</h3>
         <ul>
-          {(gasList || []).map((url, idx) => (
-            <li key={idx}>
-              <code>{url}</code>{" "}
+          {(gasList || []).map((item, idx) => {
+            console.log('gasList item:', item, 'type:', typeof item);
+            return (
+            <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                <input
+                  type="checkbox"
+                  checked={typeof item === 'string' ? true : (item?.enabled !== false)}
+                  onChange={() => toggleEndpoint(idx)}
+                />
+                <code style={{ 
+                  color: (item?.enabled !== false) ? '#000' : '#999',
+                  textDecoration: (item?.enabled !== false) ? 'none' : 'line-through'
+                }}>
+                  {typeof item === 'string' ? item : (item?.url ? String(item.url) : '')}
+                </code>
+              </label>
               <button onClick={() => removeEndpoint(idx)}>Remove</button>
             </li>
-          ))}
+            );
+          })}
         </ul>
         <input
           placeholder="https://script.google.com/..."
