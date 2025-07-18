@@ -64,4 +64,62 @@ https://script.google.com/macros/s/AKfycbxStab6nvASmK3OaJaw29HGZptvRrtsYhdmzFUdi
 https://script.google.com/macros/s/AKfycbwvYsPuJbXNr6i_6GlCUlDA3AFny-FX3EZApJdibcmQLJv7rB6HnMEDmEeXbU7nef42Nw/exec
 https://script.google.com/macros/s/AKfycby_vbOoeOcthf2GOwWUwULrAZLIu0YktGN0mz48AUP5ESZtPjX0vcCX-PC8AtCsz3-1NQ/exec
 
+-------------------------------------------
+## 2025-07-18 作業内容
+
+### 1. GAS翻訳APIのON-OFFスイッチ機能実装
+- **問題**: 管理者がGAS翻訳APIを個別に有効/無効化できない
+- **解決**: 管理者画面にON-OFFスイッチUIを追加
+- **実装内容**:
+  - Admin.tsx: 各APIエンドポイントにチェックボックス追加
+  - translation.ts: 有効なAPIのみを使用するフィルタリング機能
+  - データ形式: `string[]` → `{url: string, enabled: boolean}[]`
+  - 既存データとの互換性を保持
+
+### 2. Reactエラーの修正
+- **問題**: オブジェクトレンダリングエラーでAdmin画面が真っ白
+- **原因**: `{item?.url || item}` でオブジェクトが直接レンダリングされる
+- **解決**: `typeof item === 'string' ? item : item?.url || ''` で型安全に修正
+
+### 3. 翻訳中ローディングアイコン機能の実装
+- **問題**: 翻訳中の視覚的フィードバックがない
+- **解決**: 思考泡アイコンで翻訳中を表示
+- **実装内容**:
+  - `TranslationLoadingIcon.tsx`: 思考泡アイコンコンポーネント作成
+  - ChatRoom.tsx: メッセージ翻訳中のローディング表示
+  - ProjectIdeas.tsx/IdeaList.tsx: アイデア翻訳中のローディング表示
+
+### 4. メッセージ送信処理の改善
+- **問題**: 翻訳完了まで吹き出しが表示されない
+- **原因**: 送信前に翻訳を完了させてからFirestoreに保存
+- **解決**: メッセージを先に保存してから翻訳を非同期実行
+- **修正内容**:
+  ```javascript
+  // 修正前: 翻訳完了まで待機
+  const translated = await translateText(trimmed, lang);
+  await addDoc(msgsRef, docData);
+  
+  // 修正後: メッセージを先に保存
+  const docRef = await addDoc(msgsRef, docData);
+  setTranslating(docRef.id, true);
+  const translated = await translateText(trimmed, lang);
+  ```
+
+### 5. GAS CORSエラーの解決
+- **問題**: CORS policy エラーで翻訳APIが動作しない
+- **解決**: Google Apps Script側でCORSヘッダーを適切に設定
+- **修正内容**: doPost/doGet関数でCORSヘッダーを追加
+
+### 6. デプロイ
+- **実行**: `npm run build` → `firebase deploy --only hosting`
+- **URL**: https://bolcha-v03.web.app
+- **結果**: 全機能が正常に動作確認済み
+
+### 動作確認済みの機能
+✅ GAS翻訳APIのON-OFFスイッチ
+✅ 翻訳中ローディングアイコン（思考泡）
+✅ メッセージ送信直後の吹き出し表示
+✅ 翻訳中→完了時の適切なUI切り替え
+✅ 管理者画面の正常表示
+
 

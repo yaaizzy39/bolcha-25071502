@@ -21,6 +21,7 @@ import { useIdeaTranslation } from "../hooks/useIdeaTranslation";
 import { detectLanguage } from "../langDetect";
 import ConfirmModal from "../components/ConfirmModal";
 import { IconDownload } from "../components/icons";
+import TranslationLoadingIcon from "../components/TranslationLoadingIcon";
 
 interface IdeaListProps {
   user: User;
@@ -616,7 +617,10 @@ const IdeaList = ({ user }: IdeaListProps) => {
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                 <div style={{ flex: 1 }}>
-                  <h3 style={{ margin: 0, color: '#333' }}>{translatedContent.title}</h3>
+                  <h3 style={{ margin: 0, color: '#333' }}>
+                    {translatedContent.title}
+                    {isTranslating(idea.id) && <TranslationLoadingIcon />}
+                  </h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
                     {userProfiles[idea.createdBy]?.avatar ? (
                       <img 
@@ -720,7 +724,10 @@ const IdeaList = ({ user }: IdeaListProps) => {
               
               <div style={{ marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
                 <strong style={{ color: '#6e283c' }}>{t("content")}:</strong><br />
-                <span style={{ color: '#333' }}>{translatedContent.content}</span>
+                <span style={{ color: '#333' }}>
+                  {translatedContent.content}
+                  {isTranslating(idea.id) && <TranslationLoadingIcon />}
+                </span>
               </div>
               
               <div style={{ marginBottom: '1rem' }}>

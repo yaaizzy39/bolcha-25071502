@@ -22,6 +22,7 @@ import { detectLanguage } from "../langDetect";
 import { useI18n } from "../i18n";
 import { useUserPrefs } from "../hooks/useUserPrefs";
 import { translateText } from "../translation";
+import TranslationLoadingIcon from "../components/TranslationLoadingIcon";
 
 import type { User } from "firebase/auth";
 import type { UserPreferences, Message } from "../types";
@@ -241,6 +242,16 @@ function ChatRoom({ user }: Props) {
   };
 
   const translatingRef = useRef<Set<string>>(new Set());
+  const [translatingIds, setTranslatingIds] = useState<Set<string>>(new Set());
+
+  const setTranslating = (id: string, isTranslating: boolean) => {
+    if (isTranslating) {
+      translatingRef.current.add(id);
+    } else {
+      translatingRef.current.delete(id);
+    }
+    setTranslatingIds(new Set(translatingRef.current));
+  };
 
   // NOTE: 以前は IntersectionObserver でスクロール位置を判定していましたが、
   // Sentinel 要素が高さ 0 のため誤検知が起こるケースがありました。
@@ -554,7 +565,7 @@ useEffect(() => {
 
       (async () => {
         try {
-          translatingRef.current.add(id);
+          setTranslating(id, true);
           processed++; // count before awaiting to enforce per-call limit
           const translated = await translateText(msg.text, lang);
           if (translated && translated !== msg.text) {
@@ -564,8 +575,9 @@ useEffect(() => {
             saveTranslatedId(id);
           }
         } catch (err) {
+          console.error('Auto-translation failed:', err);
         } finally {
-          translatingRef.current.delete(id);
+          setTranslating(id, false);
         }
       })();
     });*/
@@ -582,7 +594,7 @@ useEffect(() => {
     if (!roomId) return;
     
     try {
-      translatingRef.current.add(messageId);
+      setTranslating(messageId, true);
       const translated = await translateText(messageText, toLang);
       if (translated && translated !== messageText) {
         await updateDoc(doc(db, 'rooms', roomId, 'messages', messageId), {
@@ -591,8 +603,9 @@ useEffect(() => {
         saveTranslatedId(messageId);
       }
     } catch (err) {
+      console.error('Translation failed:', err);
     } finally {
-      translatingRef.current.delete(messageId);
+      setTranslating(messageId, false);
     }
   };
 
@@ -830,19 +843,30 @@ useEffect(() => {
     // if same language, store translation stub to Firestore
     if (origLang === lang) {
       docData.translations = { [lang]: trimmed };
-    } else {
-      // 設定言語と異なる場合、設定言語に翻訳
+    }
+    
+    // メッセージを先に保存（翻訳は後で非同期実行）
+    const docRef = await addDoc(msgsRef, docData);
+    
+    // 設定言語と異なる場合、非同期で翻訳を開始
+    if (origLang !== lang) {
+      // 翻訳状態を設定
+      setTranslating(docRef.id, true);
+      
       try {
         const translated = await translateText(trimmed, lang);
         if (translated && translated !== trimmed) {
-          docData.translations = { [lang]: translated };
+          // 翻訳完了後にFirestoreを更新
+          await updateDoc(docRef, {
+            [`translations.${lang}`]: translated
+          });
         }
       } catch (error) {
-        // 翻訳に失敗しても投稿は続行
+        console.error('Translation failed:', error);
+      } finally {
+        setTranslating(docRef.id, false);
       }
     }
-    
-    await addDoc(msgsRef, docData);
     // update room lastActivityAt
     // if same language, also update local cache to prevent API call
     // No need to call setTranslations here as it's derived from messages
@@ -1072,7 +1096,9 @@ useEffect(() => {
                   const quoted = messages.find(msg => msg.id === m.replyTo);
                   if (!quoted) return null;
                   const quotedName = getDisplayName(quoted.uid);
-                  const quotedText = translations[quoted.id] !== undefined ? translations[quoted.id] : quoted.text;
+                  const quotedText = (translations[quoted.id] !== undefined && !translatingIds.has(quoted.id)) 
+                    ? translations[quoted.id] 
+                    : quoted.text;
                   return (
                     <div style={{
                       background: 'transparent',
@@ -1092,12 +1118,20 @@ useEffect(() => {
 
                 {/* Render message text with clickable URLs and warning dialog */}
                 {(() => {
-                  const text = translations[m.id] !== undefined ? translations[m.id] : m.text;
+                  // 翻訳中の場合は元のテキストを表示、完了後は翻訳されたテキストを表示
+                  const text = (translations[m.id] !== undefined && !translatingIds.has(m.id)) 
+                    ? translations[m.id] 
+                    : m.text;
                   const isDeletedUser = deletedUsers[m.uid];
                   
                   // If user is deleted, render plain text without links
                   if (isDeletedUser) {
-                    return <span>{text}</span>;
+                    return (
+                      <span>
+                        {text}
+                        {translatingIds.has(m.id) && <TranslationLoadingIcon />}
+                      </span>
+                    );
                   }
                   
                   // Normal link processing for active users
@@ -1131,6 +1165,9 @@ useEffect(() => {
                   if (lastIndex < text.length) {
                     parts.push(text.slice(lastIndex));
                   }
+                  if (translatingIds.has(m.id)) {
+                    parts.push(<TranslationLoadingIcon key="loading" />);
+                  }
                   return parts;
                 })()}
 
@@ -1149,6 +1186,8 @@ useEffect(() => {
                 >
                   ↩︎
                 </span>
+                
+                
                 {prefs.showOriginal && translations[m.id] && translations[m.id] !== m.text && (
                   <div style={{ fontSize: "0.8em", color: "#666", whiteSpace: "pre-wrap" }}>{m.text}</div>
                 )}

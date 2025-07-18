@@ -24,6 +24,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import { detectLanguage } from "../langDetect";
 import { useUserPrefs } from "../hooks/useUserPrefs";
 import { IconDownload } from "../components/icons";
+import TranslationLoadingIcon from "../components/TranslationLoadingIcon";
 
 // Like and Dislike icon components
 function LikeIcon({ filled }: { filled: boolean }) {
@@ -1165,7 +1166,10 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                 <div style={{ flex: 1 }}>
-                  <h3 style={{ margin: 0, color: '#333' }}>{translatedContent.title}</h3>
+                  <h3 style={{ margin: 0, color: '#333' }}>
+                    {translatedContent.title}
+                    {isTranslating(idea.id) && <TranslationLoadingIcon />}
+                  </h3>
                   {prefs.showOriginal && translatedContent.title !== idea.title && (
                     <div style={{ fontSize: "0.8em", color: "#666", fontWeight: "normal", marginTop: "0.25rem" }}>{idea.title}</div>
                   )}
@@ -1295,7 +1299,10 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               
               <div style={{ marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
                 <strong style={{ color: '#6e283c' }}>{t("content")}:</strong><br />
-                <span style={{ color: '#333' }}>{translatedContent.content}</span>
+                <span style={{ color: '#333' }}>
+                  {translatedContent.content}
+                  {isTranslating(idea.id) && <TranslationLoadingIcon />}
+                </span>
                 {prefs.showOriginal && translatedContent.content !== idea.content && (
                   <div style={{ fontSize: "0.8em", color: "#666", whiteSpace: "pre-wrap", marginTop: "0.5rem", paddingTop: "0.5rem", borderTop: "1px solid #eee" }}>{idea.content}</div>
                 )}
