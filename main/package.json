@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "migrate:gas-urls": "node migrate-gas-urls.js",
+    "test:migration-setup": "node test-migration-setup.js"
   },
   "dependencies": {
     "firebase": "^11.9.1",
