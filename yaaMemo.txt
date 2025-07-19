@@ -6,7 +6,19 @@ claude --model claude-sonnet-4-20250514
 
 -------------------------------------------
 デプロイ手順
+PowerShell
+mainフォルダに移動して
+npm run build
 
+firebase login
+firebase projects:list
+firebase use
+firebase use [プロジェクトID]
+firebase deploy --only hosting
+
+
+
+【下記は詳細な説明】
   1. プロジェクトのビルド
 
   cd /mnt/h/yasuyuki/ClaudeCode/Bolcha-250701-copy-250703/bolcha

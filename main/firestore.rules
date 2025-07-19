@@ -127,6 +127,7 @@ service cloud.firestore {
       // Helper function to check if user has staff role in project
       function isProjectStaff(projectId) {
         return isAdmin() ||
+               isStaff() ||
                (exists(/databases/$(db)/documents/projects/$(projectId)) &&
                 get(/databases/$(db)/documents/projects/$(projectId)).data.get('members', {}).get(request.auth.uid, null) == 'staff');
       }

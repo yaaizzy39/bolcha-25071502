@@ -143,6 +143,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   // Get user's role within this project
   const getProjectUserRole = (): UserRole => {
     if (userRole === 'admin') return 'admin';
+    if (userRole === 'staff') return 'staff';
     if (!project?.members) return userRole;
     
     const projectRole = project.members[user.uid];
