@@ -838,7 +838,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         'ja': '運営コメント'
       },
       'adminJudgment': {
-        'en': 'Admin Judgment',
+        'en': 'Management Judgment',
         'ja': '運営判定'
       },
       'lastUpdated': {
