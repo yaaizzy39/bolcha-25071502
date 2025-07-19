@@ -12,7 +12,7 @@ import Admin from "./pages/Admin";
 import IdeaList from "./pages/IdeaList";
 import ProjectList from "./pages/ProjectList";
 import ProjectIdeas from "./pages/ProjectIdeas";
-import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, Link, useLocation, useNavigate } from "react-router-dom";
 import { useUserPrefs } from "./hooks/useUserPrefs";
 import { useI18n } from "./i18n";
 import "./utils/migrateUserData"; // マイグレーション関数をグローバルに公開
@@ -64,6 +64,39 @@ function App() {
   const { t } = useI18n();
 
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Handle back navigation based on current page
+  const handleBackNavigation = () => {
+    const pathname = location.pathname;
+    
+    // If in a specific chat room, go back to chat rooms list
+    if (pathname.startsWith('/rooms/')) {
+      navigate('/chat-rooms');
+      return;
+    }
+    
+    // If in chat rooms list, go back to home
+    if (pathname === '/chat-rooms') {
+      navigate('/');
+      return;
+    }
+    
+    // If in project ideas, go back to projects list
+    if (pathname.startsWith('/projects/') && pathname.endsWith('/ideas')) {
+      navigate('/projects');
+      return;
+    }
+    
+    // If in projects list, go back to home
+    if (pathname === '/projects') {
+      navigate('/');
+      return;
+    }
+    
+    // For all other pages, go to home
+    navigate('/');
+  };
   
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -202,7 +235,21 @@ function App() {
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           {!hideNav && (
             <>
-              <Link to="/" title="Home"><IconGrid /></Link>
+              <button 
+                onClick={handleBackNavigation}
+                title="Back"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: 'inherit'
+                }}
+              >
+                <IconGrid />
+              </button>
               {isAdmin && <Link to="/admin" title="Admin"><IconSliders /></Link>}
               <Link to="/profile" title="Settings"><IconCog /></Link>
             </>
