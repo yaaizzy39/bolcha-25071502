@@ -1330,6 +1330,9 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                     <div style={{ flex: 1 }}>
                       <strong style={{ color: '#6e283c' }}>{getLocalizedText("adminComment")}</strong><br />
                       <span style={{ color: '#333', whiteSpace: 'pre-wrap' }}>{translatedContent.staffComment}</span>
+                      {prefs.showOriginal && translatedContent.staffComment !== idea.staffComment && idea.staffComment && (
+                        <div style={{ fontSize: "0.8em", color: "#666", whiteSpace: "pre-wrap", marginTop: "0.5rem", paddingTop: "0.5rem", borderTop: "1px solid #eee" }}>{idea.staffComment}</div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1338,6 +1341,9 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               {translatedContent.developmentPeriod && (
                 <div style={{ marginBottom: '1rem' }}>
                   <strong style={{ color: '#6e283c' }}>{getLocalizedText("developmentPeriod")}</strong> <span style={{ color: '#333' }}>{translatedContent.developmentPeriod}</span>
+                  {prefs.showOriginal && translatedContent.developmentPeriod !== idea.developmentPeriod && idea.developmentPeriod && (
+                    <div style={{ fontSize: "0.8em", color: "#666", marginTop: "0.25rem" }}>{idea.developmentPeriod}</div>
+                  )}
                 </div>
               )}
               
