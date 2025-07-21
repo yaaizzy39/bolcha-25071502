@@ -18,7 +18,6 @@ export default function useUserRole(user: User | null): UserRole {
       ref,
       (snap) => {
         const userData = snap.data();
-        console.log("User role data:", userData);
         setRole(userData?.role || 'user');
       },
       (err) => {

@@ -201,7 +201,7 @@ function Rooms({ user }: Props) {
   };
 
   return (
-    <div>
+    <div style={{ padding: '1rem', paddingTop: '2rem' }}>
       <div style={{ marginBottom: '1rem' }}>
         <Link to="/" style={{ textDecoration: 'none', color: '#007bff' }}>
           ← {t("backToHome")}

@@ -143,6 +143,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
   // Get user's role within this project
   const getProjectUserRole = (): UserRole => {
     if (userRole === 'admin') return 'admin';
+    if (userRole === 'staff') return 'staff';
     if (!project?.members) return userRole;
     
     const projectRole = project.members[user.uid];
@@ -838,7 +839,7 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
         'ja': '運営コメント'
       },
       'adminJudgment': {
-        'en': 'Admin Judgment',
+        'en': 'Management Judgment',
         'ja': '運営判定'
       },
       'lastUpdated': {
@@ -1329,6 +1330,9 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                     <div style={{ flex: 1 }}>
                       <strong style={{ color: '#6e283c' }}>{getLocalizedText("adminComment")}</strong><br />
                       <span style={{ color: '#333', whiteSpace: 'pre-wrap' }}>{translatedContent.staffComment}</span>
+                      {prefs.showOriginal && translatedContent.staffComment !== idea.staffComment && idea.staffComment && (
+                        <div style={{ fontSize: "0.8em", color: "#666", whiteSpace: "pre-wrap", marginTop: "0.5rem", paddingTop: "0.5rem", borderTop: "1px solid #eee" }}>{idea.staffComment}</div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1337,6 +1341,9 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
               {translatedContent.developmentPeriod && (
                 <div style={{ marginBottom: '1rem' }}>
                   <strong style={{ color: '#6e283c' }}>{getLocalizedText("developmentPeriod")}</strong> <span style={{ color: '#333' }}>{translatedContent.developmentPeriod}</span>
+                  {prefs.showOriginal && translatedContent.developmentPeriod !== idea.developmentPeriod && idea.developmentPeriod && (
+                    <div style={{ fontSize: "0.8em", color: "#666", marginTop: "0.25rem" }}>{idea.developmentPeriod}</div>
+                  )}
                 </div>
               )}
               
