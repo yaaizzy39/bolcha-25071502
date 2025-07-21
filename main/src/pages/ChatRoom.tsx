@@ -429,8 +429,6 @@ useEffect(() => {
     const missing = Array.from(new Set(messages.map(m => m.uid))).filter(uid => !(uid in userPrefs));
     if (missing.length === 0) return;
     
-    if (DEBUG_AVATARS) console.log('Loading missing user preferences for:', missing);
-    
     // Batch update to prevent multiple re-renders
     const fetchAllMissing = async () => {
       const newPrefs: Record<string, UserPreferences> = {};
@@ -444,22 +442,18 @@ useEffect(() => {
               let localPrefs = {};
               if (stored) {
                 localPrefs = JSON.parse(stored);
-                if (DEBUG_AVATARS) console.log('Loaded current user prefs from localStorage:', localPrefs);
               }
               
               // Always check Firestore for current user to get latest photoURL
               const snap = await getDoc(fbDoc(db, "users", uid));
               if (snap.exists()) {
                 const firestoreData = snap.data() as any;
-                if (DEBUG_AVATARS) console.log(`Loaded current user prefs from Firestore:`, firestoreData);
                 // Merge localStorage with Firestore, prioritizing Firestore for photoURL
                 newPrefs[uid] = { ...localPrefs, ...firestoreData };
               } else {
-                if (DEBUG_AVATARS) console.log(`No Firestore document found for current user ${uid}`);
                 newPrefs[uid] = localPrefs;
               }
             } catch (error) {
-              if (DEBUG_AVATARS) console.log(`Error loading current user prefs:`, error);
               newPrefs[uid] = {};
             }
           } else {
@@ -467,22 +461,18 @@ useEffect(() => {
             const snap = await getDoc(fbDoc(db, "userProfiles", uid));
             if (snap.exists()) {
               const userData = snap.data() as any;
-              if (DEBUG_AVATARS) console.log(`Loaded user prefs for ${uid} from userProfiles:`, userData);
               newPrefs[uid] = userData;
             } else {
-              if (DEBUG_AVATARS) console.log(`No userProfiles document found for user ${uid}`);
               newPrefs[uid] = {};
             }
           }
         } catch (error) {
-          if (DEBUG_AVATARS) console.log(`Error loading prefs for user ${uid}:`, error);
           newPrefs[uid] = {};
         }
       }
       
       // Single batch update
       if (Object.keys(newPrefs).length > 0) {
-        if (DEBUG_AVATARS) console.log('Setting user preferences:', newPrefs);
         setUserPrefs(prev => ({ ...prev, ...newPrefs }));
       }
     };
@@ -494,7 +484,6 @@ useEffect(() => {
   useEffect(() => {
     const handleUserPrefsUpdate = (event: CustomEvent) => {
       const { uid, prefs: updatedPrefs } = event.detail;
-      if (DEBUG_AVATARS) console.log('Received userPrefsUpdated event:', { uid, prefs: updatedPrefs });
       setUserPrefs(prev => ({ ...prev, [uid]: updatedPrefs }));
       
       // If it's the current user, also update the localStorage-backed prefs
@@ -1040,15 +1029,11 @@ useEffect(() => {
                   <img
                     src={avatar}
                     onError={(e) => {
-                      if (DEBUG_AVATARS) console.log('Avatar load failed for user:', m.uid, 'URL:', avatar);
                       // Instead of hiding, show fallback avatar
                       e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ddd'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23bbb'/%3E%3Cellipse cx='16' cy='24' rx='9' ry='6' fill='%23bbb'/%3E%3C/svg%3E";
                     }}
                     onLoad={() => {
-                      // Log successful avatar loads for debugging
-                      if (DEBUG_AVATARS && avatar.includes('firebasestorage.googleapis.com')) {
-                        console.log('Firebase Storage avatar loaded successfully for user:', m.uid);
-                      }
+                      // Avatar loaded successfully
                     }}
                     alt="avatar"
                     width={32}

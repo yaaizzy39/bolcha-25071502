@@ -57,14 +57,11 @@ export default function Admin({ user }: { user: User }) {
       const data = snap.data();
       // Handle both old format (string array) and new format (object array)
       const gasEndpoints = data?.gasEndpoints ?? [];
-      console.log('Firebase gasEndpoints:', gasEndpoints);
       if (gasEndpoints.length > 0 && typeof gasEndpoints[0] === 'string') {
         // Convert old format to new format
         const converted = gasEndpoints.map((url: string) => ({ url, enabled: true }));
-        console.log('Converted to new format:', converted);
         setGasList(converted);
       } else {
-        console.log('Using gasEndpoints as is:', gasEndpoints);
         setGasList(gasEndpoints);
       }
       if (typeof data?.autoDeleteHours === 'number') {
@@ -97,23 +94,17 @@ export default function Admin({ user }: { user: User }) {
     if (!isAdmin) return;
     const fetchUsers = async () => {
       try {
-        console.log("Fetching users collection...");
         // Fetch private user data (includes email)
         const usersSnap = await getDocs(collection(db, "users"));
-        console.log("Users found:", usersSnap.size);
         const usersList = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() as UserPreferences }));
-        console.log("Users list:", usersList);
         setUsers(usersList);
         
-        console.log("Fetching userProfiles collection...");
         // Fetch public user profiles (includes nickname)
         const profilesSnap = await getDocs(collection(db, "userProfiles"));
-        console.log("UserProfiles found:", profilesSnap.size);
         const profilesData: Record<string, any> = {};
         profilesSnap.docs.forEach((d) => {
           profilesData[d.id] = d.data();
         });
-        console.log("UserProfiles data:", profilesData);
         setUserProfiles(profilesData);
       } catch (error) {
         console.error("Error fetching users:", error);
@@ -183,7 +174,6 @@ export default function Admin({ user }: { user: User }) {
       } else if (item && typeof item === 'object' && item.url) {
         normalizedItem = { url: item.url, enabled: item.enabled !== false };
       } else {
-        console.error('Invalid item format:', item);
         return { url: '', enabled: false };
       }
 
@@ -424,7 +414,6 @@ export default function Admin({ user }: { user: User }) {
         <h3>GAS Endpoints</h3>
         <ul>
           {(gasList || []).map((item, idx) => {
-            console.log('gasList item:', item, 'type:', typeof item);
             return (
             <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>

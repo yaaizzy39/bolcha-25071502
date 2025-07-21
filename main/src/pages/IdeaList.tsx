@@ -77,13 +77,9 @@ const IdeaList = ({ user }: IdeaListProps) => {
       );
 
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        console.log("Global ideas snapshot received:", snapshot.size);
         const ideasData: GlobalIdeaData[] = [];
         snapshot.forEach((doc) => {
           const data = doc.data() as GlobalIdeaData;
-          console.log("Global idea data:", data);
-          console.log("Staff comment for idea", doc.id, ":", data.staffComment);
-          console.log("Translations for idea", doc.id, ":", data.translations);
           ideasData.push({
             id: doc.id,
             ...data
@@ -163,28 +159,19 @@ const IdeaList = ({ user }: IdeaListProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("HandleSubmit called with data:", formData);
-    console.log("User:", user.uid);
     
     if (!formData.title.trim() || !formData.content.trim()) {
-      console.log("Validation failed:", { title: formData.title, content: formData.content });
       return;
     }
-
-    console.log("Starting global idea creation...");
     
     try {
       if (editingIdea) {
-        console.log("Updating existing global idea:", editingIdea.id);
         await updateDoc(doc(db, "globalIdeas", editingIdea.id), {
           title: formData.title,
           content: formData.content,
           updatedAt: serverTimestamp()
         });
-        console.log("Global idea updated successfully");
       } else {
-        console.log("Creating new global idea...");
-        
         // Detect language of the content
         const detectedLang = await detectLanguage(formData.content);
         
@@ -198,21 +185,13 @@ const IdeaList = ({ user }: IdeaListProps) => {
           originalLang: detectedLang || lang,
           translations: detectedLang === lang ? { [lang]: { title: formData.title, content: formData.content } } : undefined
         });
-        console.log("New global idea created with ID:", docRef.id);
       }
 
       setFormData({ title: "", content: "" });
       setShowForm(false);
       setEditingIdea(null);
-      console.log("Form reset and closed");
     } catch (error) {
       console.error("Error saving global idea:", error);
-      console.error("Error details:", {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        stack: error.stack
-      });
       
       let errorMessage = t("saveIdeaError");
       if (error.code === 'permission-denied') {
@@ -260,8 +239,6 @@ const IdeaList = ({ user }: IdeaListProps) => {
 
   const handleStatusUpdate = async (ideaId: string, status: IdeaStatus, comment: string, period: string) => {
     try {
-      console.log("handleStatusUpdate called:", { ideaId, status, comment, period, userRole });
-      
       const updateData = {
         status,
         staffComment: comment,
@@ -271,18 +248,13 @@ const IdeaList = ({ user }: IdeaListProps) => {
       
       // Update translations for current language and ensure consistency
       const idea = ideas.find(i => i.id === ideaId);
-      console.log("Found idea:", idea);
-      console.log("Current language:", lang);
-      console.log("Idea translations:", idea?.translations);
       
       if (idea?.translations && comment.trim()) {
-        console.log("Adding translation update for staffComment");
         // Always update the translation for the current UI language
         updateData[`translations.${lang}.staffComment`] = comment;
         
         // If current language is the original language, ensure consistency
         if (lang === idea.originalLang) {
-          console.log("Updating original language translation consistency");
           // Update all existing translation languages to maintain consistency
           const existingLangs = Object.keys(idea.translations);
           for (const existingLang of existingLangs) {
@@ -293,14 +265,10 @@ const IdeaList = ({ user }: IdeaListProps) => {
         }
       }
       
-      console.log("Update data:", updateData);
-      
       await updateDoc(doc(db, "globalIdeas", ideaId), updateData);
-      console.log("Update successful");
       
       // Auto-translate the staff comment to other languages
       if (comment.trim()) {
-        console.log("Auto-translating staff comment...");
         // Create a temporary idea object with the new comment for translation
         const updatedIdea = {
           ...idea,
@@ -318,8 +286,6 @@ const IdeaList = ({ user }: IdeaListProps) => {
       setDevelopmentPeriod("");
     } catch (error) {
       console.error("Error updating status:", error);
-      console.error("Error code:", error.code);
-      console.error("Error message:", error.message);
       alert(`エラーが発生しました: ${error.message}`);
     }
   };

@@ -187,7 +187,6 @@ function Rooms({ user }: Props) {
         // 削除成功時にルーム一覧を再取得
         window.location.reload();
       } catch (error) {
-        console.error('Room deletion failed:', error);
         alert('ルームの削除に失敗しました。権限を確認してください。');
       } finally {
         setDeleteTarget(null);

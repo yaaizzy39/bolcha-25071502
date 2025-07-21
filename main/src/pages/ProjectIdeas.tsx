@@ -374,7 +374,6 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
                     }
                   } catch (firestoreError: any) {
                     if (firestoreError.code === 'permission-denied') {
-                      console.warn('Translation permission denied - skipping auto-translation');
                       // Mark as processed to avoid repeated attempts
                       newTranslatedIds.add(ideaKey);
                       break;
@@ -1002,7 +1001,6 @@ const ProjectIdeas = ({ user }: ProjectIdeasProps) => {
             onChange={(e) => {
               const newLang = e.target.value;
               setTranslationLang(newLang);
-              console.log(`Translation language changed to: ${newLang}`);
             }} 
             style={{ 
               height: 32, 

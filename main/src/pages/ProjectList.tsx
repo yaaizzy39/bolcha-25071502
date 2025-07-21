@@ -74,36 +74,20 @@ const ProjectList = ({ user }: ProjectListProps) => {
       );
 
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        console.log("Projects snapshot received:", snapshot.size);
         const projectsData: ProjectData[] = [];
         snapshot.forEach((doc) => {
           const data = doc.data() as ProjectData;
-          console.log("Project data:", data);
           
           // Filter projects based on user role and membership
           const isAdmin = userRole === 'admin';
           const isMember = data.members && data.members[user.uid];
           const isCreator = data.createdBy === user.uid;
           
-          console.log(`Project ${doc.id} access check:`, {
-            isAdmin,
-            isMember,
-            isCreator,
-            userUid: user.uid,
-            members: data.members,
-            membersKeys: data.members ? Object.keys(data.members) : [],
-            memberValue: data.members ? data.members[user.uid] : 'no members object',
-            createdBy: data.createdBy,
-            userRole
-          });
-          
           if (isAdmin || isMember || isCreator) {
             projectsData.push({
               id: doc.id,
               ...data
             });
-          } else {
-            console.log(`Project ${doc.id} filtered out - no access`);
           }
         });
         setProjects(projectsData);
@@ -123,11 +107,8 @@ const ProjectList = ({ user }: ProjectListProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("HandleSubmit called with data:", formData);
-    console.log("User:", user.uid);
     
     if (!formData.name.trim()) {
-      console.log("Validation failed:", { name: formData.name });
       return;
     }
 
@@ -137,21 +118,15 @@ const ProjectList = ({ user }: ProjectListProps) => {
       return;
     }
 
-    console.log("Starting project creation...");
-    
     try {
       if (editingProject) {
-        console.log("Updating existing project:", editingProject.id);
-        console.log("Selected members to save:", selectedMembers);
         await updateDoc(doc(db, "projects", editingProject.id), {
           name: formData.name,
           description: formData.description,
           members: selectedMembers,
           updatedAt: serverTimestamp()
         });
-        console.log("Project updated successfully");
       } else {
-        console.log("Creating new project...");
         const docRef = await addDoc(collection(db, "projects"), {
           name: formData.name,
           description: formData.description,
@@ -160,22 +135,14 @@ const ProjectList = ({ user }: ProjectListProps) => {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
-        console.log("New project created with ID:", docRef.id);
       }
 
       setFormData({ name: "", description: "" });
       setSelectedMembers({});
       setShowForm(false);
       setEditingProject(null);
-      console.log("Form reset and closed");
     } catch (error) {
       console.error("Error saving project:", error);
-      console.error("Error details:", {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        stack: error.stack
-      });
       
       let errorMessage = t("saveProjectError");
       if (error.code === 'permission-denied') {
