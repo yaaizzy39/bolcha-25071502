@@ -181,11 +181,14 @@ function Rooms({ user }: Props) {
   const handleConfirmDelete = async () => {
     if (deleteTarget) {
       const functions = getFunctions();
-      const deleteRoom = httpsCallable(functions, 'adminDeleteRoom');
+      const deleteRoom = httpsCallable(functions, 'deleteRoom');
       try {
         await deleteRoom({ roomId: deleteTarget });
+        // 削除成功時にルーム一覧を再取得
+        window.location.reload();
       } catch (error) {
-        // Handle error appropriately, e.g., show a notification to the user
+        console.error('Room deletion failed:', error);
+        alert('ルームの削除に失敗しました。権限を確認してください。');
       } finally {
         setDeleteTarget(null);
       }

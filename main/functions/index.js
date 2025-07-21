@@ -32,25 +32,41 @@ export const translate = onRequest({ cors: true }, async (req, res) => {
 });
 
 // ================= Admin callable =================
-export const adminDeleteRoom = onCall(async (request) => {
+export const deleteRoom = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required');
   }
-  const email = request.auth.token.email;
-  const isClaimAdmin = !!request.auth.token.admin;
-  // v2 functions prefer environment variables over functions.config()
-  let adminEmails = (process.env.ADMIN_EMAILS || '').split(/[, ]+/).filter(Boolean);
+  
+  // Check if user is admin or room creator
+  const userId = request.auth.uid;
+  let isAdmin = false;
+  
   try {
-    const cfgSnap = await admin.firestore().doc('admin/config').get();
-    if (cfgSnap.exists) {
-      const cfgEmails = cfgSnap.data().adminEmails || [];
-      adminEmails = Array.from(new Set([...adminEmails, ...cfgEmails]));
-    }
-  } catch (e) {
-    logger.warn('Failed to load admin/config for adminDeleteRoom', e);
+    const userDoc = await admin.firestore().doc(`users/${userId}`).get();
+    const userData = userDoc.data();
+    isAdmin = userData?.role === 'admin';
+  } catch (error) {
+    logger.error('Failed to check user role for adminDeleteRoom', error);
   }
-  if (!isClaimAdmin && !adminEmails.includes(email)) {
-    throw new HttpsError('permission-denied', 'Admins only');
+  
+  if (!isAdmin) {
+    // If not admin, check if user is the room creator
+    try {
+      const roomDoc = await admin.firestore().doc(`rooms/${request.data.roomId}`).get();
+      if (!roomDoc.exists) {
+        throw new HttpsError('not-found', 'Room not found');
+      }
+      const roomData = roomDoc.data();
+      if (roomData.createdBy !== userId) {
+        throw new HttpsError('permission-denied', 'Only admin or room creator can delete this room');
+      }
+    } catch (error) {
+      if (error.code === 'permission-denied' || error.code === 'not-found') {
+        throw error;
+      }
+      logger.error('Failed to check room ownership for adminDeleteRoom', error);
+      throw new HttpsError('internal', 'Permission check failed');
+    }
   }
   const roomId = request.data.roomId;
   if (!roomId) {
